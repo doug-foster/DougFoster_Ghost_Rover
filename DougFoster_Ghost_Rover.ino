@@ -15,7 +15,7 @@
  * @since    0.3.4 [2025-05-03-11:15am].
  * @since    0.3.7 [2025-05-08-12:00am].
  * @since    0.3.9 [2025-05-10-12:15pm].
- * @since    0.4.6 [2025-05-17-09:00pm].
+ * @since    0.4.6 [2025-05-17-09:15pm].
  * @link     http://dougfoster.me.
  *
  * ===================================
@@ -82,7 +82,7 @@
 // ===================================
 
 // -- Version. --
-const char BUILD_DATE[]   = "2025-05-17-21:00";         // 24hr format, need to fit max (16) characters.
+const char BUILD_DATE[]   = "2025-05-17-21:15";         // 24hr format, need to fit max (16) characters.
 const char MAJOR_VERSION  = '0';
 const char MINOR_VERSION  = '4';
 const char PATCH_VERSION  = '6';
@@ -177,7 +177,7 @@ Qwiic1in3OLED roverOLED;                        // OLED display object. Uses Spa
 
 // -- LED display. --
 const int16_t LED_TIME_FLASH_ON  =  100;        // Time (ms).
-const int16_t LED_TIME_FLASH_OFF =  300;        // Time (ms).
+const int16_t LED_TIME_FLASH_OFF =  200;        // Time (ms).
 
 // -- GNSS. --
 const int8_t  MIN_SATELLITE_THRESHHOLD = 6;     // Minimum SIV for reliable coordinate information.
@@ -840,7 +840,7 @@ void checkSerialMonitor(char print = ' ') {
                                 Serial.printf("%c - serial (radio) LED - active (5 cycles).\n", inputCharMon);
                                 for (size_t i = 0; i < 5; i++) {
                                     updateLEDs('2','-','-');
-                                    Serial.println("Blink LED: option = 2(active)");
+                                    Serial.printf("Blink LED: option = 2(active) - %i", i);
                                     delay(1000);
                                 }
                                 Serial.println();
@@ -880,7 +880,7 @@ void checkSerialMonitor(char print = ' ') {
                                 Serial.printf("%c - GNSS LED - GNSS fix (5 cycles).\n", inputCharMon);
                                 for (size_t i = 0; i < 5; i++) {
                                     updateLEDs('-','2','-');
-                                    Serial.println("Blink LED: option = 2(GNSS fix)");
+                                    Serial.printf("Blink LED: option = 2(GNSS fix) - %i\n", i);
                                     delay(1000);
                                 }
                                 Serial.println();
@@ -889,7 +889,7 @@ void checkSerialMonitor(char print = ' ') {
                                 Serial.printf("%c - GNSS LED - RTK float (5 cycles).\n", inputCharMon);
                                 for (size_t i = 0; i < 5; i++) {
                                     updateLEDs('-','3','-');
-                                    Serial.println("Blink LED: option = 3(RTK float)");
+                                    Serial.printf("Blink LED: option = 3(RTK float) - %i\n", i);
                                     delay(1000);
                                 }
                                 Serial.println();
@@ -898,7 +898,7 @@ void checkSerialMonitor(char print = ' ') {
                                 Serial.printf("%c - GNSS LED - GNSS fix( 5 cycles).\n", inputCharMon);
                                 for (size_t i = 0; i < 5; i++) {
                                     updateLEDs('-','4','-');
-                                    Serial.println("Blink LED: option = 4(RTK fix)");
+                                    Serial.printf("Blink LED: option = 4(RTK fix) - %i\n", i);
                                     delay(1000);
                                 }
                                 Serial.println();
