@@ -15,7 +15,7 @@
  * @since    0.3.4 [2025-05-03-11:15am].
  * @since    0.3.7 [2025-05-08-12:00am].
  * @since    0.3.9 [2025-05-10-12:15pm].
- * @since    0.4.6 [2025-05-17-03:00pm].
+ * @since    0.4.6 [2025-05-17-09:00pm].
  * @link     http://dougfoster.me.
  *
  * ===================================
@@ -60,8 +60,8 @@
  *   Loop.
  * 
  * -- TODO: --
- *  1. startBLE() - check for return.
- *  8. checkRadioToRTCM() - implement out to serialRTCM.
+ *  1. checkRadioToRTCM() - Implement out to serialRTCM, move to ESP32 task.
+ *  2. serialBLEtaskRelayNEMA() - Finish relay task.
  */
 
 // ===================================
@@ -82,7 +82,7 @@
 // ===================================
 
 // -- Version. --
-const char BUILD_DATE[]   = "2025-05-17-15:00";         // 24hr format, need to fit max (16) characters.
+const char BUILD_DATE[]   = "2025-05-17-21:00";         // 24hr format, need to fit max (16) characters.
 const char MAJOR_VERSION  = '0';
 const char MINOR_VERSION  = '4';
 const char PATCH_VERSION  = '6';
@@ -502,7 +502,7 @@ void startDisplay() {
 void startBLE() {
 
     // -- Begin BLE interface and start. --
-    ble.begin(BLE_NAME);        // TODO: 1. startBLE() - check for return.
+    ble.begin(BLE_NAME);
 
     // -- Set state, print status. --
     netState[0] = 'u';          // BLE up.
@@ -610,7 +610,7 @@ void startTasks() {
     Serial.println("Task created: GNSS   LED RTK float");
     Serial.println("Task created: GNSS   LED RTK fix.");
     // Serial.println("Create task: serial to serial relay RTCM.");
-    Serial.println("Task created: serial to BLE relay NMEA.");
+    Serial.println("Task created: serial to BLE serial relay NMEA.");
 }
 
 /**
@@ -1021,9 +1021,11 @@ void checkLockButton() {
 
     // -- Set state of GNSS lock button. --
     if (digitalRead(BUTTON_LOCK) == HIGH) {
-        updateLEDs('-','-','0');                              // Update lock button LED.
+        updateLEDs('-','-','0');                // Update lock button LED.
+        UIstate[0] = '0';                       // GNSS lock button is in upPosition.
     } else {
-        updateLEDs('-','-','1');                              // Update lock button LED.
+        updateLEDs('-','-','1');                // Update lock button LED.
+        UIstate[0] = '1';                       // GNSS lock button is in downPosition.
     }
 }
 
@@ -1101,6 +1103,7 @@ void checkGNSS() {
  * @link   https://github.com/sparkfun/SparkFun_u-blox_GNSS_v3/blob/main/examples/ZED-F9P/Example3_StartRTCMBase/Example3_StartRTCMBase.ino.
  */
 void checkRadioToRTCM() {
+    // TODO: 1. checkRadioToRTCM() - Implement out to serialRTCM, move to ESP32 task.
     
     // -- Local vars. --
     static bool gotBits = false;                    // Flag - if input since boot.
@@ -1130,7 +1133,6 @@ void checkRadioToRTCM() {
             lastRTCMtime = esp_timer_get_time();    // Used to check for timeout.
             gotBits = true;                         // Flag for iniitial timeout.
             updateLEDs('2','-','-');                // serial (radio) LED - active.
-            // TODO: 8. checkRadioToRTCM() - implement out to serialRTCM, move to task.
             // serialRTCM.write(inputChar);             // Write a character @ ZED_SPEED.
 
         } else if (debugRad) {
@@ -1183,10 +1185,10 @@ void checkDebug() {
     // -- GNSS lock button.- -
     if (debugBtn)  {
         if (UIstate[0] == '0') {
-            Serial.println("GNSS lock button position= up.");
+            Serial.println("GNSS lock button position = up.");
         }
         if (UIstate[0] == '1') {
-            Serial.println("GNSS lock button position= down.");
+            Serial.println("GNSS lock button position = down.");
         }
     }
 
@@ -1305,12 +1307,10 @@ void updateLEDs(char ledR, char ledG, char ledL) {
     if (ledL != '-') {
         switch (ledL) {
             case '0':
-                UIstate[0] = '0';                   // GNSS lock button is in upPosition.
                 UIstate[3] = '0';                   // GNSS lock LED - off.
                 digitalWrite(LED_LOCK, LOW);        // LED off.
                 break;
             case '1':
-                UIstate[0] = '1';                   // GNSS lock button is in downPosition.
                 UIstate[3] = '1';                   // GNSS lock LED - on.
                 digitalWrite(LED_LOCK, HIGH);       // LED on.
                 break;
@@ -1589,27 +1589,27 @@ void gnssLEDtaskRTKfix(void * pvParameters) {
     }
 }
 
-// --- Test. ---
-
 /**
  * ------------------------------------------------
- *      BLE test - send "Hello" messages.
+ *      UBX data (serial1) to BLE serial - relay NEMA task.
  * ------------------------------------------------
  *
  * @return void No output is returned.
  * @since  0.3.4 [2025-05-06-02:30pm] New.
  * @since  0.3.7 [2025-05-09-01:30pm] Moved counter to local.
+ * @since  0.4.5 [2025-05-17-09:30pm] Moved to task.
  * @see    startTasks().
  * @link   https://github.com/avinabmalla/ESP32_BleSerial.
  * @link   https://www.freertos.org/Documentation/02-Kernel/04-API-references/02-Task-control/01-vTaskDelay.
  * @link   https://www.freertos.org/Documentation/02-Kernel/05-RTOS-implementation-tutorial/02-Building-blocks/11-Tick-Resolution.
  */
 void serialBLEtaskRelayNEMA(void * pvParameters) {
+    // TODO: 2. Finish relay task.
 
     // -- Test loop. --
     while(true) {                               // Infinite loop.
 
-        // -- Send message. --
+        // -- Send message out BLE serial. --
         ble.printf("Hello %i", bleCount);
 
         // -- Count & pause. --
@@ -1617,6 +1617,8 @@ void serialBLEtaskRelayNEMA(void * pvParameters) {
         vTaskDelay(pdMS_TO_TICKS(1000));        // Broadcast every 1,000 ms.
     }
 }
+
+// --- Test. ---
 
 // ===================================
 //               Setup.
