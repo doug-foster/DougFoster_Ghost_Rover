@@ -15,7 +15,7 @@
  * @since    0.3.4 [2025-05-03-11:15am].
  * @since    0.3.7 [2025-05-08-12:00am].
  * @since    0.3.9 [2025-05-10-12:15pm].
- * @since    0.4.5 [2025-05-17-10:00am].
+ * @since    0.4.6 [2025-05-17-03:00pm].
  * @link     http://dougfoster.me.
  *
  * ===================================
@@ -61,7 +61,6 @@
  * 
  * -- TODO: --
  *  1. startBLE() - check for return.
- *  2. startUBX) - change all to Serial.println(F("?
  *  8. checkRadioToRTCM() - implement out to serialRTCM.
  */
 
@@ -83,10 +82,10 @@
 // ===================================
 
 // -- Version. --
-const char BUILD_DATE[]   = "2025-05-17-10:00";         // 24hr format, need to fit max (16) characters.
+const char BUILD_DATE[]   = "2025-05-17-15:00";         // 24hr format, need to fit max (16) characters.
 const char MAJOR_VERSION  = '0';
 const char MINOR_VERSION  = '4';
-const char PATCH_VERSION  = '5';
+const char PATCH_VERSION  = '6';
 
 // -- Pin (pth) definitions. --
 const uint8_t BUTTON_LOCK = 4;          // ESP32-S3 Thing+ PTH 4 <-> Red toggle button (yellow wire).
@@ -107,10 +106,10 @@ const uint8_t PTH_RTCM_RX = 17;         // ESP32-S3 Thing+ PTH 17 (UART0) <-> RT
 const  uint8_t  NUM_COMMANDS   = 14;            // How many possible commands.
 const  uint32_t MONITOR_SPEED  = 115200;        // Serial USB monitor speed.
 const  int64_t  THROTTLE_DEBUG = 1000000;       // Time (us) between checkDebug() = (every 2 sec).
-       bool     testLEDr;                       // Test radio LED.
+       bool     testLEDr;                       // Test serial (radio) LED.
        bool     testLEDg;                       // Test GNSS LED.
        bool     testLEDl;                       // Test GNSS lock LED.
-       bool     testRad;                        // Test radio.
+       bool     testRad;                        // Test serial (radio).
        bool     debugRad;                       // Debug radio.
        bool     debugGNSS;                      // Debug GNSS.
        bool     debugBtn;                       // Debug lock button.
@@ -138,11 +137,11 @@ const  char*    commands[NUM_COMMANDS] = {      // Valid commands. Point to arra
                                          "debugNet",
                                          "reset"
 };
-       char     inputChar;                      // Universal input read character.
+       char     inputCharMon;                   // Monitor input read character.
        char     monitorCommand[11];             // Serial monitor command (C-string).
-       char     radioCommand[11];               // Radio test command (C-string).
+       char     radioCommand[11];               // serial (radio) test command (C-string).
 
-// -- Serial(0) - GNSS(RTCM). --
+// -- Serial(0) - GNSS(RTCM) out. --
       HardwareSerial serialRTCM(0);             // UART0 object. Used for RTCM relay: from ESP32 UART0 in to RTK-SMA UART2.
 const uint32_t ZED_SPEED    = 38400;            // ZED-F9P default speed.
 const int64_t  GNSS_TIMEOUT = 5000000;          // Time (us) not to exceed for last GNSS update (5 sec).
@@ -150,14 +149,15 @@ const int64_t  GNSS_TIMEOUT = 5000000;          // Time (us) not to exceed for l
 // -- Serial(1) - GNSS(UBX). --
 HardwareSerial serialUBX(1);                    // UART1 object. Used for UBX CFG-VAL-SET/VAL-GET.
 
-// -- Serial(2) - Radio. --
-const char     EOS           = '}';             // End of sentence character.
+// -- Serial(2) - Radio in. --
+const char     eosRTCM           = '\n';        // End of sentence character.
 const uint32_t HC12_SPEED    = 9600;            // HC-12 default speed.
-const int64_t  RADIO_TIMEOUT = 3000000;         // Time (us) not to exceed for inputChar received (3 sec).
-int64_t  lastCharTime;                          // Last us when inputChar received.
+const int64_t  RADIO_TIMEOUT = 3000000;         // Time (us) not to exceed for inputCharRTCM received (3 sec).
+      char     inputCharRTCM;                   // RTCM input read character.
+int64_t  lastRTCMtime;                          // Last time (us) when RTCM inputCharRTCM received.
 HardwareSerial serialRadio(2);                  // UART2 object. Used for HC-12 radio.
 
-// -- BLE (Bluetooth Low Energy) --
+// -- BLE (Bluetooth Low Energy) out. --
 const char     BLE_NAME[] = "GhostRover";       // BLE name.
       char     stateBLE;                        // BLE state.
       uint16_t bleCount;                        // BLE counter.
@@ -176,10 +176,8 @@ const int64_t THROTTLE_OLED =  200000;          // Time (us) between updateOLED(
 Qwiic1in3OLED roverOLED;                        // OLED display object. Uses SparkFun_Qwiic_OLED library.
 
 // -- LED display. --
-const int16_t LED_TIME_BLINK1    = 1000;        // Time (ms).
-const int16_t LED_TIME_BLINK2    =  500;        // Time (ms).
 const int16_t LED_TIME_FLASH_ON  =  100;        // Time (ms).
-const int16_t LED_TIME_FLASH_OFF = 1000;        // Time (ms).
+const int16_t LED_TIME_FLASH_OFF =  300;        // Time (ms).
 
 // -- GNSS. --
 const int8_t  MIN_SATELLITE_THRESHHOLD = 6;     // Minimum SIV for reliable coordinate information.
@@ -194,11 +192,11 @@ const int8_t  MIN_SATELLITE_THRESHHOLD = 6;     // Minimum SIV for reliable coor
 SFE_UBLOX_GNSS_SERIAL roverGNSS;                // GNSS object (uses serial instead of I2C).
 
 // -- Task handles. --
-TaskHandle_t radioLEDtaskFlashHandle;           // Radio LED flash task.
-TaskHandle_t gnssLEDtaskBlink_1xHandle;         // GNSS LED blink 1x task.
-TaskHandle_t gnssLEDtaskBlink_2xHandle;         // GNSS LED blink 2x task.
-TaskHandle_t gnssLEDtaskFlashHandle;            // GNSS LED flash task.
-TaskHandle_t testBLEtaskHandle;                 // BLE test task.
+TaskHandle_t serialLEDtaskRTCMHandle;           // serial (radio) LED - active: task handle.
+TaskHandle_t gnssLEDtaskRTKfloatHandle;         // GNSS  LED - RTK float: task handle.
+TaskHandle_t gnssLEDtaskRTKfixHandle;           // GNSS  LED - RTK fix: task handle.
+TaskHandle_t gnssLEDtaskGNSSfixHandle;          // GNSS  LED - GNSS fix: task handle.
+TaskHandle_t serialBLEtaskRelayNEMAHandle;      // serial to BLE NEMA relay: task handle.
 
 // -- Operation. --
 
@@ -223,8 +221,8 @@ char serState[4];       // Serial state.
  *  [-][u][-][-] = RTCM data (serial0) up.
  *  [-][-][d][-] = UBX data (serial1) down.
  *  [-][-][u][-] = UBX data (serial1) up.
- *  [-][-][-][d] = Radio data (serial2) down.
- *  [-][-][-][u] = Radio data (serial2) up.
+ *  [-][-][-][d] = serial (radio) data (serial2) down.
+ *  [-][-][-][u] = serial (radio) data (serial2) up.
  */
 
 char UIstate[4];        // UI state.
@@ -233,18 +231,16 @@ char UIstate[4];        // UI state.
  *  [-][-][-][-] = Initalize.
  *  [0][-][-][-] = GNSS lock button is in upPosition.
  *  [1][-][-][-] = GNSS lock button is in downPosition.
- *  [-][0][0][0] = LED startup verification, all off.
- *  [-][1][1][1] = LED startup verification, all on.
- *  [-][0][-][-] = RADIO LED off.
- *  [-][1][-][-] = RADIO LED on.
- *  [-][4][-][-] = RADIO LED flash.
- *  [-][-][0][-] = GNSS LED off.
- *  [-][-][1][-] = GNSS LED on.
- *  [-][-][2][-] = GNSS LED blink 1x.
- *  [-][-][3][-] = GNSS LED blink 2x.
- *  [-][-][4][-] = GNSS LED flash.
- *  [-][-][-][0] = GNSS lock LED off.
- *  [-][-][-][1] = GNSS lock LED on.
+ *  [-][0][-][-] = serial (radio) LED - off.
+ *  [-][1][-][-] = serial (radio) LED - on.
+ *  [-][4][-][-] = serial (radio) LED - active.
+ *  [-][-][0][-] = GNSS LED - off.
+ *  [-][-][1][-] = GNSS LED - on.
+ *  [-][-][2][-] = GNSS LED - GNSS fix.
+ *  [-][-][3][-] = GNSS LED - RTK float.
+ *  [-][-][4][-] = GNSS LED - RTK fix.
+ *  [-][-][-][0] = GNSS lock LED - off.
+ *  [-][-][-][1] = GNSS lock LED - on.
  */
 
 char netState[2];       // Network state.
@@ -283,10 +279,10 @@ void initVars() {
     // -- Serial USB - monitor. --
     memset(monitorCommand, '\0', sizeof(monitorCommand));
     memset(radioCommand, '\0', sizeof(radioCommand));
-    // memset(command, '\0', sizeof(command));
 
-    // -- Serial(2) - Radio. --
-    lastCharTime = esp_timer_get_time();
+    // -- Serial(2) - Radio in. --
+    inputCharRTCM = '\0';
+    lastRTCMtime = 0;                               // The interface is down until first character.
 
     // -- BLE (Bluetooth Low Energy) --
     stateBLE = '-';
@@ -323,7 +319,6 @@ void initVars() {
     debugUI   = false;
     debugNet  = false;
     reset     = false;
-    inputChar =  '\0';
 
     // -- Set state. --
     memset(pgmState, '-', sizeof(pgmState));
@@ -547,9 +542,9 @@ void startWiFi() {
  * @return void No output is returned.
  * @since  0.1.0 [2025-04-24-12:00pm] New.
  * @since  0.3.6 [2025-05-07-02:00pm] Refactored.
- * @see    Global vars: Serial(0) - GNSS(RTCM).
+ * @see    Global vars: Serial(0) - GNSS(RTCM) out.
  * @see    Global vars: Serial(1) - GNSS(UBX).
- * @see    Global vars: Serial(2) - Radio.
+ * @see    Global vars:  in.
  * @see    Global vars: GNSS.
  * @see    beginSerialRTCM(serial0).
  * @see    beginSerialRadio(Serial2).
@@ -559,8 +554,7 @@ void startUBX() {
 
     // -- Start GNSS over serial. --
     if (roverGNSS.begin(serialUBX) == false) {      // Bind serial1 to SFE_UBLOX_GNSS_SERIAL object.
-                                                    // TODO: 2. change all to Serial.println(F("?
-        Serial.println(F("Start roverGNSS (using UART1 for UBX CFG-VAL-SET/VAL-GET) - failed. Freezing ..."));
+        Serial.println("Start roverGNSS (using UART1 for UBX CFG-VAL-SET/VAL-GET) - failed. Freezing ...");
         while (true);                               // Infinite loop.
     }
 
@@ -572,7 +566,7 @@ void startUBX() {
     roverGNSS.setAutoPVT(true);                     // Output solutions periodically (default 1HZ).
     roverGNSS.setUART1Output(COM_TYPE_UBX);         // Set UART1 for only UBX messages.
     // roverGNSS.saveConfigSelective(VAL_CFG_SUBSEC_IOPORT);    // Save port settings to flash and BBR.
-    // roverGNSS.setNavigationFrequency(2);         // Two solutions (2 HZ) per second.
+    roverGNSS.setNavigationFrequency(1);         // Two solutions (2 HZ) per second.
 
     // -- Print state. --           
     Serial.println("Config roverGNSS for only UBX.");       // COM_TYPE_UBX | COM_TYPE_NMEA | COM_TYPE_RTCM3.
@@ -589,32 +583,34 @@ void startUBX() {
  * @since  0.3.5 [2025-05-06-02:30pm] Create BLE test task.
  * @since  0.3.8 [2025-05-09-10:30pm] Refactor.
  * @since  0.3.8 [2025-05-14-05:45pm] Refactor.
+ * @since  0.4.5 [2025-05-17-11:00am] Refactor.
  * @see    Global vars: Task handles.
  * @see    checkLockButton(), updateUI().
  * @link   https://www.freertos.org/Documentation/02-Kernel/04-API-references/01-Task-creation/01-xTaskCreate.
- * @link   https://www.freertos.org/Documentation/02-Kernel/04-API-references/02-Task-control/06-vTaskSuspend.
  */
 void startTasks() {
 
     // -- Create Tasks. --
-    xTaskCreate(radioLEDtaskFlash,   "radio_led_task_flash",   2048, NULL, 2, &radioLEDtaskFlashHandle);        // Radio LED flash task.
-    xTaskCreate(gnssLEDtaskFlash,    "gnss_led_task_flash",    2048, NULL, 2, &gnssLEDtaskFlashHandle);            // GNSS LED flash task.
-    xTaskCreate(gnssLEDtaskBlink_1x, "gnss_led_task_blink_1x", 2048, NULL, 2, &gnssLEDtaskBlink_1xHandle);        // GNSS LED blink 1x task.
-    xTaskCreate(gnssLEDtaskBlink_2x, "gnss_led_task_blink_2x", 2048, NULL, 2, &gnssLEDtaskBlink_2xHandle);        // GNSS LED blink 2x task.
-    xTaskCreate(testBLEtask,         "test_ble_task",          2048, NULL, 2, &testBLEtaskHandle);                    // BLE test task.
-
-    // -- Suspend LED Tasks. Resumed by updateLEDs(). --
-    vTaskSuspend(radioLEDtaskFlashHandle);
-    vTaskSuspend(gnssLEDtaskFlashHandle);
-    vTaskSuspend(gnssLEDtaskBlink_1xHandle);
-    vTaskSuspend(gnssLEDtaskBlink_2xHandle);
+    xTaskCreate(serialLEDtaskRTCM,         "serial_led_task_RTCM",          2048, NULL, 2, &serialLEDtaskRTCMHandle);
+    xTaskCreate(gnssLEDtaskGNSSfix,        "gnss_led_task_GNSS_fix",        2048, NULL, 2, &gnssLEDtaskGNSSfixHandle);
+    xTaskCreate(gnssLEDtaskRTKfloat,       "gnss_led_task_RTK_float",       2048, NULL, 2, &gnssLEDtaskRTKfloatHandle);
+    xTaskCreate(gnssLEDtaskRTKfix,         "gnss_led_task_RTK_fix",         2048, NULL, 2, &gnssLEDtaskRTKfixHandle);
+    // xTaskCreate(serialSerialtaskRelayRTCM, "serial_serial_task_relay_RTCM", 2048, NULL, 2, &serialSerialtaskRelayRTCMHandle);
+    xTaskCreate(serialBLEtaskRelayNEMA,    "serial_ble_task_relay_NEMA",    2048, NULL, 2, &serialBLEtaskRelayNEMAHandle);
     
+     // -- Suspend tasks. --
+    vTaskSuspend(serialLEDtaskRTCMHandle);
+    vTaskSuspend(gnssLEDtaskGNSSfixHandle);
+    vTaskSuspend(gnssLEDtaskRTKfloatHandle);
+    vTaskSuspend(gnssLEDtaskRTKfixHandle);
+
     // -- Print status. --
-    Serial.println("Create task Radio LED flash.");
-    Serial.println("Create task: GNSS LED flash.");
-    Serial.println("Create task: GNSS LED blink 1x.");
-    Serial.println("Create task: GNSS LED blink 2x.");
-    Serial.println("Create task: BLE test.");
+    Serial.println("Task created: serial LED RTCM.");
+    Serial.println("Task created: GNSS   LED GNSS fix.");
+    Serial.println("Task created: GNSS   LED RTK float");
+    Serial.println("Task created: GNSS   LED RTK fix.");
+    // Serial.println("Create task: serial to serial relay RTCM.");
+    Serial.println("Task created: serial to BLE relay NMEA.");
 }
 
 /**
@@ -695,17 +691,17 @@ void checkSerialMonitor(char print = ' ') {
     while (Serial.available() > 0) {    // Input from serial monitor.
 
         // -- Read serial input. --
-        inputChar = Serial.read();  // Read byte in from USB serial.
+        inputCharMon = Serial.read();  // Read byte in from USB serial.
 
-        if (inputChar != '\n' && (posnMon < (sizeof(monitorCommand) - 1))) {    // Are we done?
-            monitorCommand[posnMon] = inputChar;    // Not done yet, add char to command.
-            posnMon++;                              // Increment command buffer posn.
+        if (inputCharMon != '\n' && (posnMon < (sizeof(monitorCommand) - 1))) {    // Are we done?
+            monitorCommand[posnMon] = inputCharMon;     // Not done yet, add char to command.
+            posnMon++;                                  // Increment command buffer posn.
         } else {
-            monitorCommand[posnMon] = '\0';         // We're done reading, treat command[] as C-string.
-            posnMon = 0;                            // Reset command buffer position.
+            monitorCommand[posnMon] = '\0';             // We're done reading, treat command[] as C-string.
+            posnMon = 0;                                // Reset command buffer position.
 
         // -- Which command? --
-        if(*monitorCommand == EXIT_TEST) {          // Reset debug flags & return.
+        if(*monitorCommand == EXIT_TEST) {              // Reset debug flags & return.
             debugRad   = false;
             debugGNSS  = false;
             debugBtn   = false;
@@ -810,50 +806,47 @@ void checkSerialMonitor(char print = ' ') {
             if ((testLEDr) || (testLEDg) || (testLEDl)) {
 
                 // Test mode.
-                Serial.print("Tasks suspended. ");
-                vTaskSuspend(radioLEDtaskFlashHandle);          // Suspend radio LED flash.
-                vTaskSuspend(gnssLEDtaskBlink_1xHandle);        // Suspend GNSS LED blink 1x.
-                vTaskSuspend(gnssLEDtaskBlink_2xHandle);        // Suspend GNSS LED blink 2x.
-                vTaskSuspend(gnssLEDtaskFlashHandle);           // Suspend GNSS LED flash.
-                Serial.print("LEDs off. ");
+                Serial.print("All LEDs off. ");
                 updateLEDs('0','0','0');                        // All LEDs off.
                 Serial.println("OLED updated.");
                 updateOLED('4');                                // Test mode display.
             }
 
-            // - Test Radio LED. -
+            // - Test serial (radio) LED. -
             if (testLEDr) {
 
                 // Display instructions.
-                Serial.printf("Valid options: 0(off), 1(on), 4(flash). %c to quit.\n", EXIT_TEST);
+                Serial.printf("Valid options: 0(off), 1(on), 2(active). %c to quit.\n", EXIT_TEST);
 
                 // Loop.
                 while (true) {                                  // Infinite loop.
                     if (Serial.available() > 0) {
-                        inputChar = Serial.read();              // Read input from serial monitor.
+                        inputCharMon = Serial.read();              // Read input from serial monitor.
                         Serial.read();                          // Discard newline.
-                        switch (inputChar) {
+                        switch (inputCharMon) {
                             case EXIT_TEST:                     // All done.
                                 Serial.println("testLEDr disabled.");
                                 testLEDr = false;               // Clear test flag.
                                 return;                         // Exit test mode.
-                            case '0':                           // Radio LED off.
-                                vTaskSuspend(radioLEDtaskFlashHandle);      // Suspend radio LED flash.
-                                Serial.printf("%c - radio LED off.\n", inputChar);
+                            case '0':                           // serial (radio) LED - off.
+                                Serial.printf("%c - serial (radio) LED - off.\n", inputCharMon);
                                 updateLEDs('0','-','-');
                                 break;
-                            case '1':                                       // Radio LED on.
-                                vTaskSuspend(radioLEDtaskFlashHandle);      // Suspend radio LED flash.
-                                Serial.printf("%c - radio LED on.\n", inputChar);
+                            case '1':                           // serial (radio) LED - on.
+                                Serial.printf("%c - serial (radio) LED - on.\n", inputCharMon);
                                 updateLEDs('1','-','-');
                                 break;
-                            case '4':                                       // Radio LED flash.
-                                vTaskResume(radioLEDtaskFlashHandle);       // Resume radio LED flash.
-                                Serial.printf("%c - radio LED flash.\n", inputChar);
-                                updateLEDs('4','-','-');
+                            case '2':                           // serial (radio) LED - active.
+                                Serial.printf("%c - serial (radio) LED - active (5 cycles).\n", inputCharMon);
+                                for (size_t i = 0; i < 5; i++) {
+                                    updateLEDs('2','-','-');
+                                    Serial.println("Blink LED: option = 2(active)");
+                                    delay(1000);
+                                }
+                                Serial.println();
                                 break;
                             default:
-                                Serial.printf("%c to quit. Valid options: 0(off), 1(on), 4(flash).\n", EXIT_TEST);
+                                Serial.printf("%c to quit. Valid options: 0(off), 1(on), 2(active).\n", EXIT_TEST);
                             }
                         }
                     }
@@ -863,55 +856,55 @@ void checkSerialMonitor(char print = ' ') {
             if (testLEDg) {
 
                 // Display instructions.
-                Serial.printf("Valid options: 0(off), 1(on), 2(blink 1x), 3(blink 2x), 4(flash). %c to quit.\n", EXIT_TEST);
+                Serial.printf("Valid options: 0(off), 1(on), 2(GNSS fix), 3(RTK float), 4(RTK fix). %c to quit.\n", EXIT_TEST);
 
                 // Loop.
                 while (true) {                                              // Infinite loop.
                     if (Serial.available() > 0) {
-                        inputChar = Serial.read();                          // Read input from serial monitor.
+                        inputCharMon = Serial.read();                       // Read input from serial monitor.
                         Serial.read();                                      // Discard newline.
-                        switch (inputChar) {
+                        switch (inputCharMon) {
                             case EXIT_TEST:                                 // All done.
                                 Serial.println("testLEDg disabled.");
                                 testLEDg = false;                           // Clear test flag.
                                 return;                                     // Exit test mode.
                             case '0':                                       // GNSS LED off.
-                                vTaskSuspend(gnssLEDtaskBlink_1xHandle);    // Suspend GNSS LED blink 1x.
-                                vTaskSuspend(gnssLEDtaskBlink_2xHandle);    // Suspend GNSS LED blink 2x.
-                                vTaskSuspend(gnssLEDtaskFlashHandle);       // Suspend GNSS LED flash.
-                                Serial.printf("%c - GNSS LED off.\n", inputChar);
+                                Serial.printf("%c - GNSS LED - off.\n", inputCharMon);
                                 updateLEDs('-','0','-');
                                 break;
                             case '1':                                       // GNSS LED on.
-                                vTaskSuspend(gnssLEDtaskBlink_1xHandle);    // Suspend GNSS LED blink 1x.
-                                vTaskSuspend(gnssLEDtaskBlink_2xHandle);    // Suspend GNSS LED blink 2x.
-                                vTaskSuspend(gnssLEDtaskFlashHandle);       // Suspend GNSS LED flash.
-                                Serial.printf("%c - GNSS LED on.\n", inputChar);
+                                Serial.printf("%c - GNSS LED - on.\n", inputCharMon);
                                 updateLEDs('-','1','-');
                                 break;
-                            case '2':                                       // GNSS LED blink 1x.
-                                vTaskSuspend(gnssLEDtaskBlink_2xHandle);    // Suspend GNSS LED blink 2x.
-                                vTaskSuspend(gnssLEDtaskFlashHandle);       // Suspend GNSS LED flash.
-                                vTaskResume(gnssLEDtaskBlink_1xHandle);     // Resume GNSS LED blink 1x.
-                                Serial.printf("%c - GNSS LED blink 1x.\n", inputChar);
-                                updateLEDs('-','2','-');
+                            case '2':                                       // GNSS LED GNSS fix.
+                                Serial.printf("%c - GNSS LED - GNSS fix (5 cycles).\n", inputCharMon);
+                                for (size_t i = 0; i < 5; i++) {
+                                    updateLEDs('-','2','-');
+                                    Serial.println("Blink LED: option = 2(GNSS fix)");
+                                    delay(1000);
+                                }
+                                Serial.println();
                                 break;   
-                            case '3':                                       // GNSS LED blink 2x.
-                                vTaskSuspend(gnssLEDtaskBlink_1xHandle);    // Suspend GNSS LED blink 1x.
-                                vTaskSuspend(gnssLEDtaskFlashHandle);       // Suspend GNSS LED flash.
-                                vTaskResume(gnssLEDtaskBlink_2xHandle);     // Resume GNSS LED blink 2x.
-                                Serial.printf("%c - GNSS LED blink 2x.\n", inputChar);
-                                updateLEDs('-','3','-');
+                            case '3':                                       // GNSS LED RTK float.
+                                Serial.printf("%c - GNSS LED - RTK float (5 cycles).\n", inputCharMon);
+                                for (size_t i = 0; i < 5; i++) {
+                                    updateLEDs('-','3','-');
+                                    Serial.println("Blink LED: option = 3(RTK float)");
+                                    delay(1000);
+                                }
+                                Serial.println();
                                 break;
-                            case '4':                                       // GNSS LED flash.
-                                vTaskSuspend(gnssLEDtaskBlink_1xHandle);    // Suspend GNSS LED blink 1x.
-                                vTaskSuspend(gnssLEDtaskBlink_2xHandle);    // Suspend GNSS LED blink 2x.
-                                vTaskResume(gnssLEDtaskFlashHandle);        // Resume GNSS LED flash.
-                                Serial.printf("%c - GNSS LED flash.\n", inputChar);
-                                updateLEDs('-','4','-');
+                            case '4':                                       // GNSS LED RTK fix.
+                                Serial.printf("%c - GNSS LED - GNSS fix( 5 cycles).\n", inputCharMon);
+                                for (size_t i = 0; i < 5; i++) {
+                                    updateLEDs('-','4','-');
+                                    Serial.println("Blink LED: option = 4(RTK fix)");
+                                    delay(1000);
+                                }
+                                Serial.println();
                                 break;
                             default:
-                                Serial.printf("Valid options: 0(off), 1(on), 2(blink 1x), 3(blink 2x), 4(flash). %c to quit.\n", EXIT_TEST);
+                                Serial.printf("Valid options: 0(off), 1(on), 2(GNSS fix), 3(RTK float), 4(RTK fix). %c to quit.\n", EXIT_TEST);
                         }
                     }
                 }
@@ -926,19 +919,19 @@ void checkSerialMonitor(char print = ' ') {
                 // Loop.
                 while (true) {                                              // Infinite loop.
                     if (Serial.available() > 0) {
-                        inputChar = Serial.read();                          // Read input from serial monitor.
+                        inputCharMon = Serial.read();                       // Read input from serial monitor.
                         Serial.read();                                      // Discard newline.
-                        switch (inputChar) {
+                        switch (inputCharMon) {
                             case EXIT_TEST:                                 // All done.
                                 Serial.println("testLEDl disabled.");
                                 testLEDl = false;                           // Clear test flag.
                                 return;                                     // Exit test mode.
                             case '0':                                       // Radio LED off.
-                                Serial.printf("%c - GNSS lock LED off.\n", inputChar);
+                                Serial.printf("%c - GNSS lock LED - off.\n", inputCharMon);
                                 updateLEDs('-','-','0');
                                 break;
                             case '1':                                       // Radio LED on.
-                                Serial.printf("%c - GNSS lock LED on.\n", inputChar);
+                                Serial.printf("%c - GNSS lock LED - on.\n", inputCharMon);
                                 updateLEDs('-','-','1');
                                 break;
                             default:
@@ -956,8 +949,7 @@ void checkSerialMonitor(char print = ' ') {
                 posnRad = 0;
                 digitalWrite(PTH_SET, LOW);
                 serialRadio.read();                         // Garbage first character.
-                vTaskSuspend(radioLEDtaskFlashHandle);      // Suspend radio LED flash.
-                updateLEDs('0','-','-');                    // Radio LED off - AT command mode.
+                updateLEDs('0','-','-');                    // serial (radio) LED off - AT command mode.
                 updateOLED('5');                            // Test mode display.
 
                 // Display instructions.
@@ -971,35 +963,35 @@ void checkSerialMonitor(char print = ' ') {
                 // Loop.
                 while (true) {                                              // Infinite loop.
                     if (Serial.available() > 0) {
-                        inputChar = Serial.read();                          // Read input from serial monitor.
-                        if(inputChar == EXIT_TEST) {                        // All done?
+                        inputCharMon = Serial.read();                       // Read input from serial monitor.
+                        if(inputCharMon == EXIT_TEST) {                     // All done?
                             Serial.println("HC-12 command mode disabled.\n");
                             digitalWrite(PTH_SET, HIGH);
                             Serial.read();                                  // Clear the newline.
                             testRad = false;                                // Clear test flag.
                             return;                                         // Exit test mode.
                         } else {
-                            inputChar = toupper(inputChar);                 // Convert char to upper case.
+                            inputCharMon = toupper(inputCharMon);           // Convert char to upper case.
                         }
-                        switch (inputChar) {
+                        switch (inputCharMon) {
                             case '\n':                                      // Interact with HC-12.
                                 serialRadio.write(radioCommand);            // Write command to HC-12.
                                 Serial.println("");
                                 delay(200);                                 // Allow HC-12 to process command & respond.
                                 while (serialRadio.available() > 0) {       // Read response from HC-12.
-                                    inputChar = '\0';
-                                    inputChar = serialRadio.read();
-                                    if ((255 != (int) inputChar) && (posnRad > 0)) {    // Ignore first garbage character.
-                                        Serial.print(inputChar);            // Echo character to serial monitor.
+                                    inputCharMon = '\0';
+                                    inputCharMon = serialRadio.read();
+                                    if ((255 != (int) inputCharMon) && (posnRad > 0)) {    // Ignore first garbage character.
+                                        Serial.print(inputCharMon);         // Echo character to serial monitor.
                                     }
                                 }
                                 radioCommand[0] = '\0';                     // Reset read buffer.
                                 posnRad=0;
                                 break;
                             default:                                        // Echo & save input character.
-                                if (255 != (int) inputChar) {
-                                    Serial.print(inputChar);
-                                    radioCommand[posnRad] = inputChar;      // Add character to command buffer.
+                                if (255 != (int) inputCharMon) {
+                                    Serial.print(inputCharMon);
+                                    radioCommand[posnRad] = inputCharMon;   // Add character to command buffer.
                                     posnRad++;
                                 }
                         }
@@ -1061,23 +1053,18 @@ void checkGNSS() {
 
         // -- Set state. --
         serState[2] = 'd';                                  // UBX data (serial1) down.
+        updateLEDs('-','1','-');
+    } 
+    
+    if (roverGNSS.getPVT() == true) {                       // New GNSS info is available.
 
-        // -- Update LEDs & OLED displays. --
-        vTaskSuspend(gnssLEDtaskBlink_1xHandle);            // Suspend GNSS LED blink 1x.
-        vTaskSuspend(gnssLEDtaskBlink_2xHandle);            // Suspend GNSS LED blink 2x.
-        vTaskSuspend(gnssLEDtaskFlashHandle);               // Suspend GNSS LED flash.
-        updateLEDs('-','0','-');
-        updateOLED('2');                                    // Display "Waiting on sats." message.
-        return;
-    } else if (roverGNSS.getPVT() == true) {                // New GNSS info is available.
+       // -- Set state. --
+        serState[2] = 'u';                                  // UBX data (serial1) up.
 
         // -- Always update these values. --
         SIV      = roverGNSS.getSIV();
         fixType  = roverGNSS.getFixType();
         solnType = roverGNSS.getCarrierSolutionType();
-
-        // -- Set states. --
-        serState[2] = 'u';                                      // UBX data (serial1) up.
 
         // -- Update these values when GNSS is not locked. --
         if (UIstate[0] == '0') {                                // GNSS lock button is in upPosition (GNSS unlocked).
@@ -1089,18 +1076,16 @@ void checkGNSS() {
         }
 
         // -- Update LEDs & OLED displays. --
-        if (solnType == 0) {                                // Carrier Solution: 0=none.
-            vTaskResume(gnssLEDtaskBlink_1xHandle);         // Resume GNSS LED blink 1x.
-            updateLEDs('-','2','-');                        // GNSS LED blink 1x.
+        if (solnType == 0) {                                // Carrier Solution: 0=GNSS fix.
+            updateLEDs('-','2','-');                        // GNSS LED - GNSS fix.
         } else if (solnType == 2) {                         // Carrier Solution: 1=RTK float.
-            vTaskResume(gnssLEDtaskBlink_2xHandle);         // Resume GNSS LED blink 12x.
-            updateLEDs('-','3','-');                        // GNSS LED blink 2x.
+            updateLEDs('-','3','-');                        // GNSS LED - RTK float.
         } else {                                            // Carrier Solution: 2=RTK fixed.
-            vTaskResume(gnssLEDtaskFlashHandle);            // Resume GNSS LED flash.
-            updateLEDs('-','4','-');                        // GNSS LED flash.
+            updateLEDs('-','4','-');                        // GNSS LED - RTK fix.
         }
-        updateOLED('1');                                    // Normal display.
+        
     }
+    updateOLED('1');                                        // Normal display.
 }
 
 /**
@@ -1111,49 +1096,46 @@ void checkGNSS() {
  * @return void No output is returned.
  * @since  0.3.6 [2025-05-07-03:45] New.
  * @since  0.3.7 [2025-05-09-04:30pm] Add loop() throttle.
+ * @since  0.4.5 [2025-05-15-05:00pm] Refactor.
  * @see    beginSerialRTCM(), beginSerialRadio().
  * @link   https://github.com/sparkfun/SparkFun_u-blox_GNSS_v3/blob/main/examples/ZED-F9P/Example3_StartRTCMBase/Example3_StartRTCMBase.ino.
  */
 void checkRadioToRTCM() {
+    
+    // -- Local vars. --
+    static bool gotBits = false;                    // Flag - if input since boot.
 
-    // -- Check for Radio down. --
-    if ((esp_timer_get_time()-lastCharTime) > RADIO_TIMEOUT) {  // Radio timeout?
-
-    // -- Set state. --
-    serState[3] = 'd';                          // Radio data (serial2) down.
-    serState[1] = 'd';                          // RTCM data (serial0) down.
-    vTaskSuspend(radioLEDtaskFlashHandle);      // Suspend GNSS LED flash.
-    updateLEDs('0','-','-');                    // Radio LED off.
-        
-    } else {
-
-    // -- Set state. --
-    serState[3] = 'u';                          // Radio data (serial2) up.
-    serState[1] = 'u';                          // RTCM data (serial0) up.
-    vTaskResume(radioLEDtaskFlashHandle);       // Suspend GNSS LED flash.
-    updateLEDs('4','-','-');                    // Radio LED flash.
+    // -- Check for Radio down. Set state. --
+    if (gotBits) {                                  // Input has been received since boot.
+        if((esp_timer_get_time()-lastRTCMtime) > RADIO_TIMEOUT) {
+            serState[3] = 'd';                      // serial (radio) data (serial2) - down.
+            serState[1] = 'd';                      // RTCM data (serial0) down.
+        }
     }
 
     // -- Read radio input. Write to RTK-SMA --
-    while(serialRadio.available() > 0) {        // Radio data to read?
+    while(serialRadio.available() > 0) {            // serial (radio) data to read?
 
         // - Read input. -
-        inputChar = serialRadio.read();         // Read a character @ HC12_SPEED.
-        lastCharTime = esp_timer_get_time();    // Global.
-        if (debugRad) {
-            Serial.print(inputChar);            // Debug radio - print character.
-        }
-        // TODO: 8. checkRadioToRTCM() - implement out to serialRTCM.
-        // serialRTCM.write(inputChar);         // Write a character @ ZED_SPEED.
-        // Still uses test code.
+        inputCharRTCM = serialRadio.read();         // Read a character @ HC12_SPEED.
+
         // Need somekind of line break, RTCM confirmation from ZED-9FP.
         // Integrate to updateUI.
-        if (inputChar == EOS) {
+        if (inputCharRTCM == '}') {                 // eosRTCM = '\n'.
             if (debugRad) {
-                Serial.println();
+                Serial.println(inputCharRTCM);      // Last charecter.
             }
+            serState[3] = 'u';                      // serial (radio) data (serial2) - up.
+            serState[1] = 'u';                      // RTCM data (serial0) - up.
+            lastRTCMtime = esp_timer_get_time();    // Used to check for timeout.
+            gotBits = true;                         // Flag for iniitial timeout.
+            updateLEDs('2','-','-');                // serial (radio) LED - active.
+            // TODO: 8. checkRadioToRTCM() - implement out to serialRTCM, move to task.
+            // serialRTCM.write(inputChar);             // Write a character @ ZED_SPEED.
+
+        } else if (debugRad) {
+            Serial.print(inputCharRTCM);            // Debug serial (radio) - print character.
         }
-        lastCharTime = esp_timer_get_time();    // Reset timer.
     }
 }
 
@@ -1184,9 +1166,9 @@ void checkDebug() {
     // -- Debug output. Serial data will be displayed by checkRadioToRTCM() in real time. --
     if (debugRad) {
         nowTime = esp_timer_get_time();
-        diffTime = nowTime - lastCharTime;
+        diffTime = nowTime - lastRTCMtime;
             if (diffTime > RADIO_TIMEOUT) {
-                Serial.printf("Radio down. (diffTime= %lld)  >  (timeout= %lld)\n", diffTime, RADIO_TIMEOUT);
+                Serial.printf("\nRadio down. (diffTime= %lld)  >  (timeout= %lld)\n", diffTime, RADIO_TIMEOUT);
             }
     }
 
@@ -1244,7 +1226,7 @@ void checkDebug() {
         Serial.printf(
             "Button= %c  Radio LED= %c  GNSS LED= %C  GNSS lock LED= %C\n",
             UIstate[0],         // GNSS lock button (0,1).
-            UIstate[1],         // Radio LED (0,1,2).
+            UIstate[1],         // serial (radio) LED (0,1,2).
             UIstate[2],         // GNSS LED (0,1,2,3,4).
             UIstate[3]          // GNSS lock LED (0,1).
         );
@@ -1265,9 +1247,9 @@ void checkDebug() {
  *      Toggle LEDs.
  * ------------------------------------------------
  *
- * @params char ledR Radio LED.
- * @params char ledG GNSS LED.
- * @params char ledL GNSS lock LED.
+ * @param  char ledR serial (radio) LED.
+ * @param  char ledG GNSS LED.
+ * @param  char ledL GNSS lock LED.
  * @return void No output is returned.
  * @since  0.2.0 [2025-04-30-11:15am] New.
  * @since  0.4.2 [2025-05-15-08:00am] Refactor.
@@ -1276,99 +1258,60 @@ void checkDebug() {
  */
 void updateLEDs(char ledR, char ledG, char ledL) {
 
-    // -- Local vars. --
-    static char ledRwas = '-';                              // State of last radio LED.
-    static char ledGwas = '-';                              // State of last GNSS LEd.
 
-    // -- Radio LED. --
-    if (ledR != '-') {                                      // '-' means skip.
+    // -- Set LEDs. --
 
-        // - Check state. -
-        if (ledRwas != ledR) {                              // State change.
-
-            // Save last state.
-            ledRwas = ledR;
-
-            // Suspend task.
-            if ((ledRwas == '4') && (ledR != '4')) {        // Was flashing (4), now not (0,1).
-                vTaskSuspend(radioLEDtaskFlashHandle);      // Suspend radio LED flash.
-            }
-
-            // - Set LEDs. -
-            switch (ledR) {
-                case '0':
-                    UIstate[1] = '0';                       // Radio LED off.
-                    digitalWrite(LED_RADIO, LOW);           // LED off.
-                    break;
-                case '1':
-                    UIstate[1] = '1';                       // Radio LED on.
-                    digitalWrite(LED_RADIO, HIGH);          // LED on.
-                    break;
-                case '4':
-                    UIstate[1] = '4';                       // Radio LED on.
-                    vTaskResume(radioLEDtaskFlashHandle);   // Start radio LED flash.
-                    break;
-            }
-        }
+    // - serial (radio) LED. -
+    switch (ledR) {
+        case '0':
+            UIstate[1] = '0';                       // serial (radio) LED - off.
+            digitalWrite(LED_RADIO, LOW);           // LED off.
+            break;
+        case '1':
+            UIstate[1] = '1';                       // serial (radio) LED - on.
+            digitalWrite(LED_RADIO, HIGH);          // LED on.
+            break;
+        case '2':
+            UIstate[1] = '2';                       // serial (radio) LED - active.
+            vTaskResume(serialLEDtaskRTCMHandle);   // Resume serialLEDtaskRTCM() task.
+            break;
     }
 
-    // -- GNSS LED. --
-    if (ledG != '-') {                                      // '-' means skip.
-
-        // - Check state. -
-        if (ledGwas != ledG) {                              // State change.
-
-            // Save last state.
-            ledGwas = ledG;
-
-            // Suspend task.
-            if ((ledGwas == '2') && (ledG != '2')) {        // Was blinking 1x (2), now not (0,1,3,4).
-                vTaskSuspend(gnssLEDtaskBlink_1xHandle);    // Suspend GNSS LED blinking 1x.
-            }
-            if ((ledGwas == '3') && (ledG != '3')) {        // Was blinking 2x (3), now not (0,1,2,4).
-                vTaskSuspend(gnssLEDtaskBlink_2xHandle);    // Suspend GNSS LED blinking 2x.
-            }
-            if ((ledGwas == '4') && (ledG != '4')) {        // Was flashing (4), now not (0,1,2,3).
-                vTaskSuspend(radioLEDtaskFlashHandle);      // Suspend GNSS LED flash.
-            }
-
-            // Set LEDs.
-            switch (ledG) {
-                case '0':
-                    UIstate[2] = '0';                           // GNSS LED off.
-                    digitalWrite(LED_GNSS, LOW);                // LED off.
-                    break;
-                case '1':
-                    UIstate[2] = '1';                           // GNSS LED on.
-                    digitalWrite(LED_GNSS, HIGH);               // LED on.
-                    break;
-                case '2':
-                    UIstate[2] = '2';                           // GNSS LED blink 1x.
-                    vTaskResume(gnssLEDtaskBlink_1xHandle);     // Start GNSS LED blink 1x.
-                    break;
-                case '3':
-                    UIstate[2] = '3';                           // GNSS LED blink 2x.
-                    vTaskResume(gnssLEDtaskBlink_2xHandle);     // Start GNSS LED blink 2x.
-                    break;
-                case '4':
-                    UIstate[2] = '4';                           // GNSS LED flash.
-                    vTaskResume(gnssLEDtaskFlashHandle);        // Start GNSS LED flash.
-                    break;
-            }
-        }
+    // - GNSS LED. -
+    switch (ledG) {
+        case '0':
+            UIstate[2] = '0';                           // GNSS LED - off.
+            digitalWrite(LED_GNSS, LOW);                // LED off.
+            break;
+        case '1':
+            UIstate[2] = '1';                           // GNSS LED - on.
+            digitalWrite(LED_GNSS, HIGH);               // LED on.
+            break;
+        case '2':
+            UIstate[2] = '2';                           // GNSS LED - GNSS fix.
+            vTaskResume(gnssLEDtaskGNSSfixHandle);      // Resume task.
+            break;
+        case '3':
+            UIstate[2] = '3';                           // GNSS LED - RTK float.
+            vTaskResume(gnssLEDtaskRTKfloatHandle);     // Resume task.
+            break;
+        case '4':
+            UIstate[2] = '4';                           // GNSS LED - RTK fix.
+            vTaskResume(gnssLEDtaskRTKfixHandle);       // Resume task.
+            break;
     }
 
-    // -- GNSS lock LED. --
+    // - GNSS lock LED. -
     if (ledL != '-') {
         switch (ledL) {
             case '0':
                 UIstate[0] = '0';                   // GNSS lock button is in upPosition.
-                UIstate[3] = '0';                   // GNSS lock LED off.
+                UIstate[3] = '0';                   // GNSS lock LED - off.
                 digitalWrite(LED_LOCK, LOW);        // LED off.
                 break;
             case '1':
                 UIstate[0] = '1';                   // GNSS lock button is in downPosition.
-                UIstate[3] = '1';                   // GNSS lock LED on.
+                UIstate[3] = '1';                   // GNSS lock LED - on.
                 digitalWrite(LED_LOCK, HIGH);       // LED on.
                 break;
         }
@@ -1421,14 +1364,7 @@ void updateOLED(char display) {
             strcpy(oledRow[4], " ");
             displayNow = true;
             break;
-        case '2':       // - No GNSS signal. -
-            strcpy(oledRow[0],  "Waiting on sats.");
-            sprintf(oledRow[1], "SIV=%i", SIV);
-            strcpy(oledRow[2],  " ");
-            strcpy(oledRow[3],  " ");
-            strcpy(oledRow[4],  " ");
-            displayNow = true;
-            break;
+        case '2':
         case '3':       // - Diagnostic. -
             strcpy(oledRow[0], "0123456789abcdef");
             strcpy(oledRow[1], "0123456789abcdef");
@@ -1540,93 +1476,116 @@ void updateOLED(char display) {
 
 /**
  * ------------------------------------------------
- *      Radio LED flash task.
+ *      Serial (radio) to serial (RTCM) relay - LED task.
  * ------------------------------------------------
- * 
- * LED_TIME_FLASH_ON  =  100; (ms)
- * LED_TIME_FLASH_OFF = 1000; (ms)
  *
+ * @param  void * pvParameters Pointer to task parameters.
  * @return void No output is returned.
  * @since  0.3.3 [2025-05-02-09:00am] New.
+ * @since  0.4.5 [2025-05-17-11:15am] Refactor.
  * @see    startTasks().
  * @see    updateLEDs().
  * @link   https://www.freertos.org/Documentation/02-Kernel/04-API-references/02-Task-control/01-vTaskDelay.
  * @link   https://www.freertos.org/Documentation/02-Kernel/05-RTOS-implementation-tutorial/02-Building-blocks/11-Tick-Resolution.
+ * @link   https://www.freertos.org/Documentation/02-Kernel/04-API-references/02-Task-control/06-vTaskSuspend.
  */
-void radioLEDtaskFlash(void * pvParameters) {
-    while(true) {                                           // Infinite loop.
+void serialLEDtaskRTCM(void * pvParameters) {
+    while(true) {
         digitalWrite(LED_RADIO, HIGH);                      // LED on.
         vTaskDelay(pdMS_TO_TICKS(LED_TIME_FLASH_ON));       // LED remains on.
         digitalWrite(LED_RADIO, LOW);                       // LED off.
-        vTaskDelay(pdMS_TO_TICKS(LED_TIME_FLASH_OFF));      // Delay until next cycle.
+        vTaskDelay(pdMS_TO_TICKS(500));                     // LED remains on.
+        vTaskSuspend(NULL);                                 // Suspend task.
     }
 }
 
 /**
  * ------------------------------------------------
- *      GNSS LED flash task.
+ *      LED flash effect.
  * ------------------------------------------------
- * 
- * LED_TIME_FLASH_ON  =  100; (ms)
- * LED_TIME_FLASH_OFF = 1000; (ms)
  *
+ * @param  array $*list List of items.
+ * @return void No output is returned.
+ * @since  0.8.7 [2025-05-17-02:15pm].
+ * @see    updateLEDs().
+ * @see    startTasks().
+ * @see    gnssLEDtaskGNSSfix().
+ * @see    gnssLEDtaskRTKfloat().
+ * @see    gnssLEDtaskRTKfix().
+ * @link   https://www.freertos.org/Documentation/02-Kernel/04-API-references/02-Task-control/01-vTaskDelay.
+ * @link   https://www.freertos.org/Documentation/02-Kernel/05-RTOS-implementation-tutorial/02-Building-blocks/11-Tick-Resolution.
+ */
+void cycleGNSSLed() {
+    digitalWrite(LED_GNSS, HIGH);                       // LED on.
+    vTaskDelay(pdMS_TO_TICKS(LED_TIME_FLASH_ON ));      // LED remains on.
+    digitalWrite(LED_GNSS, LOW);                        // LED off.
+    vTaskDelay(pdMS_TO_TICKS(LED_TIME_FLASH_ON));       // Delay.
+}
+
+/**
+ * ------------------------------------------------
+ *      GNSS - GNSS fix LED task.
+ * ------------------------------------------------
+ *
+ * @param  void * pvParameters Pointer to task parameters.
  * @return void No output is returned.
  * @since  0.3.3 [2025-05-14-06:00pm] New.
+ * @since  0.4.5 [2025-05-17-11:30am] Refactor.
+ * @see    cycleGNSSLed().
  * @see    startTasks().
- * @see    updateLEDs().
- * @link   https://www.freertos.org/Documentation/02-Kernel/04-API-references/02-Task-control/01-vTaskDelay.
- * @link   https://www.freertos.org/Documentation/02-Kernel/05-RTOS-implementation-tutorial/02-Building-blocks/11-Tick-Resolution.
+ 
+ * @link   https://www.freertos.org/Documentation/02-Kernel/04-API-references/02-Task-control/06-vTaskSuspend.
  */
-void gnssLEDtaskFlash(void * pvParameters) {
-    while(true) {                                           // Infinite loop.
-        digitalWrite(LED_GNSS, HIGH);                       // LED on.
-        vTaskDelay(pdMS_TO_TICKS(LED_TIME_FLASH_ON ));      // LED remains on.
-        digitalWrite(LED_GNSS, LOW);                        // LED off.
-        vTaskDelay(pdMS_TO_TICKS(LED_TIME_FLASH_OFF));      // Delay until next cycle.
+void gnssLEDtaskGNSSfix(void * pvParameters) {
+    while(true) {                                   // Infinite loop.
+        for (size_t i = 0; i < 1; i++) {            // Repeat one time.
+            cycleGNSSLed();
+        }
+        vTaskSuspend(NULL);                         // Suspend task.
     }
 }
 
 /**
  * ------------------------------------------------
- *      GNSS LED blink 1x task.
+ *      GNSS - GNSS RTK float LED task.
  * ------------------------------------------------
- * 
- * LED_TIME_BLINK1 = 1000; (ms)
  *
+ * @param  void * pvParameters Pointer to task parameters.
  * @return void No output is returned.
  * @since  0.3.3 [2025-05-14-06:30pm] New.
+ * @since  0.4.5 [2025-05-17-11:30am] Refactor.
  * @see    startTasks().
- * @link   https://www.freertos.org/Documentation/02-Kernel/04-API-references/02-Task-control/01-vTaskDelay.
- * @link   https://www.freertos.org/Documentation/02-Kernel/05-RTOS-implementation-tutorial/02-Building-blocks/11-Tick-Resolution.
+ * @see    cycleGNSSLed().
+ * @link   https://www.freertos.org/Documentation/02-Kernel/04-API-references/02-Task-control/06-vTaskSuspend.
  */
-void gnssLEDtaskBlink_1x(void * pvParameters) {
-    while(true) {                                           // Infinite loop.
-        digitalWrite(LED_GNSS, HIGH);                       // LED on.
-        vTaskDelay(pdMS_TO_TICKS(LED_TIME_BLINK1));         // LED remains on.
-        digitalWrite(LED_GNSS, LOW);                        // LED off.
-        vTaskDelay(pdMS_TO_TICKS(LED_TIME_BLINK1));         // Delay until next cycle.
+void gnssLEDtaskRTKfloat(void * pvParameters) {
+    while(true) {                                   // Infinite loop.
+        for (size_t i = 0; i < 2; i++) {            // Repeat two times.
+            cycleGNSSLed();
+        }
+        vTaskSuspend(NULL);                         // Suspend task.
     }
 }
 
 /**
  * ------------------------------------------------
- *      GNSS LED blink 2x task.
+ *      GNSS - GNSS RTK fix LED task.
  * ------------------------------------------------
- * 
- * LED_TIME_BLINK2 = 500; (ms)
  *
+ * @param void * pvParameters Pointer to task parameters.
  * @return void No output is returned.
  * @since  0.3.3 [2025-05-14-06:30pm] New.
+ * @since  0.4.5 [2025-05-17-11:30am] Refactor.
  * @see    startTasks().
- * @link   https://www.freertos.org/Documentation/02-Kernel/04-API-references/02-Task-control/01-vTaskDelay.
- * @link   https://www.freertos.org/Documentation/02-Kernel/05-RTOS-implementation-tutorial/02-Building-blocks/11-Tick-Resolution.
+ * @see    cycleGNSSLed().
+ * @link   https://www.freertos.org/Documentation/02-Kernel/04-API-references/02-Task-control/06-vTaskSuspend.
  */
-void gnssLEDtaskBlink_2x(void * pvParameters) {
-    while(true) {                                           // Infinite loop.
-        digitalWrite(LED_GNSS, HIGH);                       // LED on.
-        vTaskDelay(pdMS_TO_TICKS(LED_TIME_BLINK2));         // LED remains on.
-        digitalWrite(LED_GNSS, LOW);                        // LED off.
-        vTaskDelay(pdMS_TO_TICKS(LED_TIME_BLINK2));         // Delay until next cycle.
+void gnssLEDtaskRTKfix(void * pvParameters) {
+    while(true) {                                   // Infinite loop.
+        for (size_t i = 0; i < 3; i++) {            // Repeat three times.
+            cycleGNSSLed();
+        }
+        vTaskSuspend(NULL);                         // Suspend task.
     }
 }
 
@@ -1642,10 +1601,10 @@ void gnssLEDtaskBlink_2x(void * pvParameters) {
  * @since  0.3.7 [2025-05-09-01:30pm] Moved counter to local.
  * @see    startTasks().
  * @link   https://github.com/avinabmalla/ESP32_BleSerial.
- * @link   https://www.freertos.org/Documentation/02-Kernel/04-API-references/01-Task-creation/01-xTaskCreate.
+ * @link   https://www.freertos.org/Documentation/02-Kernel/04-API-references/02-Task-control/01-vTaskDelay.
  * @link   https://www.freertos.org/Documentation/02-Kernel/05-RTOS-implementation-tutorial/02-Building-blocks/11-Tick-Resolution.
  */
-void testBLEtask(void * pvParameters) {
+void serialBLEtaskRelayNEMA(void * pvParameters) {
 
     // -- Test loop. --
     while(true) {                               // Infinite loop.
