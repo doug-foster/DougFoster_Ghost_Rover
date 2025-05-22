@@ -17,6 +17,7 @@
  * @since    0.3.9 [2025-05-10-12:15pm].
  * @since    0.4.6 [2025-05-20-06:45pm].
  * @since    0.4.8 [2025-05-21-08:15pm].
+ * @since    0.4.8 [2025-05-22-12:00pm].
  * @link     http://dougfoster.me.
  *
  * ===================================
@@ -62,7 +63,7 @@
  *
  * --- TODO: ---
  *     1. checkRadioRTCMToZED() - Implement out to serialRTCM, move to ESP32 task.
- *     2. checkNEMAoutSerialBLE() - Finish relay task.
+ *     2. checkNMEAoutSerialBLE() - Finish relay task.
  */
 
 // ===================================
@@ -199,12 +200,12 @@ const int8_t  MIN_SATELLITE_THRESHHOLD = 6;     // Minimum SIV for reliable coor
 SFE_UBLOX_GNSS_SERIAL roverGNSS;                // GNSS object (uses serial instead of I2C).
 
 // -- Task handles. --
-TaskHandle_t bleNemaLEDtaskHandle;              // BLE NMEA       LED task handle.
+TaskHandle_t bleNmeaLEDtaskHandle;              // BLE NMEA       LED task handle.
 TaskHandle_t gnssFixLEDtaskHandle;              // GNSS fix       LED task handle.
 TaskHandle_t gnssRTKfloatLEDtaskHandle;         // GNSS RTK float LED task handle.
 TaskHandle_t gnssRTKfixLEDtaskHandle;           // GNSS RTK fix   LED task handle.
 TaskHandle_t radioRtcmLEDtaskHandle;            // Radio RTCM     LED task handle.
-TaskHandle_t bleNEMAoutTaskHandle;              // BLE NEMA out task handle.
+TaskHandle_t bleNMEAoutTaskHandle;              // BLE NMEA out task handle.
 
 // -- Operation. --
 
@@ -426,7 +427,7 @@ void beginSerial0RTCMtoZED() {
  * @since  0.4.6 [2025-05-20-09:00pm] Change initial speed.
  * @since  0.4.7 [2025-05-21-09:45am] Clean up.
  */
-void beginSerial1UBXandNEMA() {
+void beginSerial1UBXandNMEA() {
 
     // -- Begin serial1 interface. --
     Serial.print("Begin serial1 (UART1) for UBX & NMEA @ 38,400 bps");
@@ -526,7 +527,7 @@ void startBLE() {
     ble.begin(BLE_NAME);
 
     // -- Set state, print status. --
-    netState[0] = 'u';          // NEMA out BLE up.
+    netState[0] = 'u';          // NMEA out BLE up.
     Serial.printf(" \"%s\".\n", BLE_NAME);
 }
 
@@ -572,7 +573,7 @@ void startWiFi() {
  * @see    Global vars: GNSS.
  * @see    beginSerial0RTCMtoZED.
  * @see    beginSerial2RTCMinFromRadio.
- * @see    beginSerial1UBXandNEMA.
+ * @see    beginSerial1UBXandNMEA.
  */
 void startUBX() {
 
@@ -672,25 +673,25 @@ void startUBX() {
 void startTasks() {
 
     // -- Create Tasks. --
-    xTaskCreate(bleNemaLEDtask,      "BLE_NEMA_LED_task",         2048, NULL, 2, &bleNemaLEDtaskHandle);
+    xTaskCreate(bleNmeaLEDtask,      "BLE_NMEA_LED_task",         2048, NULL, 2, &bleNmeaLEDtaskHandle);
     xTaskCreate(gnssFixLEDtask,      "GNSS_fix_LED_task",         2048, NULL, 2, &gnssFixLEDtaskHandle);
     xTaskCreate(gnssRTKfloatLEDtask, "GNSS_RTK_float_LED_task",   2048, NULL, 2, &gnssRTKfloatLEDtaskHandle);
     xTaskCreate(gnssRTKfixLEDtask,   "GNSS_RTK_fix_LED_task",     2048, NULL, 2, &gnssRTKfixLEDtaskHandle);
     xTaskCreate(radioRtcmLEDtask,    "radio_RTCM_LED_task",       2048, NULL, 2, &radioRtcmLEDtaskHandle);
-    xTaskCreate(bleNEMAoutTask,      "BLE_NEMA_out_task",         2048, NULL, 2, &bleNEMAoutTaskHandle);
+    xTaskCreate(bleNMEAoutTask,      "BLE_NMEA_out_task",         2048, NULL, 2, &bleNMEAoutTaskHandle);
     
      // -- Suspend tasks. --
-    vTaskSuspend(bleNemaLEDtaskHandle);
+    vTaskSuspend(bleNmeaLEDtaskHandle);
     vTaskSuspend(gnssFixLEDtaskHandle);
     vTaskSuspend(gnssRTKfloatLEDtaskHandle);
     vTaskSuspend(gnssRTKfixLEDtaskHandle);
     vTaskSuspend(radioRtcmLEDtaskHandle);
 
     // -- Print status. --
-    Serial.println("Created/suspended BLE NEMA LED task.");
+    Serial.println("Created/suspended BLE NMEA LED task.");
     Serial.println("Created/suspended GNSS fix, RTK float, RTK fix LED tasks.");
     Serial.println("Created/suspended Radio RTCM LED task.");
-    Serial.println("Created BLE NEMA out task.");
+    Serial.println("Created BLE NMEA out task.");
 }
 
 /**
@@ -897,8 +898,8 @@ void checkSerialMonitor(char print = ' ') {
                 // Display instructions.
                 Serial.printf("Valid options: 0(off), 1(on), 2(active). %c to quit.\n", EXIT_TEST);
 
-                // Suspend BLE NEMA out task. 
-                vTaskSuspend(bleNEMAoutTaskHandle);
+                // Suspend BLE NMEA out task. 
+                vTaskSuspend(bleNMEAoutTaskHandle);
 
                 // Loop.
                 while (true) {                                          // Infinite loop.
@@ -909,7 +910,7 @@ void checkSerialMonitor(char print = ' ') {
                             case EXIT_TEST:                             // All done.
                                 Serial.println("testLEDb disabled.");
                                 testLEDb = false;                       // Clear test flag.
-                                vTaskResume(bleNEMAoutTaskHandle);      // Resume BLE NEMA out task.
+                                vTaskResume(bleNMEAoutTaskHandle);      // Resume BLE NMEA out task.
                                 return;                                 // Exit test mode.
                             case '0':                                   // BLE LED - off.
                                 Serial.printf("%c - BLE LED off.\n", inputCharMon);
@@ -1372,7 +1373,7 @@ void updateLEDs(char ledB, char ledG, char ledR) {
             break;
         case '2':
             UIstate[1] = '2';                           // BLE LED - active.
-            vTaskResume(bleNemaLEDtaskHandle);          // Resume task.
+            vTaskResume(bleNmeaLEDtaskHandle);          // Resume task.
             break;
     }
 
@@ -1585,7 +1586,7 @@ void updateOLED(char display) {
  * @see    startTasks().
  * @link   https://www.freertos.org/Documentation/02-Kernel/04-API-references/02-Task-control/06-vTaskSuspend.
  */
-void bleNemaLEDtask(void * pvParameters) {
+void bleNmeaLEDtask(void * pvParameters) {
     while(true) {
         digitalWrite(LED_BLE, HIGH);                // LED on.
         vTaskDelay(LED_TIME_FLASH_ON);              // LED remains on.
@@ -1604,7 +1605,7 @@ void bleNemaLEDtask(void * pvParameters) {
  * @since  0.4.2 [2025-05-17-02:15pm].
  * @since  0.4.7 [2025-05-21-06:00pm].
  * @see    startTasks().
- * @see    bleNemaLEDtask().
+ * @see    bleNmeaLEDtask().
  * @see    gnssFixLEDtask().
  * @see    gnssRTKfloatLEDtask().
  * @see    gnssRTKfixLEDtask().
@@ -1710,7 +1711,7 @@ void radioRtcmLEDtask(void * pvParameters) {
 
 /**
  * ------------------------------------------------
- *      BLE NEMA out task.
+ *      BLE NMEA out task.
  * ------------------------------------------------
  *
  * @return void No output is returned.
@@ -1725,12 +1726,13 @@ void radioRtcmLEDtask(void * pvParameters) {
  * @link   https://docs.espressif.com/projects/esp-idf/en/v4.3/esp32/api-reference/system/freertos.html.
  * @link   https://www.freertos.org/Documentation/02-Kernel/05-RTOS-implementation-tutorial/02-Building-blocks/11-Tick-Resolution.
  */
-void bleNEMAoutTask(void * pvParameters) {
+void bleNMEAoutTask(void * pvParameters) {
     // TODO: 2. Finish relay task.
 
     // Bluetooth serial port profile (SPP) at 2Hz and 115200bps
     // Enable desired NMEA messages at 1 Hz
 
+    // need GSA messages also.
     //   myGNSS.setMessageRate(UBX_NMEA_GGA, 1); // GGA - Global Positioning System Fix Data
     //   myGNSS.setMessageRate(UBX_NMEA_RMC, 1); // RMC - Recommended Minimum Specific GNSS Data
     //   myGNSS.setMessageRate(UBX_NMEA_GSV, 1); // GSV - GNSS Satellites in View
@@ -1765,7 +1767,7 @@ void setup() {
     beginSerialUSBmonitor();        // Begin serial USB (monitor).
     configPins();                   // Initialize pin modes & pin values.
     beginSerial0RTCMtoZED();        // Begin serial0 (UART0) for RTCM->ZED.
-    beginSerial1UBXandNEMA();       // Begin serial1 (UART1) for UBX & NMEA.
+    beginSerial1UBXandNMEA();       // Begin serial1 (UART1) for UBX & NMEA.
     beginSerial2RTCMinFromRadio();  // Begin serial2 (UART2) for <-RTCMradio.
     beginI2C();                     // Begin I2C.
     startDisplay();                 // Start OLED display.
