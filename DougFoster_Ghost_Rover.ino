@@ -1,10 +1,7 @@
 /**
  * Ghost Rover.
  * 
- * Now you see me, now you ...
- * 
- * GNSS fix type: 0=none, 1=dead reckoning, 2=2D, 3=3D, 4=GNSS, 5=Time.
- * GNSS carrier solution: 0=none, 1=RTK float, 2=RTK fixed.
+ * Now you see me, now you don't. But you know exactly where I was.
  * 
  * @author   D. Foster <doug@dougfoster.me>.
  * @since    0.1.0 [2025-04-24-12:00pm] New.
@@ -18,16 +15,91 @@
  * @since    0.4.6 [2025-05-20-06:45pm].
  * @since    0.4.8 [2025-05-21-08:15pm].
  * @since    0.4.8 [2025-05-22-12:00pm].
+ * @since    0.4.9 [2025-05-26-12:15pm].
  * @link     http://dougfoster.me.
  *
  * ===================================
  *      Comments.
  * ===================================
+ * 
+ * --- Description & operation. ---
+ *     -- Primary use is to provide SW Maps (or another GNSS app) precise location data for geotagging
+ *        a photograph. The photos will most often locate grave headstones in a cemetery or artifacts
+ *        found while investigating historical sites.
+ * 
+ *        What makes Ghost Rover unique? It provides a precise location for the photograph's subject
+ *        without the rover being visible in the photo. This is done by 1) positioning the rover above
+ *        the subject and obtaining a fix, 2) pressing the GNSS lock button, 3) moving the rover out of view
+ *        for the photograph, 4) taking the photo, 5) releasing the GNSS lock button, then 6) moving on to
+ *        the next subject. While the GNSS lock button is down, the rover will continue to broadcast the
+ *        position of where the button was pressed. When the button is released, it returns to normal roving
+ *        operation.
+ * 
+ *        A 16 character x 5 row OLED display on the rover's front is used to display GNSS information
+ *        (latitude, longitude, altitude above Mean Sea Level, horizontal & vertical accuracy, satellites in
+ *        view, GNSS fix type, GNSS solution type, and network status for both bluetooth & WiFi communications).
+ * 
+ *        The front of the rover has a push-to-latch button (the GNSS lock button described above), a blue
+ *        LED (flashes to indicate a Bluetooth Low energy - BLE broadcast), a yellow LED (flashes to indicates
+ *        GNSS activity), and a red LED (flashes to indicate reception of data from an RF link). The rover's
+ *        case also has an off/on switch to control +5v power in from a small USB portable battery pack. A
+ *        removable UHF external antenna for the RF link is attached to the case, and the USB serial ports for
+ *        both MCU & GNSS boards are accessible. The rover is powered from either 1) the battery pack or 2) the
+ *        MCU or GNSS USB serial port.
+ * 
+ *        While the rover displays GNSS location status on the OLED for user convience, its main purpose is to
+ *        broadcast NMEA sentences (GGA & RMC for position & time, GSA & GSV for skyplot, and GST for accuracy)
+ *        out over BLE to a device (like a mobile device running SW Maps) which can take photos and geotag them
+ *        using data from an external GNSS source. Using the SparkFun_u-blox_GNSS_v3 library, the GNSS processor
+ *        (in this case a uBlox ZED-F9P) is set to broadcast a solution of these (5) sentences once every
+ *        second.
+ * 
+ *        The GNSS processor operates in high precision mode. This means all position information (both on 
+ *        the OLED display and in the NMEA sentences over BLE) are reported with 7 decimal position precision
+ *        rather than the standard 5 decimal precision.
+ * 
+ *        The rover uses an RF link (internal HC-12 radio) to receive RTCM3 correction data from a base station.
+ *        (A roadmap feature is to support stand-alone mode using PointPerfect correction data received from
+ *        a WiFi connected hot spot. This is initiated by booting the rover with the GNSS lock button in the
+ *        downPosition on start up as opposed to the normal upPosition). The rover's companion base station
+ *        is a Sparkfun EVK running Sparkfun's RTK everywhere firmware. Internally, another ESP32-S3 and HC-12
+ *        were added to the EVK to create a serial relay for transmitting RTCM bytes streamed out from the
+ *        UART2 port of the base's GNSS processor an in to the rover's HC-12 radio.
+ * 
+ *        WHen the rover boots, it will first progress into 3D GNSS fix. This is indicated by the status line
+ *        on the OLED display (F3 S0). Also, the yellow LED fashes once every second. When the rover is
+ *        receiveing RTCM data, it will enter RTK float mode (displaying F3 S1) and present two quick flashes
+ *        every second. When the rover finally enters RTK fix mode, it will display (F3 S2) and the yellow LED
+ *        will quickly flash three times every second. When/if the rover's fix acuracy digresses from RTK, the
+ *        display and LEDs will perform as described in the progesssion to RTK fix.
+ * 
+ *        If no BLE transmission occurs, or no GNSS update is received, or no RTCM data received over the RF
+ *        link from the base, the LEDs will correspondingly be off. When data is received again, the LEDs will
+ *        begin flashing their status. At startup, the OLED display may show no location data (all 0's) until
+ *        enough satellites have been acquired to obtain a valid GNSS solution (aka fix). Ghost rover configures
+ *        the GNSS settings both in RAM and battery backed-up RAM (BBR). The battery is trickle charged by the
+ *        Sparkfun GNSS board and (if not needing to be replaced), should hold the GNSS settings as well as last
+ *        fix information for about 2 weeks. This can significantly reduce time to first fix for the GNSS.
+ * 
+ *        Internally, the rover uses a serial connection between the ESP32-S3 MCU and the ZED-F9P (UART1) for
+ *        1) configuring the GNSS via UBX commands and 2) receiving NMEA sentences from the ZED. The I2C bus
+ *        is used only for communication between the ESP32 and the OLED display.
+ * 
+ *        A set of serial commands (entered over the serial USB interface of the ESP32-S3) are provided for
+ *        testing and debugging ooperation. checkSerialMonitor() in the loop() section watches for a command.
+ *        To see a list of available commands, just type some garbarge - like "dfads" - into the Serial Monitor 
+ *        command line of the Arduino IDE. The response will be a list of case sensitive, valid commands.
+ * 
+ *        "testRad" is a serial monitor test/debug command which can be used to place the rover into test
+ *        mode with the HC-12 radio. As descibed by the sentence when testRad mode is initiated, the HC-12
+ *        uses AT type command for configuration (e.g. type "AT" and you should receive an "OK" response back
+ *        from the radio). To exit any of the test/debug modes, just type a '!' character. 
  *
  * --- Major components. ---
- *     -- MCU     https://www.sparkfun.com/sparkfun-thing-plus-esp32-s3.html.
- *     -- GNSS    https://www.sparkfun.com/sparkfun-gps-rtk-sma-breakout-zed-f9p-qwiic.html.
- *     -- Display https://www.sparkfun.com/sparkfun-qwiic-oled-1-3in-128x64.html.
+ *     -- rover MCU      https://www.sparkfun.com/sparkfun-thing-plus-esp32-s3.html.
+ *     -- rover GNSS     https://www.sparkfun.com/sparkfun-gps-rtk-sma-breakout-zed-f9p-qwiic.html.
+ *     -- rover display  https://www.sparkfun.com/sparkfun-qwiic-oled-1-3in-128x64.html.
+ *     -- base station   https://www.sparkfun.com/sparkfun-rtk-evk.html.
  *
  * --- Other components. ---
  *     -- GNSS antenna. --
@@ -36,7 +108,7 @@
  *        - cable (SMA-F to SMA-M, 12" RG316): https://www.amazon.com/dp/B07MJQWH8S.
  *     -- Radio. --
  *        - radio (433.4-473.0 MHz, 100mW, U.FL): https://www.amazon.com/HiLetgo-Wireless-Replace-Bluetooth-Antenna/dp/B01MYTE1XR.
- *        - antenna (400-960 MHz, BNC-M): https://www.amazon.com/dp/B07R4PGZK3.
+ *        - antenna (UHF 400-960 MHz, BNC-M): https://www.amazon.com/dp/B07R4PGZK3.
  *        - cable (BNC-F bulkhead to U.FL, 8" RG178): https://www.amazon.com/dp/B098HX6NFH.
  *     -- Misc. --
  *        - push button (12mm latching): https://www.amazon.com/dp/B0CGTXMLKL.
@@ -60,7 +132,7 @@
  *     -- Functions: init, config, begin, start, check, display, callback, operation, tasks, test.
  *     -- Setup.
  *     -- Loop.
- *
+ * 
  * --- TODO: ---
  *     1. checkRadioRTCMToZED() - Implement out to serialRTCM, move to ESP32 task.
  *     2. checkNMEAoutSerialBLE() - Finish relay task.
@@ -84,10 +156,10 @@
 // ===================================
 
 // -- Version. --
-const char BUILD_DATE[]   = "2025-05-21-20:15";         // 24hr format, need to fit max (16) characters.
+const char BUILD_DATE[]   = "2025-05-26-12:15";     // 24hr format, need to fit max (16) characters.
 const char MAJOR_VERSION  = '0';
 const char MINOR_VERSION  = '4';
-const char PATCH_VERSION  = '8';
+const char PATCH_VERSION  = '9';
 
 // -- Pin (pth) definitions. --
 const uint8_t BUTTON_LOCK = 4;          // ESP32-S3 Thing+ PTH 4 <-> Red toggle button (yellow wire).
@@ -143,15 +215,17 @@ const  char*    commands[NUM_COMMANDS] = {      // Valid commands. Point to arra
        char     monitorCommand[11];             // Serial monitor command (C-string).
        char     radioCommand[11];               // serial (radio) test command (C-string).
 
-// -- Serial0 (RTCM->ZED). --
+// -- Serial0 (RTCM->ZED-F9P). --
       HardwareSerial serialRTCM(0);             // UART0 object. Used for RTCM relay: from ESP32 UART0 in to RTK-SMA UART2.
 const uint32_t SERIAL0_SPEED = 38400;           // ZED-F9P default speed.
 const int64_t  GNSS_TIMEOUT  = 5000000;         // Time (us) not to exceed for last GNSS update (5 sec).
 
 // -- Serial1 (UBX & NMEA). --
-HardwareSerial serialUBX(1);                    // UART1 object. Used for UBX CFG-VAL-SET/VAL-GET & NMEA (for BLE).
+HardwareSerial serialUBXandNMEA(1);             // UART1 object. Used for UBX CFG-VAL-SET/VAL-GET & NMEA (for BLE).
 const uint32_t SERIAL1_SPEED_INIT = 38400;      // Speed for ESP32Serial1 <-> ZED-F9P.
 const uint32_t SERIAL1_SPEED      = 115200;     // Speed for ESP32Serial1 <-> ZED-F9P.
+      char     inputCharUBXandNMEA;             // UBX & NMEA input read character.
+      char     NMEAsentence[120];               // NMEA sentence buffer (C-string).
 
 // -- Serial2 (<-RTCMradio). --
 const char     eosRTCM        = '\n';           // End of sentence character.
@@ -188,15 +262,21 @@ const int64_t THROTTLE_OLED = 200000;           // Time (us) between updateOLED(
 Qwiic1in3OLED roverOLED;                        // OLED display object. Uses SparkFun_Qwiic_OLED library.
 
 // -- GNSS. --
-const int8_t  MIN_SATELLITE_THRESHHOLD = 6;     // Minimum SIV for reliable coordinate information.
-      int8_t  SIV;                              // Satellites In View.
-      int8_t  fixType;                          // Fix type.
-      int8_t  solnType;                         // Carrier solution type. 
-      int32_t horizontalAcc;                    // Horizontal accuracy.                                                
-      int32_t verticalAcc;                      // Vertical accuracy.
-      int64_t latitude;                         // Latitude.
-      int64_t longitude;                        // Longitude.
-      int64_t altitude;                         // Altitude in meters above Mean Sea Level (-1.0 until set).
+const int8_t   MIN_SATELLITE_THRESHHOLD = 6;     // Minimum SIV for reliable coordinate information.
+      bool     gnssSentenceStarted = false;      // Sentence parsing for incoming NMEA.
+      bool     gnssSentenceComplete = false;     // Sentence parsing for incoming NMEA.
+      bool     gnssTransmitComplete = false;     // Sentence parsing for incoming NMEA.
+      char     gnssSentence[128] = {0};          // Sentence parsing for incoming NMEA.
+      byte     gnssSentencePosn = 0;             // Sentence parsing for incoming NMEA.
+      u_int8_t gnssSentencePosnEnd = 0;          // Sentence parsing for incoming NMEA.
+      int8_t   SIV;                              // Satellites In View.
+      int8_t   fixType;                          // Fix type.
+      int8_t   solnType;                         // Carrier solution type. 
+      int32_t  horizontalAcc;                    // Horizontal accuracy.                                                
+      int32_t  verticalAcc;                      // Vertical accuracy.
+      int64_t  latitude;                         // Latitude.
+      int64_t  longitude;                        // Longitude.
+      int64_t  altitude;                         // Altitude in meters above Mean Sea Level (-1.0 until set).
 SFE_UBLOX_GNSS_SERIAL roverGNSS;                // GNSS object (uses serial instead of I2C).
 
 // -- Task handles. --
@@ -226,8 +306,8 @@ char serState[4];       // Serial state.
  *      [-][-][-][-] = Initalize.
  *      [d][-][-][-] = USB Monitor down.
  *      [u][-][-][-] = USB Monitor up.
- *      [-][d][-][-] = serial0 (RTCM->ZED) down.
- *      [-][u][-][-] = serial0 (RTCM->ZED) up.
+ *      [-][d][-][-] = serial0 (RTCM->ZED-F9P) down.
+ *      [-][u][-][-] = serial0 (RTCM->ZED-F9P) up.
  *      [-][-][d][-] = serial1 (UBX & NMEA) down.
  *      [-][-][u][-] = serial1 (UBX & NMEA) up.
  *      [-][-][-][d] = serial2 (<-RTCMradio) down.
@@ -401,7 +481,7 @@ void beginSerialUSBmonitor() {
 
 /**
  * ------------------------------------------------
- *      Begin serial0 (UART0) for RTCM->ZED.
+ *      Begin serial0 (UART0) for RTCM->ZED-F9P.
  * ------------------------------------------------
  *
  * @return void No output is returned.
@@ -412,7 +492,7 @@ void beginSerialUSBmonitor() {
 void beginSerial0RTCMtoZED() {
 
     // -- Begin serial0 interface. --
-    Serial.print("Begin serial0 (UART0) for RTCM->ZED @ 38,400 bps");
+    Serial.print("Begin serial0 (UART0) for RTCM->ZED-F9P @ 38,400 bps");
     serialRTCM.begin(SERIAL0_SPEED, SERIAL_8N1, PTH_RTCM_RX, PTH_RTCM_TX);      // UART0 object. TX<->TX, RX<->RX.
     Serial.println(".");
 }
@@ -431,7 +511,7 @@ void beginSerial1UBXandNMEA() {
 
     // -- Begin serial1 interface. --
     Serial.print("Begin serial1 (UART1) for UBX & NMEA @ 38,400 bps");
-    serialUBX.begin(SERIAL1_SPEED_INIT, SERIAL_8N1, PTH_UBX_TX, PTH_UBX_RX);     // UART1 object. TX<->TX, RX<->RX.
+    serialUBXandNMEA.begin(SERIAL1_SPEED_INIT, SERIAL_8N1, PTH_UBX_TX, PTH_UBX_RX);     // UART1 object. TX<->TX, RX<->RX.
     Serial.println(".");
 }
 
@@ -552,105 +632,176 @@ void startWiFi() {
 
 /**
  * ------------------------------------------------
- *      Start UBX GNSS on serialUBX(serial1), 
- *      config.
+ *      Start UBX & NMEA on serial1 (UBX & NMEA). Config.
  * ------------------------------------------------
  * 
  * -- Uses library SparkFun_u-blox_GNSS_v3 for UBX-CFG-VALGET & UBX-CFG-VALSET binary commands.
  * -- BTW, where is startRoverRTCM?
  *    - No need. serialRadio(serial2) -> serialRTCM(serial0) is only an RTCM relay. It does not use the GNSS library.
  *    - serialRTCM(serial0) on the ESP32 is wired (white & blue wires) to UART2 on the RTK-SMA.
- *    - Also no need for the GNSS library to configure the RTK-SMA. The ZED-9FP default for UART2 is RTCM in.
+ *    - Also no need for the GNSS library to configure the RTK-SMA. The ZED-F9P default for UART2 is RTCM in.
  *
  * @return void No output is returned.
  * @since  0.1.0 [2025-04-24-12:00pm] New.
  * @since  0.3.6 [2025-05-07-02:00pm] Refactored.
  * @since  0.4.6 [2025-05-20-06:30pm] Refactored for speed change.
  * @since  0.4.7 [2025-05-21-10:30am] Clean up.
- * @see    Global vars: Serial0 (RTCM->ZED).
+ * @since  0.4.8 [2025-05-23-09:45am] Add config options.
+ * @see    Global vars: Serial0 (RTCM->ZED-F9P).
  * @see    Global vars: Serial1 (UBX & NMEA).
  * @see    Global vars:  in.
  * @see    Global vars: GNSS.
  * @see    beginSerial0RTCMtoZED.
  * @see    beginSerial2RTCMinFromRadio.
  * @see    beginSerial1UBXandNMEA.
+ * @link   https://github.com/sparkfun/SparkFun_u-blox_GNSS_v3/blob/main/src/u-blox_config_keys.h.
  */
-void startUBX() {
+void startUBXandNMEA() {
 
-    // -- Local vars. --
-    bool setValueSuccess = true;
+    // -- Start GNSS interface on serialUBXandNMEA: (serial1 on ESP32) <-> UART1 on ZED-F9P. --
+    Serial.print("Start roverGNSS");                                            // Print status.
+    if (roverGNSS.begin(serialUBXandNMEA) == false) {                           // Bind serialUBXandNMEA to SFE_UBLOX_GNSS_SERIAL object.
 
-    // -- Start GNSS over serial. --
-    Serial.print("Start roverGNSS");                        // Print status.
-    if (roverGNSS.begin(serialUBX) == false) {              // Bind serial1 to SFE_UBLOX_GNSS_SERIAL object.
-
-        // - Could not connect to ZED-9FP over serial1 @ 38,400 bps. -
+        // - Could not connect to ZED-F9P over serial1 @ 38,400 bps. -
         Serial.println(" failed @ 38,400 bps. Trying another speed.");          // Hmm ... UART1 on ZED-f9P may be at 115,200 bps. Switch speeds. 
         Serial.print("End serial1 (UART1 for UBX & NMEA) @ 38,400 bps");                    
-        serialUBX.end();
+        serialUBXandNMEA.end();
         delay(100);                                                             // Give it time to close out.
         Serial.println(".");
         Serial.print("Begin serial1 (UART1 for UBX & NMEA) @ 115,200 bps");
-        serialUBX.begin(SERIAL1_SPEED, SERIAL_8N1, PTH_UBX_TX, PTH_UBX_RX);     // Set serial1 to 115,200 bps.
+        serialUBXandNMEA.begin(SERIAL1_SPEED, SERIAL_8N1, PTH_UBX_TX, PTH_UBX_RX);     // Set serial1 to 115,200 bps.
         Serial.println(".");
-        if (roverGNSS.begin(serialUBX) == false) {                              // Try again.
+        if (roverGNSS.begin(serialUBXandNMEA) == false) {                              // Try again.
             Serial.println("Start roverGNSS failed. Freezing ...");             // Ok, something else is wrong. Freeze.
             while (true);                                                       // Infinite loop.
         } else {
-            // Connected to ZED-9FP @ 115,200 bps.
-            // Nothing else to do. Carry on.
-            Serial.println("Start roverGNSS.");
+            // Connected to ZED-F9P @ 115,200 bps.
+            Serial.println("Start roverGNSS.");                                 // Nothing else to do. Carry on.
         }
     } else {
-        // - Connected to ZED-9FP @ 38,400 bps. -
+        // - Connected to ZED-F9P @ 38,400 bps. -
         Serial.println(".");
 
-        // - Now, increase ZED UART1 speed ...
+        // - Now, increase ZED-F9P UART1 speed ...
         Serial.printf("Config roverGNSS: CfgValset(UBLOX_CFG_UART1_BAUDRATE, %i\n", SERIAL1_SPEED);
         roverGNSS.newCfgValset();                                           // Create a new Configuration Item VALSET message.
         roverGNSS.addCfgValset(UBLOX_CFG_UART1_BAUDRATE, SERIAL1_SPEED);    // Match ZED-F9P baudrate to ESP32.
-        setValueSuccess &= roverGNSS.sendCfgValset();                       // Apply the settings.
-        setValueSuccess ? Serial.println(".") : Serial.println(" - failed.");
-        // roverGNSS.sendCfgValset() ? Serial.println(".") : Serial.println(" - failed.");
+        roverGNSS.sendCfgValset() ? Serial.println(".") : Serial.println(" - failed.");
 
         // ... and increase serial1 UART1 speed to match. -
-        Serial.print("End serial1 (UART1 for UBX & NMEA): ESP32<->ZED-9FP @ 38,400 bps"); 
-        serialUBX.end();
+        Serial.print("End serial1 (UART1 for UBX & NMEA): ESP32<->ZED-F9P @ 38,400 bps"); 
+        serialUBXandNMEA.end();
         delay(100);                                                          // Give it time to close out.
         Serial.println(".");
-        Serial.print("Begin serial (UART1 for UBX & NMEA): ESP32<->ZED-9FP @ 115,200 bps");
-        serialUBX.begin(SERIAL1_SPEED, SERIAL_8N1, PTH_UBX_TX, PTH_UBX_RX);  // Set serial1 to 115,200 bps.
+        Serial.print("Begin serial (UART1 for UBX & NMEA): ESP32<->ZED-F9P @ 115,200 bps");
+        serialUBXandNMEA.begin(SERIAL1_SPEED, SERIAL_8N1, PTH_UBX_TX, PTH_UBX_RX);  // Set serial1 to 115,200 bps.
         Serial.println(".");
-        
     }
 
-    // -- Set UART1 for only UBX messages. --
-    Serial.print("Config roverGNSS: setUART1Output(COM_TYPE_UBX)");     // COM_TYPE_UBX | COM_TYPE_NMEA | COM_TYPE_RTCM3.
-    setValueSuccess &= roverGNSS.setUART1Output(COM_TYPE_UBX);      // Library uses VAL-SET & VAL-GET.
-    setValueSuccess ? Serial.println(".") : Serial.println(" - failed.");
+    // -- Configure interface. --
+    Serial.println("Config roverGNSS");
 
-    // -- Output solutions periodically (default 1HZ). --
-    Serial.print("Config roverGNSS: setAutoPVT(true)");
-    setValueSuccess &= roverGNSS.setAutoPVT(true);
-    setValueSuccess ? Serial.println(".") : Serial.println(" - failed.");
+    // - Enable UBX & NMEA messages on UART1. -
+    roverGNSS.newCfgValset(VAL_LAYER_RAM);
+    Serial.println("UBLOX_CFG_UART1OUTPROT_UBX = 1, UBLOX_CFG_UART1OUTPROT_NMEA = 1");  // Output rate.
+    roverGNSS.addCfgValset(UBLOX_CFG_UART1OUTPROT_UBX,  1);
+    roverGNSS.addCfgValset(UBLOX_CFG_UART1OUTPROT_NMEA, 1);
+    roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_GGA_UART1, 0);  // Used by SW Maps.
+    roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_GSV_UART1, 0);  // Used by SW Maps.
+    roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_GSA_UART1, 1);  // Used by SW Maps.
+    roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_GLL_UART1, 0);
+    roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_VTG_UART1, 0);
+    roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_RMC_UART1, 1);  // Used by SW Maps.
+    roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_GST_UART1, 1);  // Used by SW Maps.
+    roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_UBX_NAV_PVT_UART1, 1);  // Output solutions periodically.
+    roverGNSS.addCfgValset(UBLOX_CFG_RATE_MEAS, 2000);              // One solution every 2 seconds (0.5 HZ).
+    roverGNSS.sendCfgValset() ? Serial.println("Success.") : Serial.println("Failed.");
 
-    // -- One solution (1 HZ) per second. --
-    Serial.print("Config roverGNSS: setNavigationFrequency(1)");
-    setValueSuccess &= roverGNSS.setNavigationFrequency(1);
-    setValueSuccess ? Serial.println(".") : Serial.println(" - failed.");
+    // roverGNSS.setNavigationFrequency(1); // Produce one solution per second
+    // roverGNSS.setAutoPVT(true); //Tell the GNSS to "send" each solution
 
-    // -- Enable high precision NMEA. --
-    // UBLOX_CFG_NMEA_HIGHPREC is L (bool) but we use 8-bits (uint8_t).
-    Serial.print("Config roverGNSS: setVal8(UBLOX_CFG_NMEA_HIGHPREC, 1)");
-    setValueSuccess &= roverGNSS.setVal8(UBLOX_CFG_NMEA_HIGHPREC, 1); 
-    setValueSuccess ? Serial.println(".") : Serial.println(" - failed.");
 
+
+
+    // // - Enable UBX messages on UART1. -
+    // Serial.print("Config roverGNSS: setVal8(UBLOX_CFG_UART1OUTPROT_UBX, 1)");
+    // roverGNSS.setVal8(UBLOX_CFG_UART1OUTPROT_UBX, 1) ? Serial.println(".") : Serial.println(" - failed.");
+
+    // // - Enable NMEA messages on UART1. -
+    // Serial.print("Config roverGNSS: setVal8(UBLOX_CFG_UART1OUTPROT_NMEA, 1)");
+    // roverGNSS.setVal8(UBLOX_CFG_UART1OUTPROT_NMEA, 1) ? Serial.println(".") : Serial.println(" - failed.");
+
+    // // - Disable RTCM messages on UART1. -
+    // Serial.print("Config roverGNSS: setVal8(UBLOX_CFG_UART1OUTPROT_RTCM3X, 0)");
+    // roverGNSS.setVal8(UBLOX_CFG_UART1OUTPROT_RTCM3X, 0) ? Serial.println(".") : Serial.println(" - failed.");
+
+    // // // - Output solutions periodically. -
+    // Serial.print("Config roverGNSS: setVal8(UBLOX_CFG_MSGOUT_UBX_NAV_PVT_UART1, 1)");
+    // roverGNSS.setVal8(UBLOX_CFG_MSGOUT_UBX_NAV_PVT_UART1, 1) ? Serial.println(".") : Serial.println(" - failed.");
+
+    // // // - One solution per second (1 HZ). -
+    // Serial.print("Config roverGNSS: setVal16(UBLOX_CFG_RATE_MEAS, 1000)");
+    // roverGNSS.setVal16(UBLOX_CFG_RATE_MEAS, 1000) ? Serial.println(".") : Serial.println(" - failed.");
+
+    // // - Enable high precision NMEA. -
+    // Serial.print("Config roverGNSS: setVal8(UBLOX_CFG_NMEA_HIGHPREC, 1)");
+    // roverGNSS.setVal8(UBLOX_CFG_NMEA_HIGHPREC, 1) ? Serial.println(".") : Serial.println(" - failed.");
+
+    // - Disable unused NMEA messages (GLL, GNS, VTG, ZDA). -
+    // Serial.print("Config roverGNSS: setVal8(UBLOX_CFG_MSGOUT_NMEA_ID_GLL_UART1, 0)");
+    // roverGNSS.setVal8(UBLOX_CFG_MSGOUT_NMEA_ID_GLL_UART1, 0) ? Serial.println(".") : Serial.println(" - failed.");
+    // Serial.print("Config roverGNSS: setVal8(UBLOX_CFG_MSGOUT_NMEA_ID_GNS_UART1, 0)");
+    // roverGNSS.setVal8(UBLOX_CFG_MSGOUT_NMEA_ID_GNS_UART1, 0) ? Serial.println(".") : Serial.println(" - failed.");
+    // Serial.print("Config roverGNSS: setVal8(UBLOX_CFG_MSGOUT_NMEA_ID_VTG_UART1, 0)");
+    // roverGNSS.setVal8(UBLOX_CFG_MSGOUT_NMEA_ID_VTG_UART1, 0) ? Serial.println(".") : Serial.println(" - failed.");
+    // Serial.print("Config roverGNSS: setVal8(UBLOX_CFG_MSGOUT_NMEA_ID_ZDA_UART1, 0)");
+    // roverGNSS.setVal8(UBLOX_CFG_MSGOUT_NMEA_ID_ZDA_UART1, 0) ? Serial.println(".") : Serial.println(" - failed.");
+
+    // - Enable (just to be sure) (5) NMEA messages: -
+    // GGA & RMC (position & time). [key, output rate every x seconds]
+
+//Disable or enable various NMEA sentences over the UART1 interface
+//   roverGNSS.newCfgValset(VAL_LAYER_RAM); // Use cfgValset to disable / enable individual NMEA messages. Change the configuration in the RAM layer only (don't save to BBR)
+//   roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_GLL_UART1, 1);  // no.
+//   roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_ZDA_UART1, 1);  // no.
+//   roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_VTG_UART1, 1);  // yes.
+
+//   roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_GGA_UART1, 1);  // yes.
+//   roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_RMC_UART1, 1);  // no. unit32
+//   roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_GSA_UART1, 1);  // yes.
+//   roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_GSV_UART1, 1);  // yes.
+//   roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_GST_UART1, 1);  // no.
+
+//   if (roverGNSS.sendCfgValset()) // Send the configuration VALSET
+//     Serial.println(F("NMEA messages were configured successfully"));
+//   else
+//     Serial.println(F("NMEA message configuration failed!"));
+
+//   roverGNSS.setUART1Output(COM_TYPE_NMEA); //Turn off UBX and RTCM sentences on the UART1 interface
+
+
+
+    // Serial.print("Config roverGNSS: setVal8(UBLOX_CFG_MSGOUT_NMEA_ID_GGA_UART1, 1)");
+    // roverGNSS.setVal8(UBLOX_CFG_MSGOUT_NMEA_ID_GGA_UART1, 1) ? Serial.println(".") : Serial.println(" - failed.");
+    // Serial.print("Config roverGNSS: setVal8(UBLOX_CFG_MSGOUT_NMEA_ID_RMC_UART1, 1)");
+    // roverGNSS.setVal8(UBLOX_CFG_MSGOUT_NMEA_ID_RMC_UART1, 1) ? Serial.println(".") : Serial.println(" - failed.");
+    // // GSA & GSV (skyplot).
+    // Serial.print("Config roverGNSS: setVal8(UBLOX_CFG_MSGOUT_NMEA_ID_GSA_UART1, 1)");
+    // roverGNSS.setVal8(UBLOX_CFG_MSGOUT_NMEA_ID_GSA_UART1, 1) ? Serial.println(".") : Serial.println(" - failed.");
+    // Serial.print("Config roverGNSS: setVal8(UBLOX_CFG_MSGOUT_NMEA_ID_GSV_UART1, 1)");
+    // roverGNSS.setVal8(UBLOX_CFG_MSGOUT_NMEA_ID_GSV_UART1, 1) ? Serial.println(".") : Serial.println(" - failed.");
+    // // GST (accuracy).
+    // Serial.print("Config roverGNSS: setVal8(UBLOX_CFG_MSGOUT_NMEA_ID_GST_UART1, 1)");
+    // roverGNSS.setVal8(UBLOX_CFG_MSGOUT_NMEA_ID_GST_UART1, 1) ? Serial.println(".") : Serial.println(" - failed.");
+  
     // -- Not used. --
-    // myGNSS.setNMEAOutputPort(Serial);  // pipe all NMEA sentences to the serial port
-    // myGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_GSA_UART1, 0);
-    // myGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_VTG_UART1, 1); //Only leaving GGA & VTG enabled at current navigation rate
+    // roverGNSS.saveConfiguration(); // Save current settings to BBR/Flash.
+
+    // roverGNSS.setNMEAOutputPort(Serial);  // Debug - pipe all NMEA sentences to serial USB.
+
     // roverGNSS.connectedToUART2();                // Not needed.
     // roverGNSS.saveConfigSelective(VAL_CFG_SUBSEC_IOPORT);    // Save port settings to flash and BBR.
+    // roverGNSS.setNMEAOutputPort(ble);
 }
 
 /**
@@ -678,7 +829,7 @@ void startTasks() {
     xTaskCreate(gnssRTKfloatLEDtask, "GNSS_RTK_float_LED_task",   2048, NULL, 2, &gnssRTKfloatLEDtaskHandle);
     xTaskCreate(gnssRTKfixLEDtask,   "GNSS_RTK_fix_LED_task",     2048, NULL, 2, &gnssRTKfixLEDtaskHandle);
     xTaskCreate(radioRtcmLEDtask,    "radio_RTCM_LED_task",       2048, NULL, 2, &radioRtcmLEDtaskHandle);
-    xTaskCreate(bleNMEAoutTask,      "BLE_NMEA_out_task",         2048, NULL, 2, &bleNMEAoutTaskHandle);
+    // xTaskCreate(bleNMEAoutTask,      "BLE_NMEA_out_task",         2048, NULL, 2, &bleNMEAoutTaskHandle);
     
      // -- Suspend tasks. --
     vTaskSuspend(bleNmeaLEDtaskHandle);
@@ -686,12 +837,13 @@ void startTasks() {
     vTaskSuspend(gnssRTKfloatLEDtaskHandle);
     vTaskSuspend(gnssRTKfixLEDtaskHandle);
     vTaskSuspend(radioRtcmLEDtaskHandle);
+    // vTaskSuspend(bleNMEAoutTaskHandle);
 
     // -- Print status. --
     Serial.println("Created/suspended BLE NMEA LED task.");
     Serial.println("Created/suspended GNSS fix, RTK float, RTK fix LED tasks.");
     Serial.println("Created/suspended Radio RTCM LED task.");
-    Serial.println("Created BLE NMEA out task.");
+    // Serial.println("Created BLE NMEA out task.");
 }
 
 /**
@@ -1191,7 +1343,7 @@ void checkGNSS() {
 
 /**
  * ------------------------------------------------
- *      Check serial2 (<-RTCMradio). Send to serial0 (RTCM->ZED).
+ *      Check serial2 (<-RTCMradio). Send to serial0 (RTCM->ZED-F9P).
  * ------------------------------------------------
  *
  * @return void No output is returned.
@@ -1212,24 +1364,24 @@ void checkRadioRTCMToZED() {
     if (gotBits) {                                  // Input has been received since boot.
         if((esp_timer_get_time()-lastRTCMtime) > RADIO_TIMEOUT) {
             serState[3] = 'd';                      // serial2 (<-RTCMradio) down.
-            serState[1] = 'd';                      // serial0 (RTCM->ZED) down.
+            serState[1] = 'd';                      // serial0 (RTCM->ZED-F9P) down.
         }
     }
 
-    // -- Read serial2 (<-RTCMradio) input. Send to serial0 (RTCM->ZED). --
+    // -- Read serial2 (<-RTCMradio) input. Send to serial0 (RTCM->ZED-F9P). --
     while(serialRadio.available() > 0) {            // serial2 (<-RTCMradio) data to read?
 
         // - Read serial2 (<-RTCMradio). -
         inputCharRTCM = serialRadio.read();         // Read a character @ HC12_SPEED.
 
-        // Need somekind of line break, RTCM confirmation from ZED-9FP.
+        // Need somekind of line break, RTCM confirmation from ZED-F9P.
         // Integrate to updateUI.
         if (inputCharRTCM == '}') {                 // eosRTCM = '\n'.  Test code.
             if (debugRad) {
                 Serial.println(inputCharRTCM);      // Last charecter.
             }
             serState[3] = 'u';                      // serial2 (<-RTCMradio) up.
-            serState[1] = 'u';                      // serial0 (RTCM->ZED) up.
+            serState[1] = 'u';                      // serial0 (RTCM->ZED-F9P) up.
             lastRTCMtime = esp_timer_get_time();    // Used to check for timeout.
             gotBits = true;                         // Flag for iniitial timeout.
             updateLEDs('-','-','2');                // Radio LED - active.
@@ -1291,13 +1443,6 @@ void checkDebug() {
         (UIstate[0] == '0') ? Serial.println("up.") : Serial.println("down.");
     }
 
-    // -- BLE. --
-    if (debugBLE)  {
-        // - Network state (d,u). -
-        Serial.print("BLE ");
-        (netState[0] == 'u') ? Serial.printf("up (hello #%i).\n", bleCount) : Serial.println("down.");
-    }
-
     // -- OLED display. --
     if (debugDis) {
         for (size_t i = 0; i < 5; i++) {
@@ -1318,7 +1463,7 @@ void checkDebug() {
         Serial.printf(
             "USB= %c  RTCM(serial0)= %c  UBX(serial1)= %c  Radio(serial2)= %c\n",
             serState[0],        // USB Monitor.
-            serState[1],        // serial0 (RTCM->ZED).
+            serState[1],        // serial0 (RTCM->ZED-F9P).
             serState[2],        // serial1 (UBX & NMEA).
             serState[3]         // serial2 (<-RTCMradio).
             );
@@ -1570,6 +1715,60 @@ void updateOLED(char display) {
 
 // --- Callback. ---
 
+/**
+ * ------------------------------------------------
+ *      NMEA out BLE.
+ * ------------------------------------------------
+ * 
+ * Process each NMEA character in from the SparkFun u-blox Arduino Library.
+ * 
+ * TODO: 2. Finish relay task.
+ *
+ * @param  char incoming GNSS sentence char.
+ * @return void No output is returned.
+ * @since  0.4.7 [2025-05-26] New.--
+ * @see    startBLE().
+ * @see    startUBXandNMEA().
+ * @see    checkGNSS().
+ * @link   https://receiverhelp.trimble.com/alloy-gnss/en-us/NMEA-0183messages_GGA.html.
+ * @link   https://receiverhelp.trimble.com/alloy-gnss/en-us/NMEA-0183messages_RMC.html.
+ * @link   https://receiverhelp.trimble.com/alloy-gnss/en-us/NMEA-0183messages_GSA.html.
+ * @link   https://receiverhelp.trimble.com/alloy-gnss/en-us/NMEA-0183messages_GSV.html.
+ * @link   https://receiverhelp.trimble.com/alloy-gnss/en-us/NMEA-0183messages_GST.html.
+ * @link   https://github.com/avinabmalla/ESP32_BleSerial.
+ * @link   https://docs.sparkfun.com/SparkFun_RTK_Everywhere_Firmware/connecting_bluetooth/.
+ */
+void DevUBLOXGNSS::processNMEA(char incoming) {
+    if (incoming == '$') {
+        gnssSentenceStarted = true;
+        gnssSentencePosnEnd = sizeof(gnssSentence);
+        gnssSentenceComplete = false;
+    }
+    if (gnssSentenceStarted == true) {
+        gnssSentence[gnssSentencePosn++] = incoming;
+    }
+    if (gnssSentencePosn == sizeof(gnssSentence)) {         // Something is wrong, sentence is too long.
+        gnssSentenceStarted = false;                        // Start over.
+    } else if (incoming == '*') {
+        gnssSentencePosnEnd = gnssSentencePosn + 2;         // Two more bytes to complete the CRC.
+    } else if (gnssSentencePosn == gnssSentencePosnEnd) {
+        gnssSentence[gnssSentencePosn] = '\0'; //Terminate this string
+        if(debugBLE) {
+            Serial.println(gnssSentence);
+        }
+        ble.print(gnssSentence);
+        // -- Update state & UI. --
+        netState[0] = 'u';                  // NMEA out BLE up.
+        if (UIstate[0] == '0') {            // GNSS lock button is in upPosition.
+            updateLEDs('2','-','-');        // BLE LED - active.
+        }
+        gnssSentenceStarted = false;       // Start again.
+        gnssSentenceComplete = true;
+        gnssSentencePosn = 0;
+        memset(gnssSentence, '\0', sizeof(gnssSentence));
+    }
+}
+
 // --- Operation. ---
 
 // --- Tasks. ---
@@ -1709,55 +1908,6 @@ void radioRtcmLEDtask(void * pvParameters) {
     }
 }
 
-/**
- * ------------------------------------------------
- *      BLE NMEA out task.
- * ------------------------------------------------
- *
- * @return void No output is returned.
- * @since  0.3.4 [2025-05-06-02:30pm] New.
- * @since  0.3.7 [2025-05-09-01:30pm] Moved counter to local.
- * @since  0.4.5 [2025-05-17-09:30pm] Moved to task.
- * @since  0.4.7 [2025-05-21-07:30pm] Refactored.
- * @see    startTasks().
- * @link   https://github.com/avinabmalla/ESP32_BleSerial.
- * @link   https://docs.sparkfun.com/SparkFun_RTK_Everywhere_Firmware/connecting_bluetooth/.
- * @link   https://www.freertos.org/Documentation/02-Kernel/04-API-references/02-Task-control/01-vTaskDelay.
- * @link   https://docs.espressif.com/projects/esp-idf/en/v4.3/esp32/api-reference/system/freertos.html.
- * @link   https://www.freertos.org/Documentation/02-Kernel/05-RTOS-implementation-tutorial/02-Building-blocks/11-Tick-Resolution.
- */
-void bleNMEAoutTask(void * pvParameters) {
-    // TODO: 2. Finish relay task.
-
-    // Bluetooth serial port profile (SPP) at 2Hz and 115200bps
-    // Enable desired NMEA messages at 1 Hz
-
-    // need GSA messages also.
-    //   myGNSS.setMessageRate(UBX_NMEA_GGA, 1); // GGA - Global Positioning System Fix Data
-    //   myGNSS.setMessageRate(UBX_NMEA_RMC, 1); // RMC - Recommended Minimum Specific GNSS Data
-    //   myGNSS.setMessageRate(UBX_NMEA_GSV, 1); // GSV - GNSS Satellites in View
-    //   myGNSS.setMessageRate(UBX_NMEA_GST, 1); // GST - GNSS Pseudorange Error Statistics
-
-    // Save the current configuration to flash and BBR (battery-backed RAM)
-    // roverGNSS.saveConfiguration(VAL_CFG_SUBSEC_IOPORT | VAL_CFG_SUBSEC_MSGCONF);
-
-    while(true) {
-
-        // -- Update state & UI. --
-        netState[0] = 'u';                  // NMEA out BLE up.
-        if (UIstate[0] == '0') {            // GNSS lock button is in upPosition.
-            updateLEDs('2','-','-');        // BLE LED - active.
-        }
-
-        // -- Send message out BLE serial. --
-        ble.printf("Hello %i", bleCount);   // Test message.
-        bleCount++;                         // Increment test count.
-        vTaskDelay(BLE_TEST_CYCLE);         // Test loop delay.
-    }
-}
-
-// --- Test. ---
-
 // ===================================
 //               Setup.
 // ===================================
@@ -1766,14 +1916,14 @@ void setup() {
     initVars();                     // Initialize vars.
     beginSerialUSBmonitor();        // Begin serial USB (monitor).
     configPins();                   // Initialize pin modes & pin values.
-    beginSerial0RTCMtoZED();        // Begin serial0 (UART0) for RTCM->ZED.
+    beginSerial0RTCMtoZED();        // Begin serial0 (UART0) for RTCM->ZED-F9P.
     beginSerial1UBXandNMEA();       // Begin serial1 (UART1) for UBX & NMEA.
     beginSerial2RTCMinFromRadio();  // Begin serial2 (UART2) for <-RTCMradio.
     beginI2C();                     // Begin I2C.
     startDisplay();                 // Start OLED display.
     startBLE();                     // Begin & start BLE.
     startWiFi();                    // Start WiFi.
-    startUBX();                     // Start & config for UBX GNSS.
+    startUBXandNMEA();              // Start & config for UBX & NMEA.
     startTasks();                   // Start tasks.
     startUI();                      // Start UI.
 }                                               
@@ -1784,7 +1934,7 @@ void setup() {
 
 void loop() {
     checkSerialMonitor();       // Check for serial input.
-    checkRadioRTCMToZED();      // Check serial2 (<-RTCMradio). Send to serial0 (RTCM->ZED).
+    checkRadioRTCMToZED();      // Check serial2 (<-RTCMradio). Send to serial0 (RTCM->ZED-F9P).
     checkLockButton();          // Check GNSS lock button.
     checkGNSS();                // Check for new GNSS data.
     checkDebug();               // Check to display debug.
