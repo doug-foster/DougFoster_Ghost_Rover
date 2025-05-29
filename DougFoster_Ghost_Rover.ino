@@ -141,7 +141,8 @@
  *        - handle: https://www.amazon.com/dp/B01FUEXLGU.
  *        - tripod base: https://www.amazon.com/dp/B07GST1C2Z.
  *        - adjustable phone mount: https://www.amazon.com/dp/B07S8TTH34.
- *        - other: 80/20, 1/4-20 nuts, bots, washers, USB-A power cable.
+ *        - (2) laser pointers: https://www.petsmart.com/cat/toys/interactive-and-electronic/whisker-city-thrills-and-chills-laser-cat-toy-84577.html.
+ *        - other: 80/20 1" tubing, 1/4-20 nuts, bots, washers, USB-A power cable.
  *
  * --- Misc. references. ---
  *     -- EVK         https://docs.sparkfun.com/SparkFun_RTK_EVK/introduction/.
