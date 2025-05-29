@@ -162,17 +162,25 @@
  *        SFTP).
  *     -- GitHub repo: https://github.com/doug-foster/DougFoster_Ghost_Rover/.
  * 
+ * --- Caveats. ---
+ *     -- SoftwareSerial library is not supported on ESP32-S3 (does work on ESP32-C6).
+ *     -- 0.5.1 build:
+ *        Sketch uses 1056078 bytes (80%) of program storage space. Maximum is 1310720 bytes.
+ *        Global variables use 57364 bytes (17%) of dynamic memory, leaving 270316 bytes for
+ *        local variables. Maximum is 327680 bytes.
+ *     -- The BleSerial library is a pig.
+ *
+ * --- TODO: ---
+ *     1. checkRadioRTCMToZED() - Implement out to serialRTCM, move to ESP32 task.
+ *     2. Future: stand-alone mode using PP. (#include <WiFi.h> uses 118% program storage.)
+ *     3. Future: "vector to coordinates" function.
+ *
  * --- Code flow. ---
  *     -- Include libraries.
  *     -- Global vars: define vars, set constants, prototypes.
  *     -- Functions: init, config, begin, start, check, display, callback, operation, tasks, test.
  *     -- Setup.
  *     -- Loop.
- * 
- * --- TODO: ---
- *     1. checkRadioRTCMToZED() - Implement out to serialRTCM, move to ESP32 task.
- *     2. Future: stand-alone mode using PP. (#include <WiFi.h> uses 118% program storage.)
- *     3. Future: "vector to coordinates" function.
  */
 
 // ===================================
