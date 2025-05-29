@@ -16,6 +16,7 @@
  * @since    0.4.8 [2025-05-21-08:15pm].
  * @since    0.4.8 [2025-05-22-12:00pm].
  * @since    0.5.0 [2025-05-28-05:45pm].
+ * @since    0.5.1 [2025-05-29-11:15am].
  * @link     http://dougfoster.me.
  *
  * ===================================
@@ -31,47 +32,68 @@
  *        without the rover being visible in the photo. This is done by 1) positioning the rover above
  *        the subject and obtaining a fix, 2) pressing the GNSS lock button, 3) moving the rover out of view
  *        for the photograph, 4) taking the photo, 5) releasing the GNSS lock button, then 6) moving on to
- *        the next subject. While the GNSS lock button is down, the rover will continue to broadcast the
- *        position of where the button was pressed. When the button is released, it returns to normal roving
- *        operation.
+ *        the next subject.
  * 
- *        A 16 character x 5 row OLED display on the rover's front is used to display GNSS information
- *        (latitude, longitude, altitude above Mean Sea Level, horizontal & vertical accuracy, satellites in
- *        view, GNSS fix type, GNSS solution type, and network status for both bluetooth & WiFi communications).
+ *        While the GNSS lock button is down, the rover will continue to send the position of where the button
+ *        was pressed, regardless of its current location (this allows moving the rover out of view for the
+ *        photograph). When the button is released, the rover returns to sending current position coordinates.
+ *        These location coordinates are transmitted from the rover to the GNSS app over a Bluetooth Low Energy
+ *        serial (aka serial-BLE) wireless link.
  * 
- *        The front of the rover has a push-to-latch button (the GNSS lock button described above), a blue
- *        LED (flashes to indicate a Bluetooth Low energy - BLE broadcast), a yellow LED (flashes to indicates
- *        GNSS activity), and a red LED (flashes to indicate reception of data from an RF link). The rover's
- *        case also has an off/on switch to control +5v power in from a small USB portable battery pack. A
- *        removable UHF external antenna for the RF link is attached to the case, and the USB serial ports for
- *        both MCU & GNSS boards are accessible. The rover is powered from either 1) the battery pack or 2) the
- *        MCU or GNSS USB serial port.
+ *        A 16 character x 5 row OLED display on the rover's front cover displays GNSS information (latitude,
+ *        longitude, altitude above Mean Sea Level, horizontal & vertical accuracy, satellites in view, GNSS
+ *        fix type, GNSS solution type, and network status for both serial-BLE & WiFi communications).
  * 
- *        While the rover displays GNSS location status on the OLED for user convience, its main purpose is to
- *        broadcast NMEA sentences (GGA & RMC for position & time, GSA & GSV for skyplot, and GST for accuracy)
- *        out over BLE to a device (like a mobile device running SW Maps) which can take photos and geotag them
- *        using data from an external GNSS source. Using the SparkFun_u-blox_GNSS_v3 library, the GNSS processor
- *        (in this case a uBlox ZED-F9P) is set to broadcast a solution of these (5) sentences once every
- *        second.
+ *        The rover's front cover also has 1) a push-to-latch button (the GNSS lock button described above), 
+ *        2) a blue LED (flashes to indicate serial-BLE transmissions), 3) a yellow LED (flashes to indicates
+ *        GNSS activity), and 4) a red LED (flashes to indicate reception of RTK correction data from an RF link).
+ *        The case also has 1) a side-mounted off/on switch to control +5v power in from a small USB portable
+ *        battery pack, 2) a removable UHF external antenna for the RF link, and 3) exposes both MCU & GNSS
+ *        serial USB ports. A dedicated USB-A power cable is attached to the MCU board and connected to the
+ *        removable USB battery pack. Optionally the rover can receive power through either of the exposed
+ *        MCU/GNSS USB serial ports.
  * 
- *        The GNSS processor operates in high precision mode. This means all position information (both on 
- *        the OLED display and in the NMEA sentences over BLE) are reported with 7 decimal position precision
- *        rather than the standard 5 decimal precision.
+ *        While the rover does display GNSS location on the OLED for quick reference, its main purpose is to
+ *        unicast NMEA sentences (GGA & RMC for position & time, GSA & GSV for skyplot, and GST for accuracy)
+ *        over serial-BLE to a receiver (like a mobile device running SW Maps) which can take photos and geotag
+ *        them using that transmitted data. The SparkFun_u-blox_GNSS_v3 library is used to configure the
+ *        GNSS processor (in this case a uBlox ZED-F9P) to calculate a fix twice per second and transmit these
+ *        (5) sentences twice every second.
  * 
- *        The rover uses an RF link (internal HC-12 radio) to receive RTCM3 correction data from a base station.
- *        (A roadmap feature is to support stand-alone mode using PointPerfect correction data received from
- *        a WiFi connected hot spot. This is initiated by booting the rover with the GNSS lock button in the
- *        downPosition on start up as opposed to the normal upPosition). The rover's companion base station
- *        is a Sparkfun EVK running Sparkfun's RTK everywhere firmware. Internally, another ESP32-S3 and HC-12
- *        were added to the EVK to create a serial relay for transmitting RTCM bytes streamed out from the
- *        UART2 port of the base's GNSS processor an in to the rover's HC-12 radio.
+ *        The SparkFun_u-blox_GNSS_v3 library was also used to configure the GNSS processor to operate in high
+ *        precision mode. This means position information (both on the OLED display and in the serial-BLE NMEA
+ *        sentences) is calculated and reported with seven decimal position precision rather than standard NMEA
+ *        five decimal precision.
+ * 
+ *        The rover uses an RF link (internal HC-12 radio) to receive RTCM3 correction data from a companion base
+ *        station - a Sparkfun EVK running Sparkfun's RTK everywhere firmware. Inside the EVK enclosure, an
+ *        identical ESP32-S3 MCU (SparkFun Thing Plus ESP32-S3) and HC-12 RF radio were added. Both devices are
+ *        powered by a connection to the EVK's internal I2C bus. 
+ * 
+ *        When the EVK is in base mode and a fix has been obtained, it will send an RTCM3 correction stream out
+ *        over two lugs on a terminal block exposed at the back of the EVK. The add-on MCU runs a simple serial
+ *        relay sketch which reads data in byte-by-byte from one of the MCU's serial ports (which is wired to
+ *        the EVK's terminal lugs (UART2 of the EVK's internal ZED-F9P). The sketch then relays the data
+ *        byte-by-byte, out another serial port which is wired to the HC-12. The HC-12 transmits the serial
+ *        data stream over RF to the rover.
+ * 
+ *        [A future code update will support stand-alone mode (no base needed) by acquiring correction data
+ *        from Ublox's PointPerfect (PP) service over a WiFi connected hot spot. For now, the current code will
+ *        default to base mode on startup. However, if the rover is booted with the GNSS lock button in the
+ *        downPosition on start up - as opposed to the normal upPosition - the rover mode wil be set to PP, which
+ *        will be used to trigger the  future enhancement.
+ * 
+ *        While using a temporary base station with the rover is physically not as convenient as a stand-alone
+ *        rover using PP, it does minimize the amount of time needed connected to the PP service. By using a
+ *        a temporary base, which only connects to PP during the base's initial survey-in mode, one can be
+ *        quite stingy with the PP service time needed.]
  * 
  *        WHen the rover boots, it will first progress into 3D GNSS fix. This is indicated by the status line
- *        on the OLED display (F3 S0). Also, the yellow LED fashes once every second. When the rover is
- *        receiveing RTCM data, it will enter RTK float mode (displaying F3 S1) and present two quick flashes
- *        every second. When the rover finally enters RTK fix mode, it will display (F3 S2) and the yellow LED
- *        will quickly flash three times every second. When/if the rover's fix acuracy digresses from RTK, the
- *        display and LEDs will perform as described in the progesssion to RTK fix.
+ *        on the OLED display (F3 S0) Fix=3, Solution=0. Also, the yellow LED fashes once every second. When
+ *        the rover is receiveing RTCM data, it will enter RTK float mode (displaying F3 S1 - Solution = 1 and
+ *        present two quick flashes every second. When the rover finally enters RTK fix mode, it will display
+ *        (F3 S2) and the yellow LED will quickly flash three times every second. When/if the rover's fix acuracy
+ *        digresses from RTK, the display and LEDs will display the appropriate status.
  * 
  *        If no BLE transmission occurs, or no GNSS update is received, or no RTCM data received over the RF
  *        link from the base, the LEDs will correspondingly be off. When data is received again, the LEDs will
@@ -81,9 +103,9 @@
  *        Sparkfun GNSS board and (if not needing to be replaced), should hold the GNSS settings as well as last
  *        fix information for about 2 weeks. This can significantly reduce time to first fix for the GNSS.
  * 
- *        Internally, the rover uses a serial connection between the ESP32-S3 MCU and the ZED-F9P (UART1) for
- *        1) configuring the GNSS via UBX commands and 2) receiving NMEA sentences from the ZED. The I2C bus
- *        is used only for communication between the ESP32 and the OLED display.
+ *        Internally, the rover uses a serial connection @ 115,200 kbps between the ESP32-S3 MCU and the ZED-F9P
+ *        (UART1) for 1) configuring the GNSS via UBX commands and 2) receiving NMEA sentences from the ZED.
+ *        The MCU's I2C bus is used only for communication with the OLED display.
  * 
  *        A set of serial commands (entered over the serial USB interface of the ESP32-S3) are provided for
  *        testing and debugging ooperation. checkSerialUSB() in the loop() section watches for a command.
@@ -121,11 +143,24 @@
  *        - adjustable phone mount: https://www.amazon.com/dp/B07S8TTH34.
  *        - other: 80/20, 1/4-20 nuts, bots, washers, USB-A power cable.
  *
- * --- References. ---
- *     -- RTK   https://learn.sparkfun.com/tutorials/how-to-build-a-diy-gnss-reference-station/all.
- *     -- EVK   https://docs.sparkfun.com/SparkFun_RTK_EVK/introduction/.
- *     -- HC-12 https://www.elecrow.com/download/HC-12.pdf.
- *
+ * --- Misc. references. ---
+ *     -- EVK         https://docs.sparkfun.com/SparkFun_RTK_EVK/introduction/.
+ *     -- HC-12       https://www.elecrow.com/download/HC-12.pdf.
+ *     -- PyGPSClient https://github.com/semuconsulting/PyGPSClient.
+ *     -- SW Maps     https://aviyaantech.com/swmaps/.
+ *     -- RTK         https://learn.sparkfun.com/tutorials/what-is-gps-rtk/all.
+ *     -- NMEA        https://cdn.sparkfun.com/assets/a/3/2/f/a/NMEA_Reference_Manual-Rev2.1-Dec07.pdf.
+ *                    https://swairlearn.bluecover.pt/nmea_analyser.
+ *     -- SparkFun    https://learn.sparkfun.com/tutorials/tags/gnss.
+ * 
+ * --- Dev environment. ---
+ *     -- Arduino IDE 2.3.6.
+ *     -- Board: "Sparkfun ESP32-S3 Thing Plus" (~/Library/Arduino15/packages/esp32/hardware/esp32/3.2.0/boards.txt)
+ *     -- VS Code 1.100.2 (Extensions: Better Comments, Bookmarks, C/C++, C/C++ Extension Pack, C/C++ Themes,
+ *        CMake Tools, Dash, Diff Folders, Git Graph, GitHub Theme, GitLens, Markdown All in One, Serial Monitor,
+ *        SFTP).
+ *     -- GitHub repo: https://github.com/doug-foster/DougFoster_Ghost_Rover/.
+ * 
  * --- Code flow. ---
  *     -- Include libraries.
  *     -- Global vars: define vars, set constants, prototypes.
@@ -135,6 +170,8 @@
  * 
  * --- TODO: ---
  *     1. checkRadioRTCMToZED() - Implement out to serialRTCM, move to ESP32 task.
+ *     2. Future: stand-alone mode using PP. (#include <WiFi.h> uses 118% program storage.)
+ *     3. Future: "vector to coordinates" function.
  */
 
 // ===================================
@@ -155,10 +192,10 @@
 // ===================================
 
 // -- Version. --
-const char BUILD_DATE[]   = "2025-05-28-17:45";     // 24hr format, need to fit max (16) characters.
+const char BUILD_DATE[]   = "2025-05-29-11:15";     // 24hr format, need to fit max (16) characters.
 const char MAJOR_VERSION  = '0';
 const char MINOR_VERSION  = '5';
-const char PATCH_VERSION  = '0';
+const char PATCH_VERSION  = '1';
 
 // -- Pin (pth) definitions. --
 const uint8_t BUTTON_LOCK = 4;          // ESP32-S3 Thing+ PTH 4 <-> Red toggle button (yellow wire).
@@ -215,32 +252,35 @@ const  char*    commands[NUM_COMMANDS] = {      // Valid commands. Point to arra
        char     radioCommand[11];               // serial (radio) test command (C-string).
 
 // -- Serial0 (RTCM->ZED-F9P). --
-      HardwareSerial serialRTCM(0);             // UART0 object. Used for RTCM relay: from ESP32 UART0 in to RTK-SMA UART2.
-const uint32_t SERIAL0_SPEED = 38400;           // ZED-F9P default speed.
-const int64_t  GNSS_TIMEOUT  = 5000000;         // Time (us) not to exceed for last GNSS update (5 sec).
+
+const uint32_t       SERIAL0_SPEED = 38400;         // ZED-F9P default speed.
+const int64_t        GNSS_TIMEOUT  = 5000000;       // Time (us) not to exceed for last GNSS update (5 sec).
+      HardwareSerial serialRTCM(0);                 // UART0 object. Used for RTCM relay: from ESP32 UART0 in to RTK-SMA UART2.
 
 // -- Serial1 (UBX & NMEA). --
-HardwareSerial serialUBXandNMEA(1);             // UART1 object. Used for UBX CFG-VAL-SET/VAL-GET & NMEA (for BLE).
-const uint32_t SERIAL1_SPEED_INIT = 38400;      // Speed for ESP32Serial1 <-> ZED-F9P.
-const uint32_t SERIAL1_SPEED      = 115200;     // Speed for ESP32Serial1 <-> ZED-F9P.
-      char     inputCharUBXandNMEA;             // UBX & NMEA input read character.
-      char     NMEAsentence[120];               // NMEA sentence buffer (C-string).
+
+const uint32_t       SERIAL1_SPEED_INIT = 38400;    // Speed for ESP32Serial1 <-> ZED-F9P.
+const uint32_t       SERIAL1_SPEED      = 115200;   // Speed for ESP32Serial1 <-> ZED-F9P.
+      char           inputCharUBXandNMEA;           // UBX & NMEA input read character.
+      char           NMEAsentence[120];             // NMEA sentence buffer (C-string).
+      HardwareSerial serialUBXandNMEA(1);           // UART1 object. Used for UBX CFG-VAL-SET/VAL-GET & NMEA (for BLE).
 
 // -- Serial2 (<-RTCMradio). --
-const char     eosRTCM        = '\n';           // End of sentence character.
-const uint32_t SERIAL2_SPEED  = 9600;           // HC-12 default speed.
-const int64_t  RADIO_TIMEOUT  = 3000000;        // Time (us) not to exceed for inputCharRTCM received (3 sec).
-      char     inputCharRTCM;                   // RTCM input read character.
-      int64_t  lastRTCMtime;                    // Last time (us) when RTCM inputCharRTCM received.
-HardwareSerial serialRadio(2);                  // UART2 object. Used for HC-12 radio.
+const char           eosRTCM       = '\n';          // End of sentence character.
+const uint32_t       SERIAL2_SPEED = 9600;          // HC-12 default speed.
+const int64_t        RADIO_TIMEOUT = 3000000;       // Time (us) not to exceed for inputCharRTCM received (3 sec).
+      char           inputCharRTCM;                 // RTCM input read character.
+      int64_t        lastRTCMtime;                  // Last time (us) when RTCM inputCharRTCM received.
+      HardwareSerial serialRadio(2);                // UART2 object. Used for HC-12 radio.
 
 // -- BLE (Bluetooth Low Energy) out. --
+
 const char       BLE_NAME[]        = "GhostRover";              // BLE name.
 const TickType_t BLE_TEST_CYCLE    = 1000/portTICK_PERIOD_MS;   // Time (ms).
 const u_int8_t   LED_TRIGGER_COUNT = 5;                         // Flash BLE LED once for every LED_TRIGGER_COUNT sentences sent.
 const int64_t    NMEA_TIMEOUT      = 5000000;                   // Time (us) not to exceed for DevUBLOXGNSS::processNMEA().
       char       stateBLE;                                      // BLE state. Used in OLED dsiplay.
-BleSerial ble;                                                  // BLE object.
+      BleSerial  ble;                                           // BLE object.
 
 // -- WiFi. --
 char stateWifi;                                 // WiFi state. Used in OLED dsiplay.
@@ -285,9 +325,9 @@ TaskHandle_t bleNMEAoutTaskHandle;              // BLE NMEA out task handle.
 static bool ghostMode = false;                  // Flag, in Ghost mode.
 
 // -- Set state. --
-char pgmState[2];       // Program state.
+       char pgmState[2];                        // Program state.
 /**
- *    - Program state (use debugPgm to debug) -
+ *    - Program state (debugPgm to debug) -
  *      [-][-] = Initalize.
  *      [s][-] = Program section: in setup().
  *      [l][-] = Program section: in loop().
@@ -295,9 +335,9 @@ char pgmState[2];       // Program state.
  *      [-][p] = Rover mode: RTK PointPerfect.
  */
 
-char serState[4];       // Serial state.
+       char serState[4];                        // Serial state.
 /**
- *    - Serial state (use debugSer to debug). -
+ *    - Serial state (debugSer to debug). -
  *      [-][-][-][-] = Initalize.
  *      [d][-][-][-] = USB Monitor down.
  *      [u][-][-][-] = USB Monitor up.
@@ -309,7 +349,7 @@ char serState[4];       // Serial state.
  *      [-][-][-][u] = serial2 (<-RTCMradio) up.
  */
 
-char UIstate[4];        // UI state.
+       char UIstate[4];                         // UI state.
 /**
  *    - UI state (debugUI to debug). -
  *      [-][-][-][-] = Initalize.
@@ -328,9 +368,9 @@ char UIstate[4];        // UI state.
  *      [-][-][-][2] = Radio LED - active.
  */
 
-char netState[2];       // Network state.
+       char netState[2];                        // Network state.
 /**
- *    - Network state (debugNet). -
+ *    - Network state (debugNet to debug). -
  *      [-][-] = Initalize.
  *      [d][-] = NMEA out BLE down.
  *      [u][-] = NMEA out BLE up.
@@ -339,8 +379,8 @@ char netState[2];       // Network state.
  */
 
 // -- Prototypes. --
-void updateLEDs(char, char, char);
-void checkLockButton(char);             // Eliminates compiler scope error due to definition order.
+void updateLEDs(char, char, char);              // Eliminate compiler scope error due to definition order.
+void checkLockButton(char);
 void updateOLED(char);
 
 // -- Test. --
@@ -451,7 +491,6 @@ void configPins() {
     digitalWrite(LED_GNSS,  LOW);
     digitalWrite(LED_RADIO, LOW);
     Serial.println(".");
-
 }
 
 // --- Begin. ---
@@ -1675,7 +1714,6 @@ void updateOLED(char display) {
  * @link   https://receiverhelp.trimble.com/alloy-gnss/en-us/NMEA-0183messages_GSA.html.
  * @link   https://receiverhelp.trimble.com/alloy-gnss/en-us/NMEA-0183messages_GSV.html.
  * @link   https://receiverhelp.trimble.com/alloy-gnss/en-us/NMEA-0183messages_GST.html.
- * @link   https://cdn.sparkfun.com/assets/a/3/2/f/a/NMEA_Reference_Manual-Rev2.1-Dec07.pdf.
  * @link   https://github.com/avinabmalla/ESP32_BleSerial.
  * @link   https://docs.sparkfun.com/SparkFun_RTK_Everywhere_Firmware/connecting_bluetooth/.
  * @link   https://www.tutorialspoint.com/c_standard_library/c_function_strtok.htm.
@@ -1771,7 +1809,6 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
                 // Rover BLE LED is already set on by checkLockButton().
 
                 // Update OLED position data. Calculate values direct from lastGNGGA sentence.
-
                 if (ghostMode) {                                        // Set by checkLockButton().
 
                     // Init vars.
@@ -1827,7 +1864,7 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
 /**
  * Utility to convert ddmm.mmmmmmm to int_64.
  *
- * @param  const char *nmea_token POsition token from GNGGA sentence. 
+ * @param  const char *nmea_token Position token from GNGGA sentence. 
  * @return int64_t number.
  * @since  0.5.0 [2025-05-28-05:45pm] New.
  * @see    DevUBLOXGNSS::processNMEA().
@@ -2012,9 +2049,9 @@ void setup() {
 // ===================================
 
 void loop() {
-    checkSerialUSB();           // Check for serial (USB) input.
-    checkLockButton();          // Check GNSS lock button.
-    checkGNSS();                // Check for new GNSS data. DevUBLOXGNSS::processNMEA().
-    checkRadioRTCMToZED();      // Check serial2 (<-RTCMradio). Send to serial0 (RTCM->ZED-F9P).
-    checkForDebug();            // Check to display debug.
+    checkSerialUSB();               // Check for serial (USB) input.
+    checkLockButton();              // Check GNSS lock button.
+    checkGNSS();                    // Check for new GNSS data. @see DevUBLOXGNSS::processNMEA().
+    checkRadioRTCMToZED();          // Check serial2 (<-RTCMradio). Send to serial0 (RTCM->ZED-F9P).
+    checkForDebug();                // Check to display debug.
 }
