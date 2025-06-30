@@ -17,6 +17,7 @@
  * @since    0.4.8 [2025-05-22-12:00pm].
  * @since    0.5.0 [2025-05-28-05:45pm].
  * @since    0.5.1 [2025-05-29-11:15am].
+ * @since    0.5.2 [2025-06-26-02:45pm]. Changed LED_RADIO to 6, LED_BLE to 7.
  * @link     http://dougfoster.me.
  *
  * ===================================
@@ -155,11 +156,11 @@
  *     -- SparkFun    https://learn.sparkfun.com/tutorials/tags/gnss.
  * 
  * --- Dev environment. ---
- *     -- Arduino IDE 2.3.6.
- *     -- Board: "Sparkfun ESP32-S3 Thing Plus" (~/Library/Arduino15/packages/esp32/hardware/esp32/3.2.0/boards.txt)
- *     -- VS Code 1.100.2 (Extensions: Better Comments, Bookmarks, C/C++, C/C++ Extension Pack, C/C++ Themes,
+ *     -- IDE: Arduino 2.3.6.
+ *     -- Editor: VS Code 1.100.2 (Extensions: Better Comments, Bookmarks, C/C++, C/C++ Extension Pack, C/C++ Themes,
  *        CMake Tools, Dash, Diff Folders, Git Graph, GitHub Theme, GitLens, Markdown All in One, Serial Monitor,
  *        SFTP).
+ *  *     -- Board: "Sparkfun ESP32-S3 Thing Plus" (~/Library/Arduino15/packages/esp32/hardware/esp32/3.2.0/boards.txt)
  *     -- GitHub repo: https://github.com/doug-foster/DougFoster_Ghost_Rover/.
  * 
  * --- Caveats. ---
@@ -201,16 +202,16 @@
 // ===================================
 
 // -- Version. --
-const char BUILD_DATE[]   = "2025-05-29-11:15";     // 24hr format, need to fit max (16) characters.
+const char BUILD_DATE[]   = "2025-06-26-14:45";     // 24hr format, need to fit max (16) characters.
 const char MAJOR_VERSION  = '0';
 const char MINOR_VERSION  = '5';
-const char PATCH_VERSION  = '1';
+const char PATCH_VERSION  = '2';
 
 // -- Pin (pth) definitions. --
 const uint8_t BUTTON_LOCK = 4;          // ESP32-S3 Thing+ PTH 4 <-> Red toggle button (yellow wire).
-const uint8_t LED_BLE     = 6;          // ESP32-S3 Thing+ PTH 6 <-> Blue LED (blue wire).
+const uint8_t LED_RADIO   = 6;          // ESP32-S3 Thing+ PTH 6 <-> Red LED (blue wire).
 const uint8_t LED_GNSS    = 5;          // ESP32-S3 Thing+ PTH 5 <-> Yellow LED (green wire).
-const uint8_t LED_RADIO   = 7;          // ESP32-S3 Thing+ PTH 7 <-> Red LED (white wire).
+const uint8_t LED_BLE     = 7;          // ESP32-S3 Thing+ PTH 7 <-> Blue LED (white wire).
 const uint8_t I2C_SDA     = 8;          // ESP32-S3 Thing+ PTH SDA/8 - I2C data pin.
 const uint8_t I2C_SCL     = 9;          // ESP32-S3 Thing+ PTH SCL/9 - I2C clock pin.
 const uint8_t PTH_SET     = 42;         // ESP32-S3 Thing+ PTH 42 (SET) <-> HC-12 SET (blue wire).
@@ -218,8 +219,8 @@ const uint8_t PTH_TX      = 43;         // ESP32-S3 Thing+ PTH 43 (UART2) <-> HC
 const uint8_t PTH_RX      = 44;         // ESP32-S3 Thing+ PTH 44 (UART2) <-> HC-12 TX (white wire).
 const uint8_t PTH_UBX_TX  = 14;         // ESP32-S3 Thing+ PTH 14 (UART1) <-> RTK-SMA UART1 TX (green wire) - UBX.
 const uint8_t PTH_UBX_RX  = 15;         // ESP32-S3 Thing+ PTH 15 (UART1) <-> RTK-SMA UART1 RX (yellow wire) - UBX.
-const uint8_t PTH_RTCM_TX = 16;         // ESP32-S3 Thing+ PTH 16 (UART0) <-> RTK-SMA UART2 TX (blue wire) - RTCM.
-const uint8_t PTH_RTCM_RX = 17;         // ESP32-S3 Thing+ PTH 17 (UART0) <-> RTK-SMA UART2 RX (white wire) - RTCM.
+const uint8_t PTH_RTCM_RX = 16;         // ESP32-S3 Thing+ PTH 16 (UART0) <-> RTK-SMA UART2 TX2 (blue wire) - RTCM.
+const uint8_t PTH_RTCM_TX = 17;         // ESP32-S3 Thing+ PTH 17 (UART0) <-> RTK-SMA UART2 RX2 (white wire) - RTCM.
 
 // -- Serial USB (monitor). --
 const  uint8_t  NUM_COMMANDS     = 14;          // How many possible commands.
@@ -261,13 +262,11 @@ const  char*    commands[NUM_COMMANDS] = {      // Valid commands. Point to arra
        char     radioCommand[11];               // serial (radio) test command (C-string).
 
 // -- Serial0 (RTCM->ZED-F9P). --
-
 const uint32_t       SERIAL0_SPEED = 38400;         // ZED-F9P default speed.
 const int64_t        GNSS_TIMEOUT  = 5000000;       // Time (us) not to exceed for last GNSS update (5 sec).
       HardwareSerial serialRTCM(0);                 // UART0 object. Used for RTCM relay: from ESP32 UART0 in to RTK-SMA UART2.
 
 // -- Serial1 (UBX & NMEA). --
-
 const uint32_t       SERIAL1_SPEED_INIT = 38400;    // Speed for ESP32Serial1 <-> ZED-F9P.
 const uint32_t       SERIAL1_SPEED      = 115200;   // Speed for ESP32Serial1 <-> ZED-F9P.
       char           inputCharUBXandNMEA;           // UBX & NMEA input read character.
@@ -283,7 +282,6 @@ const int64_t        RADIO_TIMEOUT = 3000000;       // Time (us) not to exceed f
       HardwareSerial serialRadio(2);                // UART2 object. Used for HC-12 radio.
 
 // -- BLE (Bluetooth Low Energy) out. --
-
 const char       BLE_NAME[]        = "GhostRover";              // BLE name.
 const TickType_t BLE_TEST_CYCLE    = 1000/portTICK_PERIOD_MS;   // Time (ms).
 const u_int8_t   LED_TRIGGER_COUNT = 5;                         // Flash BLE LED once for every LED_TRIGGER_COUNT sentences sent.
@@ -387,8 +385,8 @@ static bool ghostMode = false;                  // Flag, in Ghost mode.
  *      [-][u] = WiFi up.
  */
 
-// -- Prototypes. --
-void updateLEDs(char, char, char);              // Eliminate compiler scope error due to definition order.
+// -- Prototypes. --                            // Eliminate compiler scope error due to definition order.
+void updateLEDs(char, char, char);
 void checkLockButton(char);
 void updateOLED(char);
 
@@ -408,7 +406,6 @@ void updateOLED(char);
  * @return void No output is returned.
  * @since  0.8.7 [2025-05-13-08:45am] New.
  * @since  0.4.7 [2025-05-21-09:45am] Clean up.
- * 
  */
 void initVars() {
 
@@ -515,12 +512,13 @@ void configPins() {
  * @since  0.3.8 [2025-05-10-09:00am] Set state.
  * @since  0.4.7 [2025-05-21-09:45am] Clean up.
  * @since  0.4.9 [2025-05-27-12:00pm] Moved to initVars.
+ * @since  0.5.2 [2025-06-28-08:00am] Serial.printf() used.
  */
 void beginSerialUSB() {
 
     // -- Begin USB interface. --
     Serial.begin(SERIAL_MON_SPEED);
-    Serial.println("\nBegin serial monitor(USB) @ 115,200 bps.");
+    Serial.printf("\nBegin serial monitor(USB) @ %i.\n", SERIAL_USB_SPEED);
 }
 
 /**
@@ -532,12 +530,15 @@ void beginSerialUSB() {
  * @since  0.3.6 [2025-05-07-12:00pm] New.
  * @since  0.4.6 [2025-05-20-09:00pm] Speed const.
  * @since  0.4.7 [2025-05-21-09:45am] Clean up.
+ * @link   https://github.com/sparkfun/SparkFun_BlueSMiRF-v2_Binaries.
+ * @link   https://github.com/G6EJD/ESP32-Using-Hardware-Serial-Ports.
+ * @link   https://randomnerdtutorials.com/esp32-uart-communication-serial-arduino/#esp32-custom-uart-pins.
  */
 void beginSerial0RTCMtoZED() {
 
     // -- Begin serial0 interface. --
     Serial.print("Begin serial0 (UART0) for RTCM->ZED-F9P @ 38,400 bps");
-    serialRTCM.begin(SERIAL0_SPEED, SERIAL_8N1, PTH_RTCM_RX, PTH_RTCM_TX);      // UART0 object. TX<->TX, RX<->RX.
+    serialRTCM.begin(SERIAL0_SPEED, SERIAL_8N1, PTH_RTCM_RX, PTH_RTCM_TX);      // UART0 object.
     Serial.println(".");
 }
 
@@ -555,7 +556,7 @@ void beginSerial1UBXandNMEA() {
 
     // -- Begin serial1 interface. --
     Serial.print("Begin serial1 (UART1) for UBX & NMEA @ 38,400 bps");
-    serialUBXandNMEA.begin(SERIAL1_SPEED_INIT, SERIAL_8N1, PTH_UBX_TX, PTH_UBX_RX);     // UART1 object. TX<->TX, RX<->RX.
+    serialUBXandNMEA.begin(SERIAL1_SPEED_INIT, SERIAL_8N1, PTH_UBX_TX, PTH_UBX_RX);     // UART1 object.
     Serial.println(".");
 }
 
@@ -573,7 +574,7 @@ void beginSerial2RTCMinFromRadio() {
 
     // -- Begin serial2 interface. --
     Serial.print("Begin serial2 (UART2) for <-RTCMradio @ 9,600 bps");
-    serialRadio.begin(SERIAL2_SPEED, SERIAL_8N1, PTH_RX, PTH_TX);   // UART2 object. TX<->RX, RX<->TX.
+    serialRadio.begin(SERIAL2_SPEED, SERIAL_8N1, PTH_RX, PTH_TX);   // UART2 object.
     Serial.println(".");
 
     // -- Set pin. --
@@ -867,6 +868,7 @@ void startUI() {
  * @since  0.3.9 [2025-05-11-10:45am] Refactored "which command".
  * @since  0.4.3 [2025-05-15-05:00pm] Added testLEDb, testLEDg, testLEDr.
  * @since  0.4.7 [2025-05-21-11:30am] Switch Radio & BLE LEDs. Cleanup.
+ * @since  0.5.2 [2025-06-26-03:45pm] testLEDb - changed bleNMEAoutTaskHandle to bleNmeaLEDtaskHandle.
  */
 void checkSerialUSB(char print = ' ') {
 
@@ -1019,7 +1021,7 @@ void checkSerialUSB(char print = ' ') {
                 Serial.printf("Valid options: 0(off), 1(on), 2(active). %c to quit.\n", EXIT_TEST);
 
                 // Suspend BLE NMEA out task. 
-                vTaskSuspend(bleNMEAoutTaskHandle);
+                vTaskSuspend(bleNmeaLEDtaskHandle);
 
                 // Loop.
                 while (true) {                                          // Infinite loop.
@@ -1030,7 +1032,7 @@ void checkSerialUSB(char print = ' ') {
                             case EXIT_TEST:                             // All done.
                                 Serial.println("testLEDb disabled.");
                                 testLEDb = false;                       // Clear test flag.
-                                vTaskResume(bleNMEAoutTaskHandle);      // Resume BLE NMEA out task.
+                                vTaskResume(bleNmeaLEDtaskHandle);      // Resume BLE NMEA out task.
                                 return;                                 // Exit test mode.
                             case '0':                                   // BLE LED - off.
                                 Serial.printf("%c - BLE LED off.\n", inputCharMon);
@@ -1050,7 +1052,7 @@ void checkSerialUSB(char print = ' ') {
                                 Serial.println();
                                 break;
                             default:
-                                Serial.printf("%c to quit. Valid options: 0(off), 1(on), 2(active).\n", EXIT_TEST);
+                                Serial.printf("Valid options: 0(off), 1(on), 2(active). %c to quit.\n", EXIT_TEST);
                         }
                     }
                 }
@@ -1148,7 +1150,7 @@ void checkSerialUSB(char print = ' ') {
                                 Serial.println();
                                 break;
                             default:
-                                Serial.printf("%c to quit. Valid options: 0(off), 1(on), 2(active).\n", EXIT_TEST);
+                                Serial.printf("Valid options: 0(off), 1(on), 2(active). %c to quit.\n", EXIT_TEST);
                         }
                     }
                 }
@@ -1321,20 +1323,21 @@ void checkGNSS() {
  * @since  0.4.5 [2025-05-15-05:00pm] Refactor.
  * @see    beginSerial0RTCMtoZED(), beginSerial2RTCMinFromRadio().
  * @since  0.4.7 [2025-05-21-11:45am] Switch Radio & BLE LEDs. Cleanup.
+ * @since  0.5.1 [2025-06-07-06:45pm] Removed gotbits. Tweked debug.
  * @link   https://github.com/sparkfun/SparkFun_u-blox_GNSS_v3/blob/main/examples/ZED-F9P/Example3_StartRTCMBase/Example3_StartRTCMBase.ino.
  */
 void checkRadioRTCMToZED() {
     // TODO: 1. checkRadioRTCMToZED() - Implement out to serialRTCM, move to ESP32 task.
     
     // -- Local vars. --
-    static bool gotBits = false;                    // Flag - if input since boot.
+    static uint8_t  preambleCount = 0;
+    static uint16_t byteCount     = 0;
+    static uint32_t sentCount     = 0;
 
     // -- Check for Radio down. Set state. --
-    if (gotBits) {                                  // Input has been received since boot.
-        if((esp_timer_get_time()-lastRTCMtime) > RADIO_TIMEOUT) {
-            serState[3] = 'd';                      // serial2 (<-RTCMradio) down.
-            serState[1] = 'd';                      // serial0 (RTCM->ZED-F9P) down.
-        }
+    if ((esp_timer_get_time()-lastRTCMtime) > RADIO_TIMEOUT) {
+        serState[3] = 'd';                          // serial2 (<-RTCMradio) down.
+        serState[1] = 'd';                          // serial0 (RTCM->ZED-F9P) down.
     }
 
     // -- Read serial2 (<-RTCMradio) input. Send to serial0 (RTCM->ZED-F9P). --
@@ -1342,22 +1345,34 @@ void checkRadioRTCMToZED() {
 
         // - Read serial2 (<-RTCMradio). -
         inputCharRTCM = serialRadio.read();         // Read a character @ HC12_SPEED.
+        byteCount++;                                // Increment byte counter.
 
-        // Need somekind of line break, RTCM confirmation from ZED-F9P.
-        // Integrate to updateUI.
-        if (inputCharRTCM == '}') {                 // eosRTCM = '\n'.  Test code.
-            if (debugRad) {
-                Serial.println(inputCharRTCM);      // Last charecter.
+        // - Write to serial2 (HC-12 radio). -
+        serialRTCM.write(inputCharRTCM);             // Write a character @ SERIAL_SPEED_38.
+
+        // - Update UI. -
+        // Look for RTCM preamble = '11010011 000000xx'
+        if ((preambleCount == 0) && (inputCharRTCM == 0xd3)) {
+            preambleCount++;
+        } else if ((preambleCount == 1) && (((int)inputCharRTCM) < 3)) {
+            preambleCount++;
+        } else {
+            if ((debugRad) && (serState[3] == 'u')) {                        // Debug.
+                Serial.printf("%02x", inputCharRTCM);                       // Print the byte.
             }
-            serState[3] = 'u';                      // serial2 (<-RTCMradio) up.
-            serState[1] = 'u';                      // serial0 (RTCM->ZED-F9P) up.
-            lastRTCMtime = esp_timer_get_time();    // Used to check for timeout.
-            gotBits = true;                         // Flag for iniitial timeout.
-            updateLEDs('-','-','2');                // Radio LED - active.
-            // serialRTCM.write(inputChar);         // Write a character @ SERIAL_SPEED_38.
-
-        } else if (debugRad) {
-            Serial.print(inputCharRTCM);            // Debug serial (radio) - print character.
+            preambleCount = 0;                                              // Reset preamble counter.
+        }
+        if (preambleCount == 2) {
+            sentCount++;                                                    // Increment the sentence counter.
+            if ((debugRad) && (serState[3] == 'u')) {                       // Debug.
+                Serial.printf("\n#%i - %i bytes.\n\nd3%02x", sentCount, byteCount, inputCharRTCM);
+            }
+            updateLEDs('-','-','2');                                        // Radio LED - active.
+            serState[3] = 'u';                                              // serial2 (<-RTCMradio) up.
+            serState[1] = 'u';                                              // serial0 (RTCM->ZED-F9P) up.
+            lastRTCMtime = esp_timer_get_time();                            // Used to check for timeout.
+            byteCount = 0;                                                  // Reset the byte count.
+            preambleCount = 0;                                              // Reset preamble counter.
         }
     }
 }
@@ -1370,6 +1385,7 @@ void checkRadioRTCMToZED() {
  * @return void No output is returned.
  * @since  0.3.3 [2025-05-02-12:00pm] New.
  * @since  0.3.7 [2025-05-09-04:30pm] Add loop() throttle.
+ * @since  0.5.1 [2025-06-07-03:45pm] Removed gotbits.
  * @see    checkSerialUSB().
  */
 void checkForDebug() {
@@ -1392,7 +1408,7 @@ void checkForDebug() {
         nowTime = esp_timer_get_time();
         diffTime = nowTime - lastRTCMtime;
             if (diffTime > RADIO_TIMEOUT) {
-                Serial.printf("\nRadio down. (diffTime= %lld)  >  (timeout= %lld)\n", diffTime, RADIO_TIMEOUT);
+                Serial.printf("Radio down. (diffTime= %lld)  >  (timeout= %lld)\n", diffTime, RADIO_TIMEOUT);
             }
     }
 
