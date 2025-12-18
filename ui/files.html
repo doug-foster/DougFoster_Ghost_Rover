@@ -1,0 +1,56 @@
+ <!DOCTYPE html>
+<!--
+ * *************************************
+ *      Ghost Rover 3 - UI HTML.
+ * *************************************
+ *
+ * files.html
+ *
+ * @author   D. Foster <doug@dougfoster.me>.
+ * @since    3.0.3 [2025-11-10-02:00pm].
+ * @link     http://dougfoster.me.
+-->
+
+<html>
+    <!---- Head. ---->
+    <head>
+        <title>files</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" type="text/css" href="global.css">
+        <link rel="stylesheet" type="text/css" href="files.css">
+        <script src="global.js" defer></script>
+        <script src="files.js" defer></script>
+    </head>
+
+    <body>
+        <!---- Header. ---->
+        <header>
+            <a class="new-page" href="menu.html">
+                <h1 class="red">Files</h1>
+            </a>
+        </header>
+
+        <!---- Drop area. ---->
+        <section id="files">
+            <div id="drop-area" class="drop-area">
+                <div id="drop-area-banner">
+                    <img src = "upload-image-icon.png">
+                </div>
+                <div id = "upload-status" class="hide">xxxxxx</div>
+                <div id = "file-list">
+                </div>
+            </div>
+            <div id="buttons" >
+                <button id="view">
+                    <span class="label">View</span>
+                </button>
+                <button id="download">
+                    <span class="label">Download</span>
+                </button>
+                <button id="delete">
+                    <span class="label">Delete</span>
+                </button>
+            </div>
+        </section>
+    </body>
+</html>

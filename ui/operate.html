@@ -1,0 +1,146 @@
+ <!DOCTYPE html>
+<!--
+ * *************************************
+ *      Ghost Rover 3 - UI HTML.
+ * *************************************
+ *
+ * operate.html
+ *
+ * @author   D. Foster <doug@dougfoster.me>.
+ * @since    3.0.7 [2025-11-15-05:00pm].
+ * @link     http://dougfoster.me.
+-->
+
+<html>
+    <!---- Head. ---->
+    <head>
+        <title>operate</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" type="text/css" href="global.css">
+        <link rel="stylesheet" type="text/css" href="operate.css">
+        <script src="global.js" defer></script>
+        <script src="operate.js" defer></script>
+    </head>
+
+    <body>
+        <!---- Header. ---->
+        <header>
+            <a class="new-page" href="menu.html">
+                <h1 class="red">Ghost Rover</h1>
+            </a>
+        </header>
+
+        <!---- Sub-header. ---->
+        <section id="sub-header">
+            <div id="version" class="sub-header-item">0.0.0</div>
+            <div id="mode" class="sub-header-item">none</div>
+            <div id="units" class="sub-header-item">none</div>
+        </section>
+
+        <!-- Operation. -->
+        <section id="operation" class="grid-container">
+            <div class="content-div">
+
+                <!-- Fix. -->
+                <section class="fix">
+                    <div id="state-indicator">
+                        <div id="none" class="wrapper">
+                            <div class="inside active"></div>
+                        </div>
+                        <div id="single" class="wrapper">
+                            <div class="inside"></div>
+                        </div>
+                        <div id="rtkFloat" class="wrapper ">
+                            <div class="inside"></div>
+                        </div>
+                        <div id="rtkFix" class="wrapper ">
+                            <div class="inside"></div>
+                        </div>
+                    </div>
+                    <div id="state"><span id="fix">xxx</span> (SIV <span id="siv">00</span>)</div>
+                </section>
+
+                <!-- Numbers. -->
+                <section class="numbers">
+                    <table>
+                        <tr>
+                            <td>Altitude (MSL)</td>
+                            <!-- 3 posn = 10 mm. -->
+                            <td id="altitude" class="num">00000.000</td>
+                            <td class="num">+/- <span id="vac">00.000</span></td>
+                        </tr>
+                        <tr>
+                            <td>Latitude</td>
+                            <!-- 8 posn = 1.11 mm. -->
+                            <td id="latitude" class="num">00.00000000</td>
+                            <td class="num">+/- <span id="hac-lat" class="hac">00.000</span></td>
+                        </tr>
+                        <tr>
+                            <td>Longitude</td>
+                            <!-- 8 posn = 1.11 mm. -->
+                            <td id="longitude" class="num">-000.00000000</td>
+                            <td class="num">+/- <span id="hac-lon" class="hac">00.000</span></td>
+                        </tr>       
+                    </table>
+                </section>
+
+                <!-- Button. -->
+                <section class="buttons">
+                    <div id="altitude" class="btn">
+                        <span class="icon">
+                            <div class="lock"></div>
+                        </span>
+                        <span class="label">ALTITUDE</span>
+                    </div>
+                    <div id="laser" class="btn">
+                        <span class="icon">
+                            <div class="lock"></div>
+                        </span>
+                        <span class="label">LASER</span>
+                    </div>
+                    <div id="location" class="btn">
+                        <span class="icon">
+                            <div class="lock"></div>
+                        </span>
+                        <span class="label">LOCATION</span>
+                    </div>
+                    <div id="unlock" class="btn">
+                        <span class="label">UNLOCK</span>
+                    </div>
+                </section>
+
+
+                <!-- Comm & battery. -->
+                <section class="info">
+                    <div class="item">
+                        <div id="rtcm"></div>
+                    </div>
+                    <div class="item">
+                        <div id="bt"></div>
+                    </div>
+                    <div id="battery" class="item">
+                        <div class='bar' data-power='10'></div>
+                        <div class='bar' data-power='20'></div>
+                        <div class='bar' data-power='30'></div>
+                        <div class='bar' data-power='40'></div>
+                        <div class='bar' data-power='50'></div>
+                        <div class='bar' data-power='60'></div>
+                        <div class='bar' data-power='70'></div>
+                        <div class='bar' data-power='80'></div>
+                        <div class='bar' data-power='90'></div>
+                        <div class='bar' data-power='100'></div>
+                    </div>
+                    <div id="rtcm-label" class="item">RTCM</div>
+                    <div id="ble-label" class="item">BT</div>
+                    <div id="battery-label" class="item">
+                        <div id="battery-status"></div>
+                    </div>
+                </section>
+            </div>
+        </section>
+    </body>
+</html>
+
+<!---- Comment. ---->
+<!--- Comment. --->
+<!-- Comment. -->

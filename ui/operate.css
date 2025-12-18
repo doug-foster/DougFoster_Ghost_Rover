@@ -1,0 +1,297 @@
+/**
+ * *************************************
+ *      Ghost Rover 3 - UI CSS.
+ * *************************************
+ *
+ * operate.css
+ *
+ * @author   D. Foster <doug@dougfoster.me>.
+ * @since    3.0.3 [2025-11-14-05:00pm].
+ * @link     http://dougfoster.me.
+*/
+
+/**
+// -------------------------------------
+//      Sub-header.
+// -------------------------------------
+*/
+#sub-header {
+    display: flex;
+    justify-content: space-between;
+    margin: 4px 10px 12px;
+    font-size: 14px;
+    font-weight: 200;
+}
+#sub-header .sub-header-item {
+  flex: 1;
+}
+#sub-header #version::before {
+  content: "v ";
+}
+#sub-header #version {
+    text-align: left;
+}
+#sub-header #mode {
+    text-align: center;
+}
+#sub-header #units {
+    text-align: right;
+}
+
+ /**
+// -------------------------------------
+//      Operation: Fix state.
+// -------------------------------------
+*/
+.fix {
+    margin-top: 20px;
+}
+.fix #state-indicator {
+    position: relative;
+}
+.fix .wrapper {
+    position: absolute;
+    top: -16px;
+    height: 26px;
+    width: 26px;
+    border-radius: 16px;
+    border: 3px solid #ffffff;
+}
+.fix .wrapper .inside {
+    position: absolute;
+    height: 24px;
+    width: 24px;
+    z-index: 10;
+    border-radius: 16px;
+    border: 1px solid var(--black-1);
+    background-color: #ffffff;
+}
+.fix #state {
+    padding-top: 25px;
+    border-top: 1px solid #000000;
+}
+/* --- fix: specific fix state. --- */
+.fix #state-indicator #none {
+    left: 5%;
+}
+.fix #state-indicator #single {
+    left: 32%;
+}
+.fix #state-indicator #rtkFloat{
+    right: 32%;
+}
+.fix #state-indicator #rtkFix {
+    right: 5%;
+}
+.fix #state-indicator #none .inside.active {
+    background-color: var(--red-1);
+}
+.fix #state-indicator #single .inside.active {
+    background-color: var(--black-1);
+}
+.fix #state-indicator #rtkFloat .inside.active {
+    background-color: var(--yellow-1);
+}
+.fix #state-indicator #rtkFix .inside.active {
+    background-color: var(--green-1);
+}
+.fix #state {
+    text-align: center;
+    font-size: 18px;
+}
+
+/**
+// -------------------------------------
+//      Operation: numbers.
+// -------------------------------------
+*/
+.numbers {
+    margin: 10px 0 20px 0;
+}
+.numbers table {
+    margin: auto;
+}
+.numbers td {
+    background-color: var(--gray-4);
+    padding: 5px 10px;
+}
+.numbers .num {
+    text-align: right;
+}
+.numbers .flip {
+    background-color: var(--black-2);
+    color: #ffffff;
+}
+
+/**
+// -------------------------------------
+//      Operation: buttons.
+// -------------------------------------
+*/
+.buttons {
+    max-width: 300px;
+    margin: auto;
+    cursor: pointer;
+}
+.buttons .icon.show-column {
+    flex-basis: 20%;
+    border-right: 1px solid;
+    border-color: var(--gray-1);
+}
+.buttons .label.remove-left-border-radius {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+.buttons #unlock {
+    width: 260px;
+    margin-left: auto;
+    margin-right: auto;
+}
+.buttons .btn {
+    display: flex;
+    margin-bottom: 15px;
+    color: #ffffff;
+    font-size: 20px;
+    font-weight: 800;
+}
+.buttons .icon,
+.buttons .label {
+    display: flex;
+    align-items: center;      /* Center vertically. */
+    justify-content: center;  /* Center horizontally. */
+}
+.buttons .icon {
+    flex: 0 0 0;  /* Don't grow, don't shrink, 0% width. */
+    transition: flex-basis 0.3s ease;
+    overflow: hidden;
+    border-top-left-radius: var(--std-border-radius);
+    border-bottom-left-radius: var(--std-border-radius);
+}
+.buttons .label {
+    flex: 1;  /* Use remaining space. */
+    padding: 15px;
+    border-radius: var(--std-border-radius);
+    transition: border-radius 0.3s ease;
+}
+.buttons .shadow {
+    box-shadow: inset 0px 0px 90px 0px rgba(3,3,46,0.9);
+}
+/* --- Buttons: specific buttons. --- */
+.buttons #altitude .icon {
+    background-color: #2c81ba; 
+}
+.buttons #altitude .label {
+    background-color: #3498db;
+}
+.buttons #laser .icon {
+    background-color: #c54133; 
+}
+.buttons #laser .label {
+    background-color: #e74c3c;
+}
+.buttons #location .icon {
+    background-color: #27ae60; 
+}
+.buttons #location .label {
+    background-color: #2ecc71;
+}
+.buttons #unlock .label {
+    background-color: #dcdcdc;
+    color: black;
+}
+/* --- Buttons: lock icon (https://codepen.io/lnenad/pen/VXGRdb). --- */
+.buttons .lock {
+    position: relative;
+    margin-top: 10px;
+    width: 25px;
+    height: 20px;
+    background: #ffffff;
+    border-radius: 3px;
+}
+.buttons .lock:before {
+    display: block;
+    position: absolute;
+    top: -14px;
+    left: 2.3px;
+    content: "";
+    width: 15px;
+    height: 27px;
+    border: 3px solid #ffffff;
+    border-radius: 35px 35px 0 0;
+}
+
+/**
+// -------------------------------------
+//      Operation: info.
+// -------------------------------------
+*/
+.info .item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+/* --- Info: specific item. --- */
+.info #rtcm,
+.info #bt {
+    height: 24px;
+    width: 24px;
+    border-radius: 16px;
+    border: 1px solid var(--black-1);
+    background-color: var(--red-1);
+}
+/* --- Info: RTCM & BT. --- */
+.info .up {
+    background-color: var(--green-1) !important;
+}
+/* --- Info: battery. --- */
+.info {
+    display: grid;
+    grid-template-columns: 20% 20% 1fr;  /* 20%, 20%, remainder */
+    grid-template-rows: 1fr 1fr;         /* 1x, 1x height rows */
+    max-width: 340px;
+    height: 80px;
+    margin: 20px auto 0;
+    border-radius: 8px;
+}
+.info #battery {
+    display: flex;
+    flex-grow: 1;
+    justify-content: space-between;
+    align-items: center;
+    gap: 4px;  /* White space between divs. */
+    position: relative;
+    right: -30px;
+    max-width: 140px;
+    background-color: var(--black-2);
+    padding: 0 8px;
+    border-radius: 6px;
+}
+.info #battery:after {
+    position: absolute;
+    top: 12px;
+    right: -5px;
+    height: 16px;
+    width: 5px;
+    content: " ";
+    background: var(--black-2);
+}
+.info #battery .bar {
+    display: flex;
+    flex: 1;  /* Equal space for each div. */
+    align-items: center;
+    justify-content: center;
+    height: 28px;
+    border-radius: 2px; 
+    background-color: var(--gray-3);
+    color: #ffffff;
+    font-weight: bold;
+}
+.info #battery .bar.active {
+    background: var(--green-1);
+}
+.info #battery .bar.active.alert {
+    background: var(--red-1);
+}
+.info #battery-label span {
+    margin-right: 5px;
+}

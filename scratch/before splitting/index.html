@@ -1,0 +1,190 @@
+ <!DOCTYPE html>
+<!--
+ * *************************************
+ *      Ghost Rover 3 - UI HTML.
+ * *************************************
+ *
+ * @author   D. Foster <doug@dougfoster.me>.
+ * @since    3.0.3 [2025-10-13-03:15pm].
+ * @link     http://dougfoster.me.
+-->
+
+<html>
+
+    <head>
+        <title>Ghost Rover</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" type="text/css" href="style.css">
+        <script src="script.js" defer></script>
+    </head>
+
+    <body>
+
+        <!-- Header. -->
+        <section id="header">
+            <h1 class="red">Ghost Rover</h1>
+            <div class="header-misc">
+                <div id="version">0.0.0</div>
+                <div id="mode">none</div>
+                <div id="units">none</div>
+            </div>
+        </section>
+
+        <!-- Operation. -->
+        <section id="operation" class="grid-container">
+            <div class="content-div">
+
+                <!-- GNSS. -->
+                <section class="gnss">
+                    <div id="state-indicator">
+                        <div id="none" class="wrapper">
+                            <div class="inside active"></div>
+                        </div>
+                        <div id="single" class="wrapper">
+                            <div class="inside"></div>
+                        </div>
+                        <div id="float" class="wrapper ">
+                            <div class="inside"></div>
+                        </div>
+                        <div id="fix" class="wrapper ">
+                            <div class="inside"></div>
+                        </div>
+                    </div>
+                    <div id="state"></div>
+                </section>
+
+                <!-- Number. -->
+                <section class="number">
+                    <table>
+                        <tr>
+                            <td>Elevation</td>
+                            <td id="elevation" class="num">00000.00</td>
+                            <td class="num">+/- <span id="vac">00.000</span></td>
+                        </tr>
+                        <tr>
+                            <td>Latitude</td>
+                            <td id="latitude" class="num">00.0000000</td>
+                            <td class="num">+/- <span class="hac">00.000</span></td>
+                        </tr>
+                        <tr>
+                            <td>Longitude</td>
+                            <td id="longitude" class="num">-000.0000000</td>
+                            <td class="num">+/- <span class="hac">00.000</span></td>
+                        </tr>       
+                    </table>
+                </section>
+
+                <!-- Button. -->
+                <section class="button">
+                    <div id="elevation" class="btn">
+                        <span class="icon">
+                            <div class="lock"></div>
+                        </span>
+                        <span class="label">ELEVATION</span>
+                    </div>
+                    <div id="laser" class="btn">
+                        <span class="icon">
+                            <div class="lock"></div>
+                        </span>
+                        <span class="label">LASER</span>
+                    </div>
+                    <div id="location" class="btn">
+                        <span class="icon">
+                            <div class="lock"></div>
+                        </span>
+                        <span class="label">LOCATION</span>
+                    </div>
+                    <div id="unlock" class="btn">
+                        <span class="label">UNLOCK</span>
+                    </div>
+                </section>
+
+                <!-- Info. -->
+                <section class="info">
+                    <div class="item">
+                        <div id="rtcm"></div>
+                    </div>
+                    <div class="item">
+                        <div id="bt"></div>
+                    </div>
+                    <div class="battery" class="item">
+                        <div class='bar' data-power='10'></div>
+                        <div class='bar' data-power='20'></div>
+                        <div class='bar' data-power='30'></div>
+                        <div class='bar' data-power='40'></div>
+                        <div class='bar' data-power='50'></div>
+                        <div class='bar' data-power='60'></div>
+                        <div class='bar' data-power='70'></div>
+                        <div class='bar' data-power='80'></div>
+                        <div class='bar' data-power='90'></div>
+                        <div class='bar' data-power='100'></div>
+                    </div>
+                    <div id="rtcm-label" class="item">RTCM</div>
+                    <div id="ble-label" class="item">BT</div>
+                    <div id="battery-label" class="item">
+                        <span>Battery</span>
+                        <div id="soc">67%</div>
+                    </div>
+                </section>
+            </div>
+        </section>
+
+        <!-- Config. -->
+        <section id="config" class="grid-container collapsed">
+            <div class="content-div">
+                <div class="config-grid">
+
+                    <!-- SD files. -->
+                    <div id="files-op" class="grid-item null">
+                        <button id="do-files">SD Files</button>
+                        <select id="files-op-select">
+                            <option selected value="list">List</option>
+                            <option value="download">Download</option>
+                            <option value="delete">Delete</option>
+                        </select>
+                    </div>
+                    <div id="files-area" class="grid-item">
+                    </div>
+
+                    <!-- SD upload files. -->
+                    <div class="grid-item null">
+                        <button id="start-upload">Upload</button>
+                    </div>
+                    <div id="drop-area" class="grid-item drop-area">
+                        <img src = "upload-image-icon.png">
+                        <div id = "uploadStatus" class="hide"></div>
+                    </div>
+
+                    <!-- Switches. -->
+                    <div class="grid-item">Rover mode</div>
+                    <div class="switch-field grid-item">
+                        <input type="radio" id="switch-mode-base" name="switch-mode" value="base" checked/>
+                        <label for="switch-mode-base">Base</label>
+                        <input type="radio" id="switch-mode-pp" name="switch-mode" value="pp" />
+                        <label for="switch-mode-pp">PP</label>
+                    </div>
+
+                    <div class="grid-item">Units</div>
+                        <div class="switch-field grid-item">
+                            <input type="radio" id="switch-units-feet" name="switch-units" value="feet" checked/>
+                            <label for="switch-units-feet">Feet</label>
+                            <input type="radio" id="switch-units-meters" name="switch-units" value="meters" />
+                            <label for="switch-units-meters">Meters</label>
+                        </div>
+                    </div>
+
+                    <!-- To do. -->
+                    <div class="grid-item">To Do</div>
+                        <ul>
+                            <li>web server - upload files</li>
+                            <li>web server - reload</li>
+                            <li>laser button - yes or no</li>
+                            <li>restart rover</li>
+                        </ul>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+    </body>
+</html>

@@ -1,0 +1,53 @@
+ <!DOCTYPE html>
+<!--
+ * *************************************
+ *      Ghost Rover 3 - UI HTML.
+ * *************************************
+ *
+ * config.html
+ *
+ * @author   D. Foster <doug@dougfoster.me>.
+ * @since    3.0.3 [2025-10-20-10:45am].
+ * @link     http://dougfoster.me.
+-->
+
+<html>
+    <!---- Head. ---->
+    <head>
+        <title>config</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" type="text/css" href="global.css">
+        <link rel="stylesheet" type="text/css" href="config.css">
+        <script src="global.js" defer></script>
+        <script src="config.js" defer></script>
+    </head>
+    <body>
+        <!---- Header. ---->
+        <header>
+            <a class="new-page" href="menu.html">
+                <h1 class="red">Config</h1>
+            </a>
+        </header>
+
+        <!---- Config. ---->
+        <section id="config" class="grid-container collapsed">
+            <div class="config-grid">
+                <div class="grid-item">Rover mode</div>
+                <div class="switch-field grid-item">
+                    <input type="radio" id="switch-mode-base" name="switch-mode" value="base" checked/>
+                    <label for="switch-mode-base">Base</label>
+                    <input type="radio" id="switch-mode-pp" name="switch-mode" value="pp" />
+                    <label for="switch-mode-pp">PP</label>
+                </div>
+
+                <div class="grid-item">Units</div>
+                <div class="switch-field grid-item">
+                    <input type="radio" id="switch-units-feet" name="switch-units" value="feet" checked/>
+                    <label for="switch-units-feet">Feet</label>
+                    <input type="radio" id="switch-units-meters" name="switch-units" value="meters" />
+                    <label for="switch-units-meters">Meters</label>
+                </div>
+            </div>
+        </section>
+    </body>
+</html>

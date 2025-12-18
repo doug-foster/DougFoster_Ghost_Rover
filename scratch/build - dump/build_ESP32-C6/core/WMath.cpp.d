@@ -1,0 +1,30 @@
+/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover_2/build/build_ESP32-C6/core/WMath.cpp.o: \
+ /Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.0_907e0a754271095c/cores/esp32/WMath.cpp \
+ /Users/dougfoster/Library/Arduino15/internal/esp32_esp32-arduino-libs_idf-release_v5.5-b66b5448-v1_ffaa2d367c/esp32c6/include/esp_system/include/esp_system.h \
+ /Users/dougfoster/Library/Arduino15/internal/esp32_esp32-arduino-libs_idf-release_v5.5-b66b5448-v1_ffaa2d367c/esp32c6/include/esp_common/include/esp_err.h \
+ /Users/dougfoster/Library/Arduino15/internal/esp32_esp32-arduino-libs_idf-release_v5.5-b66b5448-v1_ffaa2d367c/esp32c6/include/newlib/platform_include/stdio.h \
+ /Users/dougfoster/Library/Arduino15/internal/esp32_esp32-arduino-libs_idf-release_v5.5-b66b5448-v1_ffaa2d367c/esp32c6/include/esp_common/include/esp_compiler.h \
+ /Users/dougfoster/Library/Arduino15/internal/esp32_esp32-arduino-libs_idf-release_v5.5-b66b5448-v1_ffaa2d367c/esp32c6/include/esp_common/include/esp_attr.h \
+ /Users/dougfoster/Library/Arduino15/internal/esp32_esp32-arduino-libs_idf-release_v5.5-b66b5448-v1_ffaa2d367c/esp32c6/include/esp_common/include/esp_bit_defs.h \
+ /Users/dougfoster/Library/Arduino15/internal/esp32_esp32-arduino-libs_idf-release_v5.5-b66b5448-v1_ffaa2d367c/esp32c6/include/esp_common/include/esp_idf_version.h \
+ /Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.0_907e0a754271095c/cores/esp32/esp32-hal-log.h \
+ /Users/dougfoster/Library/Arduino15/internal/esp32_esp32-arduino-libs_idf-release_v5.5-b66b5448-v1_ffaa2d367c/esp32c6/include/esp_timer/include/esp_timer.h \
+ /Users/dougfoster/Library/Arduino15/internal/esp32_esp32-arduino-libs_idf-release_v5.5-b66b5448-v1_ffaa2d367c/esp32c6/include/esp_hw_support/include/esp_etm.h \
+ /Users/dougfoster/Library/Arduino15/internal/esp32_esp32-arduino-libs_idf-release_v5.5-b66b5448-v1_ffaa2d367c/esp32c6/include/esp_rom/esp32c6/include/esp32c6/rom/ets_sys.h \
+ /Users/dougfoster/Library/Arduino15/internal/esp32_esp32-arduino-libs_idf-release_v5.5-b66b5448-v1_ffaa2d367c/esp32c6/include/log/include/esp_log.h \
+ /Users/dougfoster/Library/Arduino15/internal/esp32_esp32-arduino-libs_idf-release_v5.5-b66b5448-v1_ffaa2d367c/esp32c6/include/esp_rom/include/esp_rom_sys.h \
+ /Users/dougfoster/Library/Arduino15/internal/esp32_esp32-arduino-libs_idf-release_v5.5-b66b5448-v1_ffaa2d367c/esp32c6/include/soc/esp32c6/include/soc/reset_reasons.h \
+ /Users/dougfoster/Library/Arduino15/internal/esp32_esp32-arduino-libs_idf-release_v5.5-b66b5448-v1_ffaa2d367c/esp32c6/include/log/include/esp_log_config.h \
+ /Users/dougfoster/Library/Arduino15/internal/esp32_esp32-arduino-libs_idf-release_v5.5-b66b5448-v1_ffaa2d367c/esp32c6/include/log/include/esp_log_level.h \
+ /Users/dougfoster/Library/Arduino15/internal/esp32_esp32-arduino-libs_idf-release_v5.5-b66b5448-v1_ffaa2d367c/esp32c6/include/esp_common/include/esp_assert.h \
+ /Users/dougfoster/Library/Arduino15/internal/esp32_esp32-arduino-libs_idf-release_v5.5-b66b5448-v1_ffaa2d367c/esp32c6/include/log/include/esp_log_color.h \
+ /Users/dougfoster/Library/Arduino15/internal/esp32_esp32-arduino-libs_idf-release_v5.5-b66b5448-v1_ffaa2d367c/esp32c6/include/log/include/esp_log_buffer.h \
+ /Users/dougfoster/Library/Arduino15/internal/esp32_esp32-arduino-libs_idf-release_v5.5-b66b5448-v1_ffaa2d367c/esp32c6/include/log/include/esp_log_timestamp.h \
+ /Users/dougfoster/Library/Arduino15/internal/esp32_esp32-arduino-libs_idf-release_v5.5-b66b5448-v1_ffaa2d367c/esp32c6/include/log/include/esp_log_write.h \
+ /Users/dougfoster/Library/Arduino15/internal/esp32_esp32-arduino-libs_idf-release_v5.5-b66b5448-v1_ffaa2d367c/esp32c6/include/log/include/esp_log_format.h \
+ /Users/dougfoster/Library/Arduino15/internal/esp32_esp32-arduino-libs_idf-release_v5.5-b66b5448-v1_ffaa2d367c/esp32c6/include/log/include/esp_log_args.h \
+ /Users/dougfoster/Library/Arduino15/internal/esp32_esp32-arduino-libs_idf-release_v5.5-b66b5448-v1_ffaa2d367c/esp32c6/include/esp_common/include/esp_macros.h \
+ /Users/dougfoster/Library/Arduino15/internal/esp32_esp32-arduino-libs_idf-release_v5.5-b66b5448-v1_ffaa2d367c/esp32c6/include/esp_common/include/esp_assert.h \
+ /Users/dougfoster/Library/Arduino15/internal/esp32_esp32-arduino-libs_idf-release_v5.5-b66b5448-v1_ffaa2d367c/esp32c6/include/log/include/esp_log_attr.h \
+ /Users/dougfoster/Library/Arduino15/internal/esp32_esp32-arduino-libs_idf-release_v5.5-b66b5448-v1_ffaa2d367c/esp32c6/include/log/include/esp_private/log_attr.h \
+ /Users/dougfoster/Library/Arduino15/internal/esp32_esp32-arduino-libs_idf-release_v5.5-b66b5448-v1_ffaa2d367c/esp32c6/include/esp_hw_support/include/esp_random.h

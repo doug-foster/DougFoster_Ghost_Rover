@@ -1,0 +1,66 @@
+/**
+ * *************************************
+ *      Ghost Rover 3 - UI CSS.
+ * *************************************
+ *
+ * config.css
+ *
+ * @author   D. Foster <doug@dougfoster.me>.
+ * @since    3.0.3 [2025-10-20-10:45am].
+ * @link     http://dougfoster.me.
+*/
+
+/**
+// -------------------------------------
+//      General.
+// -------------------------------------
+*/
+ #config {
+    padding: 10px;
+ }
+.config-grid {
+    display: grid;
+    grid-template-rows: 1fr;
+    grid-template-columns: 1fr 2fr;
+}
+.grid-item {
+    display: flex;
+    align-items: center;
+    justify-content: left;
+    margin: 6px 0;
+    font-size: 17px;
+}
+.switch-field {
+    display: flex;
+    overflow: hidden;
+}
+.switch-field input {
+    position: absolute !important;
+    clip: rect(0, 0, 0, 0);
+    height: 1px;
+    width: 1px;
+    overflow: hidden;
+    border: 0;
+}
+.switch-field label {
+    padding: 8px 16px;
+    margin-right: -1px;
+    background-color: var(--gray-4);
+    color: var(--gray-1);
+    text-align: center;
+    border: 1px solid var(--gray-2);
+    transition: all 0.1s ease-in-out;
+}
+.switch-field label:hover {
+    cursor: pointer;
+}
+.switch-field input:checked + label {
+    background-color: var(--green-2);
+    box-shadow: none;
+}
+.switch-field label:first-of-type {
+    border-radius: var(--std-border-radius) 0 0 var(--std-border-radius);
+}
+.switch-field label:last-of-type {
+    border-radius: 0 var(--std-border-radius) var(--std-border-radius) 0;
+}

@@ -1,0 +1,29 @@
+/**
+ * *************************************
+ *      Ghost Rover 3 - UI CSS.
+ * *************************************
+ *
+ * menu.css
+ *
+ * @author   D. Foster <doug@dougfoster.me>.
+ * @since    3.0.3 [2025-10-20-10:30am].
+ * @link     http://dougfoster.me.
+*/
+
+/**
+// -------------------------------------
+//      General.
+// -------------------------------------
+*/
+ #menu-items {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    max-width: 320px;
+    padding: 10px;
+    margin: 10px auto;
+    text-align: center;
+ }
+#menu-items .menu-item {
+    margin: 10px;
+}

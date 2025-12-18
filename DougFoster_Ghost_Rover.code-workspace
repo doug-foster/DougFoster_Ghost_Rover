@@ -1,0 +1,13 @@
+{
+	"folders": [
+                {
+                        "path": "."
+                },
+                {
+                        "path": "../DougFoster_Ghost Rover - previous versions"
+                }
+        ],
+        "settings": {
+                "liveServer.settings.multiRootWorkspaceName": "DougFoster_Ghost_Rover_2"
+        }
+}

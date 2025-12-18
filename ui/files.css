@@ -1,0 +1,81 @@
+/**
+ * *************************************
+ *      Ghost Rover 3 - UI CSS.
+ * *************************************
+ *
+ * files page.
+ *
+ * @author   D. Foster <doug@dougfoster.me>.
+ * @since    3.0.7 [2025-11-10-05:30pm].
+ * @link     http://dougfoster.me.
+*/
+
+/**
+// -------------------------------------
+//      General.
+// -------------------------------------
+*/
+#drop-area {
+    display: block;
+    padding: 6px;
+    margin: 10px;
+    border-radius: 4px;
+    border: 1px dashed var(--black-2);
+    color: var(--black-2);
+}
+.highlight-drop {
+    border-width: 2px !important;
+}
+#drop-area #drop-area-banner {
+    cursor: pointer;
+}
+#drop-area img {
+    display: block;
+    height: 40px;
+    width:  40px;
+    margin: 4px auto 8px;
+    opacity: 0.3;
+    cursor: pointer;
+}
+#drop-area #uploadStatus {
+    margin-bottom: 8px;
+    padding: 3px;
+    background-color: #0a1128;
+    color: #ffffff;
+    text-align: center;
+    font-size: 14px;
+}
+#upload-status.hide {
+    display: none;
+}
+#drop-area #uploadStatus.show {
+    display: block;
+}
+#drop-area #uploadStatus.error {
+    color:#ff0000;
+}
+#drop-area .label {
+    text-align: center;
+    margin-bottom: 10px;
+}
+#drop-area .file {
+    padding: 12px;
+    margin: 0 0 8px 0;
+    text-align: left;
+    cursor: pointer;
+}
+#files #drop-area .file.selected {
+    background-color: var(--gray-1);
+    color: #ffffff;
+}
+#drop-area .file:nth-of-type(even) {
+    background-color: var(--gray-4);
+}
+#drop-area .file:nth-of-type(odd) {
+    background-color: var(--green-4);
+}
+#buttons {
+    display:flex;
+    justify-content: space-between;
+    padding: 10px;
+}

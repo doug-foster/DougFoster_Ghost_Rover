@@ -1,0 +1,518 @@
+/**
+ * *************************************
+ *      Ghost Rover 3 - UI Javascript.
+ * *************************************
+ *
+ * @author   D. Foster <doug@dougfoster.me>.
+ * @since    3.0.3 [2025-10-13-02:15pm].
+ * @link     http://dougfoster.me.
+*/
+
+/**
+ * ============================================================================
+ *                             General.
+ * ============================================================================
+ *
+ * @since  3.0.3 [2025-10-13-02:15pm].
+ */
+body {
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+}
+.grid-container {
+    display: grid;
+    grid-template-rows: 1fr;
+    grid-template-columns: 1fr;
+    transition: grid-template-rows 0.4s ease;
+    max-width: 360px;
+    margin: auto;
+    padding: 0 3px;
+}
+.grid-container.collapsed {
+    grid-template-rows: 0fr;
+}
+.content-div {
+    overflow: hidden;
+    padding-left:3px;
+}
+.red {
+    color: #ff0000;
+    animation: blink-animation 1s infinite; /* 1s duration, infinite loop */
+}
+@keyframes blink-animation {
+    0%, 49% {
+    opacity: 1; /* Visible */
+    }
+    50%, 100% {
+    opacity: 0; /* Hidden */
+    }
+}
+button {
+    display: block;
+}
+
+/**
+ * ============================================================================
+ *                             Header.
+ * ============================================================================
+ *
+ * @since  3.0.3 [2025-10-13-02:15pm].
+ */
+#header {
+    padding-bottom: 5px;
+    margin-bottom: 10px;
+    background-color: #0a1128;
+    color: #ffffff;
+    cursor: pointer;
+}
+#header h1 {
+    margin: 0;
+    padding-top: 4px;
+    font-size: 22px;
+    font-weight: 400;
+    text-align: center;
+}
+#header .header-misc {
+    display: flex;
+    justify-content: space-between;
+    max-width: 400px;
+    margin: auto;
+    font-size: 13px;
+    font-weight: 200;
+    color: #f5f5f5;
+}
+#header #version::before {
+  content: "v ";
+}
+#header #version {
+    flex: 1;
+    text-align: left;
+    padding-left: 10px;
+}
+#header #units {
+    flex: 1;
+    text-align: right;
+    padding-right: 10px;
+}
+
+/**
+ * ============================================================================
+ *                             Operation: GNSS.
+ * ============================================================================
+ *
+ * @since  3.0.3 [2025-10-13-02:15pm].
+ */
+.gnss #state-indicator {
+    position: relative;
+    margin-top: 15px;
+}
+.gnss .wrapper {
+    position: absolute;
+    top: -16px;
+    height: 26px;
+    width: 26px;
+    border-radius: 16px;
+    border: 3px solid white;
+}
+.gnss .wrapper .inside {
+    position: absolute;
+    height: 24px;
+    width: 24px;
+    z-index: 10;
+    border-radius: 16px;
+    border: 1px solid #000000;
+    background-color: #ffffff;
+}
+.gnss #state {
+    padding-top: 25px;
+    border-top: 1px solid #000000;
+}
+
+/* -- GNSS: specific state. -- */
+.gnss #state-indicator #none {
+    left: 5%;
+}
+.gnss #state-indicator #single {
+    left: 32%;
+}
+.gnss #state-indicator #float{
+    right: 32%;
+}
+.gnss #state-indicator #fix {
+    right: 5%;
+}
+.gnss #state-indicator #none .inside.active {
+    background-color: #e74c3c;
+}
+.gnss #state-indicator #single .inside.active {
+    background-color: #000000;
+}
+.gnss #state-indicator #float .inside.active {
+    background-color: #ffff00;
+}
+.gnss #state-indicator #fix .inside.active {
+    background-color: #008000;
+}
+.gnss #state {
+    text-align: center;
+    font-size: 18px;
+}
+
+/**
+ * ============================================================================
+ *                             Operation: number.
+ * ============================================================================
+ *
+ * @since  3.0.3 [2025-10-13-02:15pm].
+ */
+.number {
+    margin-top: 10px;
+    margin-bottom: 20px;
+}
+.number table {
+    margin: auto;
+}
+.number td {
+    background-color: #f5f5f5;
+    padding: 5px 10px;
+    font-size: 16px;
+}
+.number .num {
+    text-align: right;
+}
+.number .flip {
+    background-color: #0a1128;
+    color: #ffffff;
+}
+
+/**
+// -------------------------------------
+//      Operation: button.
+// -------------------------------------
+*/
+.button {
+    max-width: 360px;
+    margin: auto;
+    cursor: pointer;
+}
+.button .icon.show-column {
+    flex-basis: 20%;
+    border-right: 1px solid rgba(255,255,255,0.3);
+}
+.button .label.remove-left-border-radius {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+.button #unlock {
+    width: 260px;
+    margin-left: auto;
+    margin-right: auto;
+}
+.button .btn {
+    display: flex;
+    margin-bottom: 15px;
+    color: #ffffff;
+    font-size: 20px;
+    font-weight: 800;
+}
+.button .icon,
+.button .label {
+    display: flex;
+    align-items: center;  /* Center vertically. */
+    justify-content: center;  /* Center horizontally. */
+}
+.button .icon {
+    flex: 0 0 0;  /* Don't grow, don't shrink, 0% width. */
+    transition: flex-basis 0.3s ease;
+    overflow: hidden;
+    border-top-left-radius: 5px;
+    border-bottom-left-radius: 5px;
+}
+.button .label {
+    flex: 1;  /* Use remaining space. */
+    padding: 20px;
+    border-radius: 5px;
+    transition: border-radius 0.3s ease;
+}
+.button .shadow {
+    box-shadow: inset 0px 0px 90px 0px rgba(3,3,46,0.9);
+}
+
+/* --- Button: specific button. --- */
+.button #elevation .icon {
+    background-color: #2c81ba; 
+}
+.button #elevation .label {
+    background-color: #3498db;
+}
+.button #laser .icon {
+    background-color: #c54133; 
+}
+.button #laser .label {
+    background-color: #e74c3c;
+}
+.button #location .icon {
+    background-color: #27ae60; 
+}
+.button #location .label {
+    background-color: #2ecc71;
+}
+.button #unlock .label {
+    background-color: #dcdcdc;
+    color: black;
+}
+
+/* --- Button: lock icon (https://codepen.io/lnenad/pen/VXGRdb). --- */
+.button .lock {
+    position: relative;
+    margin-top: 10px;
+    width: 25px;
+    height: 20px;
+    background: #ffffff;
+    border-radius: 3px;
+}
+.button .lock:before {
+    display: block;
+    position: absolute;
+    top: -14px;
+    left: 2.3px;
+    content: "";
+    width: 15px;
+    height: 27px;
+    border: 3px solid #ffffff;
+    border-radius: 35px 35px 0 0;
+}
+
+/**
+ * ============================================================================
+ *                             Operation: info.
+ * ============================================================================
+ *
+ * @since  3.0.3 [2025-10-13-02:15pm].
+ */
+.info .item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* --- Info: specific item. --- */
+.info #rtcm,
+.info #bt {
+    height: 24px;
+    width: 24px;
+    border-radius: 16px;
+    border: 1px solid #000000;
+    background-color: #e74c3c;
+}
+
+/* --- Info: RTCM & BT. --- */
+.info .up {
+    background-color: #008000 !important;
+}
+
+/* --- Info: battery. --- */
+.info {
+    display: grid;
+    grid-template-columns: 15% 20% 1fr;  /* 15%, 15%, remainder */
+    grid-template-rows: 1fr 1fr;  /* 1x, 1x height rows */
+    margin-top: 20px;
+    margin-left: 8px;
+    height: 80px;
+    border-radius: 8px;
+}
+.info .battery {
+    display: flex;
+    flex-grow: 1;
+    justify-content: space-between;
+    align-items: center;
+    gap: 4px;  /* White space between divs. */
+    position: relative;
+    right: -65px;
+    max-width: 140px;
+    background-color: #0a1128;
+    padding: 0 8px;
+    border-radius: 6px;
+}
+.info .battery:after {
+    position: absolute;
+    top: 12px;
+    right: -5px;
+    height: 16px;
+    width: 5px;
+    content: " ";
+    background: #0a1128;
+}
+.info .battery .bar {
+    display: flex;
+    flex: 1;  /* Equal space for each div. */
+    align-items: center;
+    justify-content: center;
+    height: 28px;
+    border-radius: 2px; 
+    background-color: #e8e8e8;
+    color: white;
+    font-weight: bold;
+}
+.info .bar.active {
+    background: #008000;
+}
+.info #battery-label {
+    margin-right: -40px;
+}
+.info #battery-label span {
+    margin-right: 5px;
+}
+
+/**
+ * ============================================================================
+ *                             Config: general.
+ * ============================================================================
+ *
+ * @since  3.0.3 [2025-10-13-02:15pm].
+ * @link   https://codepen.io/JiveDig/pen/jbdJXR.
+ */
+#config .config-grid {
+    display: grid;
+    grid-template-rows: 1fr;
+    grid-template-columns: 1fr 2fr;
+}
+#config .grid-item {
+    display: flex;
+    align-items: center;
+    justify-content: left;
+    margin: 6px 0;
+    font-size: 17px;
+}
+
+/**
+ * ============================================================================
+ *                             Config: SD.
+ * ============================================================================
+ *
+ * @since  3.0.3 [2025-10-13-02:15pm].
+ */
+#config #files-op {
+    flex-direction: column;
+    align-items: start;
+}
+#config #files-op button {
+    margin-bottom: 10px;
+}
+#config #files-op-select {
+    height: 25px;
+    width: 98px;
+}
+#config #files-area {
+    flex-direction: column;
+    padding-left: 6px;
+    text-align: left;
+    color: #000000b3;
+}
+#config #files-area .file {
+    width: 100%;
+    cursor: pointer;
+    margin: 0 0 6px 0;
+}
+#config #files-area .file.selected::before {
+    content: "\2192\00A0";  /* &rarr;&nbsp; */
+}
+
+#config  #start-upload,
+#config  #do-files {
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    padding: 8px 16px;
+    font-size: 17px;
+    cursor: pointer;
+    background-color: #a5dc86;
+    color: #000000b3;
+}
+#config #drop-area {
+    display: block;
+    padding: 6px;
+    border-radius: 4px;
+    border: 1px dashed black;
+    color: rgba(0, 0, 0, 0.7);
+}
+#config .highlight-drop {
+    background-color: #e0eee0;
+}
+#config #drop-area img {
+    display: block;
+    height: 40px;
+    width:  40px;
+    margin: 4px auto 8px;
+    opacity: 0.3;
+}
+#config #drop-area #uploadStatus {
+    margin-bottom: 8px;
+    padding: 3px;
+    background-color: #0a1128;
+    color: #ffffff;
+    text-align: center;
+    font-size: 14px;
+}
+#config #uploadStatus.hide {
+    display: none;
+}
+#config #drop-area #uploadStatus.show {
+    display: block;
+}
+#config #drop-area #uploadStatus.error {
+    color:#ff0000;
+}
+#config #drop-area .label {
+    text-align: center;
+    margin-bottom: 10px;
+}
+#config .upload-file {
+    margin: 0 0 6px 0;
+    text-align: left;
+}
+#config .upload-file:hover {
+    cursor: pointer;
+}
+
+/**
+ * ============================================================================
+ *                             Config: switches.
+ * ============================================================================
+ *
+ * @since  3.0.3 [2025-10-13-02:15pm].
+ */
+#config .switch-field {
+    display: flex;
+    overflow: hidden;
+}
+#config .switch-field input {
+    position: absolute !important;
+    clip: rect(0, 0, 0, 0);
+    height: 1px;
+    width: 1px;
+    overflow: hidden;
+    border: 0;
+}
+#config .switch-field label {
+    padding: 8px 16px;
+    margin-right: -1px;
+    background-color: #e4e4e4;
+    color: rgba(0, 0, 0, 0.7);
+    text-align: center;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px rgba(255, 255, 255, 0.1);
+    transition: all 0.1s ease-in-out;
+}
+#config .switch-field label:hover {
+    cursor: pointer;
+}
+#config .switch-field input:checked + label {
+    background-color: #a5dc86;
+    box-shadow: none;
+}
+#config .switch-field label:first-of-type {
+    border-radius: 4px 0 0 4px;
+}
+#config .switch-field label:last-of-type {
+    border-radius: 0 4px 4px 0;
+}

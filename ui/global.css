@@ -1,0 +1,96 @@
+/**
+ * *************************************
+ *      Ghost Rover 3 - UI CSS.
+ * *************************************
+ *
+ * global.css
+ *
+ * @author   D. Foster <doug@dougfoster.me>.
+ * @since    3.0.3 [2025-11-11-08:00pm].
+ * @link     http://dougfoster.me.
+*/
+
+/**
+// -------------------------------------
+//      General.
+// -------------------------------------
+*/
+:root {
+    --red-1:    #ff0000;
+    --green-1:  #008000;
+    --green-2:  #a5dc86;
+    --green-3:  #20b2aa;
+    --green-4:  #f5f5dc;
+    --green-5:  #1c9e95;
+    --yellow-1: #ffff00;
+    --black-1:  #000000;
+    --black-2:  #0a1128;
+    --gray-1:   #4c4c4c;
+    --gray-2:   #b3b3b3;
+    --gray-3:   #e8e8e8;
+    --gray-4:   #f5f5f5;
+    --tan-1:    #fff8dc;
+    --std-border-radius: 5px;
+}
+body {
+    max-width: 400px;
+    margin: 0 auto 30px;
+    font-family: Verdana, sans-serif;
+    font-size: 17px;
+}
+a {
+    text-decoration: none;
+}
+
+/**
+// -------------------------------------
+//      Header.
+// -------------------------------------
+*/
+header {
+    background-color: var(--black-2);
+}
+header h1 {
+    margin: 0;
+    padding: 10px 0;
+    color: #ffffff;
+    font-size: 24px;
+    font-weight: 400;
+    text-align: center;
+}
+header h1.red {
+    color: var(--red-1);
+    animation: blink-animation 1s infinite; /* 1s duration, infinite loop */
+}
+@keyframes blink-animation {
+    0%, 49% {
+    opacity: 1; /* Visible */
+    }
+    50%, 100% {
+    opacity: 0; /* Hidden */
+    }
+}
+
+/**
+// -------------------------------------
+//      Button.
+// -------------------------------------
+*/
+button,
+.button {
+    max-width: 100px;
+    min-width: 100px;
+    flex: 1;
+    padding: 12px;
+    background-color: var(--green-3);
+    border: 1px solid;
+    border-color: var(--green-5);
+    border-radius: var(--std-border-radius);
+    font-size: 18px;
+    color: #ffffff;
+    cursor: pointer;
+}
+button:hover,
+.button:hover {
+    background-color: var(--green-5);
+}
