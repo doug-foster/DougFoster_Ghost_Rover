@@ -6,7 +6,7 @@
  * operate.js
  *
  * @author   D. Foster <doug@dougfoster.me>.
- * @since    3.0.7 [2025-11-15-05:00pm].
+ * @since    3.0.11 [2026-01-13-07:00pm].
  * @link     http://dougfoster.me.
 */
 
@@ -62,6 +62,7 @@ const batteryStatus     = document.querySelector('.info #battery-status');
 const batteryBars       = document.querySelectorAll('.info #battery .bar');
 
 // --- General. ---
+const GNSS_INTERVAL     =  500;  // Time (ms) between ZED GNSS solution intervals.
 
 /**
  * ============================================================================
@@ -90,16 +91,19 @@ function version(string) {
  *
  * @return void  No output is returned.
  * @since  3.0.3 [2025-10-19-01:30pm].
+ * @since  3.0.10 [2026-01-08-01:30pm] Shortened keywords.
  */
-function mode(string) {
-    switch (string) {
-        case 'base':
-        case 'rover':
+function mode(m) {
+    switch (m) {
+        case 'b':
+            operMode.innerHTML = 'base';
+            break;
+        case 'r':
+            operMode.innerHTML = 'base';
             break;
         default:
-            string = 'unknown';
+            operMode.innerHTML = 'unknown';
     }
-    operMode.innerHTML = string;
 }
 
 /**
@@ -109,16 +113,19 @@ function mode(string) {
  *
  * @return void  No output is returned.
  * @since  3.0.3 [2025-10-19-01:30pm].
+ * @since  3.0.10 [2026-01-08-01:30pm] Shortened keywords.
  */
-function units(string) {
+function unit(string) {
     switch (string) {
-        case 'meters':
-        case 'feet':
+        case 'm':
+            operUnits.innerHTML = 'meters';
+            break;
+        case 'f':
+            operUnits.innerHTML = 'feet';
             break;
         default:
-            string = 'unknown';
+            operUnits.innerHTML = 'unknown';
     }
-    operUnits.innerHTML = string;
 }
 
 /**
@@ -128,6 +135,7 @@ function units(string) {
  *
  * @return void  No output is returned.
  * @since  3.0.3 [2025-10-19-02:00pm].
+ * @since  3.0.10 [2026-01-08-01:30pm] Shortened keywords.
  */
 function fix(state) {
     const states = [fixNone, fixSingle, fixRtkFloat, fixRtkFix];
@@ -136,19 +144,19 @@ function fix(state) {
     });
     let which = null, status = null;
     switch (state) {
-        case 'down':
+        case 0:
             which = fixNone;
             status = 'GNSS DOWN';
             break;
-        case 'single':
+        case 1:
             which = fixSingle;
             status = 'SINGLE FIX';
             break;
-        case 'float':
+        case 2:
             which = fixRtkFloat;
             status = 'RTK-FLOAT';
             break;
-        case 'fix':
+        case 3:
             which = fixRtkFix;
             status = 'RTK-FIX';
             break;
@@ -167,19 +175,21 @@ function fix(state) {
  *
  * @return void  No output is returned.
  * @since  3.0.7 [2025-11-14-09:30am].
+ * @since  3.0.10 [2026-01-08-01:45pm] Shortened keywords.
  */
 function number(which, num) {
     let numItem = null;
     switch (which) {
         case 'siv':
             numSIV.innerHTML = num;
-        case 'altitude':
+            break;
+        case 'alt':
             numAltitude.innerHTML = (Math.round(num * 100) / 100).toFixed(3);
             break;
-        case 'latitude':
+        case 'lat':
             numLatitude.innerHTML = (Math.round(num * 100000000) / 100000000).toFixed(8);
             break;
-        case 'longitude':
+        case 'lon':
             numLongitude.innerHTML = (Math.round(num * 100000000) / 100000000).toFixed(8);
             break;
         case 'vac':
@@ -316,10 +326,11 @@ function comm(which, state) {
  *      Battery - set items.
  * ------------------------------------------------
  *
- * example JSON: {"batterySoc":93.07031,"batteryChange":15.184}
+ * example JSON: {"bat":93.07031,"batc":-1.2}
  *
- * @return void  No output is returned.
- * @since  3.0.7 [2025-11-10-11:30am].
+ * @return void   No output is returned.
+ * @since  3.0.7  [2025-11-10-11:30am].
+ * @since  3.0.10 [2026-01-08-12:30pm] Shortened keywords.
  */
 function battery(which, info) {
     let item = null;
@@ -360,7 +371,9 @@ function battery(which, info) {
             if (info > 0) {
                 symbol = '+';
             }
-            batteryStatus.innerHTML = batterySoc.toFixed(2) + '% (' + symbol + info.toFixed(1) + '%/hr)';
+            if (0 !== batterySoc) {
+                batteryStatus.innerHTML = batterySoc.toFixed(2) + '% (' + symbol + info + '%/hr)';
+            }
             break;
     }
 }
@@ -370,8 +383,9 @@ function battery(which, info) {
  *      Execute WebSocket message.
  * ------------------------------------------------
  *
- * @return void  No output is returned.
- * @since  3.0.7 [2025-11-14-09:30am].
+ * @return void   No output is returned.
+ * @since  3.0.7  [2025-11-14-09:30am].
+ * @since  3.0.10 [2026-01-08-12:30pm] Shortened keywords.
  * @see    messageRcvWebSocket() in global.js.
  */
 function operateMessage(key, value) {
@@ -381,22 +395,22 @@ function operateMessage(key, value) {
                 headerH1.classList.remove('red');
             }
             break;
-        case 'version':                 // {"version":"3.0.3"}.
+        case 'ver':                     // {"ver":"3.0.3"}.
             version(value);
             break;
         case 'mode':                    // {"mode":"base"}.
             mode(value);
             break;
-        case 'units':                   // {"units":"meters"}.
-            units(value);
+        case 'unit':                    // {"unit":"meters"}.
+            unit(value);
             break;
         case 'fix':                     // {"fix":"float"}.
             fix(value);
             break;
         case 'siv':                     // {"siv":"24"}.
-        case 'altitude':                // {"altitude":"100.05"}. 3 posn = 10 mm.
-        case 'latitude':                // {"latitude":"35.60599395,"} 8 posn = 1.11 mm.
-        case 'longitude':               // {"longitude":"-78.79439717"} 8 posn = 1.11 mm.
+        case 'alt':                     // {"alt":"100.05"}. 3 posn = 10 mm.
+        case 'lat':                     // {"lat":"35.60599395,"} 8 posn = 1.11 mm.
+        case 'lon':                    // {"lon":"-78.79439717"} 8 posn = 1.11 mm.
         case 'vac':                     // {"vac":"0.014"}.
             number(key, value);         
             break;
@@ -404,7 +418,7 @@ function operateMessage(key, value) {
             number(key + '-lat', value);
             number(key + '-lon', value);          
             break;
-        case 'altitudeLock':           // {"altitudeLock":"on"}.
+        case 'altitudeLock':            // {"altitudeLock":"on"}.
         case 'laserLock':               // {"laserLock":"on"}.
         case 'locationLock':            // {"locationLock":"on"}.
         case 'unlock':                  // {"unlock":""}.
@@ -412,10 +426,10 @@ function operateMessage(key, value) {
         case 'rtcm':                    // {"rtcm":"up"}.
         case 'bt':                      // {"bt":"up"}.
             break;
-        case 'batterySoc':              // {"batterySoc":"83.75"}.
+        case 'bat':                     // {"bat":"83.75"}.
             battery('soc', value);
             break;
-        case 'batteryChange':           // {"batteryChange":"19.552"}.
+        case 'batc':                    // {"batc":"-1.2"}.
             battery('change', value);
             break;
     }
@@ -427,17 +441,18 @@ function operateMessage(key, value) {
  * ------------------------------------------------
  *
  * @return void  No output is returned.
- * @since  3.0.7 [2025-11-15-05:00pm].
+ * @since  3.0.7  [2025-11-15-05:00pm].
+ * @since  3.0.10 [2026-01-08-09:30am] Shortened keywords (e.g. latitude to lat).
  */
 function clearOperateUi() {
 version(         '-.-.-');
 mode(             '-');
-units(            '-');
+unit(            '-');
 fix(           'down');
 number('siv',    '--');
-number('altitude',  0);
-number('latitude',  0);
-number('longitude', 0);
+number('alt',  0);
+number('lat',  0);
+number('long', 0);
 number('hac-lat',   0);
 number('hac-lon',   0);
 number('vac',       0);
@@ -460,12 +475,14 @@ battery('soc',      0);
  * ------------------------------------------------
  *
  * @return void  No output is returned.
- * @since  3.0.3 [2025-10-22-01:30pm].
+ * @since  3.0.3  [2025-10-22-01:30pm].
+ * @since  3.0.10 [2026-01-07-02:00pm] Add update.
  */
 
 // --- Page. ---
  document.addEventListener('DOMContentLoaded', () => {
     initWebSocket();
+    update();
 });
 
 // --- Buttons. ---
@@ -491,12 +508,9 @@ btnUnlock.addEventListener('click', () => {
  */
 
 // version('3.0.3');
-// mode('base');
-// units('meter');
-// fix('down');
-// fix('single');
-// fix('float');
-// fix('fix');
+// mode('b');
+// unit('m');
+// fix('2'); // 0=down, 1-Single, 2=RTK-float, 3-RTK-fix.
 // number('siv', 22);
 // number('altitude', 100.05);
 // number('latitude', 35.60599395);
@@ -513,6 +527,30 @@ function flash() {
         commRtcm.style.opacity = 1;
     }, 1000);
     flash();
+}
+
+/**
+ * ------------------------------------------------
+ *      Send update UI request to server.
+ * ------------------------------------------------
+ *
+ * Send an update UI request to the server every UPDATE_UI_INTERVAL. 
+ * 
+ * @return void  No output is returned.
+ * @since  3.0.10 [2026-01-07-04:30pm] New.
+ * @since  3.0.11 [2026-01-13-11:45am] GNSS_INTERVAL.
+ */
+function update() {
+
+    // --- Loop. ---
+    setTimeout(function() { 
+        if (1 == websocket.readyState) {
+            message = '{"operate":"update"}';
+            websocket.send(message);
+            console.log('browser --> ' + message);
+        }
+        update();
+    }, 450);
 }
 
 /**

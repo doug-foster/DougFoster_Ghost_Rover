@@ -6,23 +6,13 @@
  * global.js
  *
  * @author   D. Foster <doug@dougfoster.me>.
- * @since    3.0.7 [2025-11-15-04:45pm].
+ * @since    3.0.11 [2026-01-13-07:00pm].
  * @link     http://dougfoster.me.
  * 
  * Websocket Messages:
- *   client --> server {"status":"ready"} = first part of two-way handshake.
- *   client <-- server {"status":"ready"} = second part of two-way handshake.
  *   client --> server {"echo":"hello"} = echo send.
  *   client <-- server {"echo":"hello"} = echo receive.
- *   client <-- server {"version":"3.0.3"}.
- *   client <-- server {"mode":"base"}.
- *   client <-- server {"units":"meters"}.
- *   client <-- server {"fix":"float"}.
- *   client <-- server {"altitude":"100.05"}.
- *   client <-- server {"latitude":"35.5536111"}.
- *   client <-- server {"longitude":"-78.7713888"}.
- *   client <-- server {"vac":"0.014"}.
- *   client <-- server {"hac":"0.016"}.
+
  *   client --> server {"altitude":"lock"} = lock altitude.
  *   client <-- server {"altitude":"locked"} = altitude locked.
  *   client --> server {"altitude":"unlock"} = unlock altitude.
@@ -40,8 +30,7 @@
  *   client <-- server {"rtcm":"down"} = rtcm status.
  *   client <-- server {"bt":"up"} = bt status.
  *   client <-- server {"bt":"down"} = bt status.
- *   client <-- server {"batterySoc":"83.75"} = battery state of charge.
- *   client <-- server {"batteryAlert":"true"} = battery alert (below threshold).
+
  *   client --> server {"listFiles":""} = list SD files.
  *   client <-- server {"listFiles":"list of files"} = list of SD files.
  *   client --> server {"viewFile":"filename"} = view SD file.
@@ -107,7 +96,8 @@ function initWebSocket() {
  * ------------------------------------------------
  *
  * @return void  No output is returned.
- * @since. 3.0.7 [2025-11-15-12:30pm].
+ * @since. 3.0.7  [2025-11-15-12:30pm].
+ * @since. 3.0.10 [2026-01-07-05:30pm] Removed ready handshake.
  */
 function openedWebSocket(event) {
     // --- UI indicator that a WebSocket is now open. ---
@@ -115,9 +105,9 @@ function openedWebSocket(event) {
     headerH1.textContent = roverName;
     headerH1.classList.remove('red');
     // --- Ready handshake with server. ---
-    let message = '{"' + document.title + '":"ready"}';  // {"operate":"ready"}.
-    websocket.send(message);
-    console.log('browser --> server ' + message);
+    // let message = '{"' + document.title + '":"ready"}';  // {"operate":"ready"}.
+    // websocket.send(message);
+    // console.log('browser --> server ' + message);
 }
 
 /**
@@ -152,14 +142,14 @@ function errorWebsocket() {
  *      WebSocket - stopped.
  * ------------------------------------------------
  *
- * @return void  No output is returned.
+ * @return void   No output is returned.
  * @since  3.0.3 [2025-10-22-01:30pm].
  */
 async function stopWebSocket(event) {
     let waitToClose = new Promise(function(resolve) {           // Link to new page was prevented.
         let message = '{"' + document.title + '":"leaving"}';   // {"operate":"leaving"}.
         websocket.send(message);                                // Send "leaving" messaage to server.
-        console.log('browser --> server ' + message);
+        console.log('browser --> ' + message);
         websocket.close();                                      // Close socket.
         console.log('WebSocket stopped.');
         setTimeout(function() {
@@ -177,26 +167,32 @@ async function stopWebSocket(event) {
  *
  * @return void  No output is returned.
  * @since  3.0.7 [2025-11-15-02:00pm].
+ * @since  3.0.10 [2026-01-07-02:30pm] Check for null event data.
  * @see    operateMessage() in operate.js.
  * @see    filesMessage() in files.js.
  */
 function messageRcvWebSocket(event) {
     var myObj = JSON.parse(event.data);
-    console.log('browser <-- server ' + event.data);
-    Object.entries(myObj).forEach(([key, value]) => {
+    let response = 'browser <-- ' + event.data;
+    console.log(response);
+    if ('null' !== event.data) {
 
-        // --- Check for heartbeat. ---
-        if (('echo' == key) && ('alive' == value)) {    // Received a heartbeat.
-            lastHeartbeatTime = Date.now();
-        }
+        // --- Loop objects. ---
+        Object.entries(myObj).forEach(([key, value]) => {
 
-        // --- Route message to its page. ---
-        if (window.location.pathname.includes('operate')) {
-            operateMessage(key, value);         // operate.js.
-        } else if (window.location.pathname.includes('files')) {
-            filesMessage(key, value);           // files.js
-        }
-    });
+            // --- Check for heartbeat. ---
+            if (('echo' == key) && ('alive' == value)) {    // Received a heartbeat.
+                lastHeartbeatTime = Date.now();
+            }
+
+            // --- Route message to its page. ---
+            if (window.location.pathname.includes('operate')) {
+                operateMessage(key, value);         // operate.js.
+            } else if (window.location.pathname.includes('files')) {
+                filesMessage(key, value);           // files.js
+            }
+        });
+    }
 }
 /**
  * ------------------------------------------------
@@ -208,16 +204,16 @@ function messageRcvWebSocket(event) {
  * @return void  No output is returned.
  * @since  3.0.7 [2025-11-15-04:30pm].
  */
-function webSocketHeartbeat() {
-    setTimeout(function() { 
-        if (1 == websocket.readyState) {
-            message = '{"echo":"alive"}';
-            websocket.send(message);
-            console.log('browser --> server ' + message);
-        }
-        webSocketHeartbeat();
-    }, HEARTBEAT_INTERVAL);
-}
+// function webSocketHeartbeat() {
+//     setTimeout(function() { 
+//         if (1 == websocket.readyState) {
+//             message = '{"echo":"alive"}';
+//             websocket.send(message);
+//             console.log('browser --> server ' + message);
+//         }
+//         webSocketHeartbeat();
+//     }, HEARTBEAT_INTERVAL);
+// }
 
 /**
  * ------------------------------------------------
@@ -230,22 +226,22 @@ function webSocketHeartbeat() {
  * @return void  No output is returned.
  * @since  3.0.7 [2025-11-15-04:45pm].
  */
-function webSocketCheckHeartbeat() {
-    setTimeout(function() { 
-        const timeSinceLastHeartbeat = Date.now() - lastHeartbeatTime;
-        if ( timeSinceLastHeartbeat > (HEARTBEAT_INTERVAL * 3)) {
-            if (1 != websocket.readyState) {
-                websocket.close();
-                initWebSocket();
-                lastHeartbeatTime = Date.now();
-                if (window.location.pathname.includes('operate')) {
-                    clearOperateUi();
-                }
-            }
-        }
-        webSocketCheckHeartbeat();
-    }, HEARTBEAT_INTERVAL);
-}
+// function webSocketCheckHeartbeat() {
+//     setTimeout(function() { 
+//         const timeSinceLastHeartbeat = Date.now() - lastHeartbeatTime;
+//         if ( timeSinceLastHeartbeat > (HEARTBEAT_INTERVAL * 3)) {
+//             if (1 != websocket.readyState) {
+//                 websocket.close();
+//                 initWebSocket();
+//                 lastHeartbeatTime = Date.now();
+//                 if (window.location.pathname.includes('operate')) {
+//                     clearOperateUi();
+//                 }
+//             }
+//         }
+//         webSocketCheckHeartbeat();
+//     }, HEARTBEAT_INTERVAL);
+// }
 
 /**
  * ============================================================================
@@ -266,8 +262,8 @@ function webSocketCheckHeartbeat() {
 
  // --- Navigation links. ---
  document.addEventListener('DOMContentLoaded', () => {
-    webSocketHeartbeat();       // Start heartbeat.
-    webSocketCheckHeartbeat();  // Check heartbeat.
+    // webSocketHeartbeat();       // Start heartbeat.
+    // webSocketCheckHeartbeat();  // Check heartbeat.
     newPage.forEach(page => {
         page.addEventListener('click', (event) => {
             event.preventDefault();

@@ -1,28 +1,26 @@
 #line 1 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 /**
- * ***********************************
- *          Ghost Rover 3.
- * ***********************************
- * 
- * Now you see me, now you don't. But you know exactly where I was.
+ * **********************************************************************
+ *          Ghost Rover 3 - GNSS "invisible" rover (with RTK base/PP) for SW Maps.
+ * **********************************************************************
  *
  * @author   D. Foster <doug@dougfoster.me>.
- * @since    3.0.9 [2025-12-03-05:15pm].
+ * @since    3.0.11 [2026-01-14-08:45am].
+ * @see      https://github.com/doug-foster/DougFoster_Ghost_Rover.
+ * @see      https://github.com/doug-foster/DougFoster_Ghost_Rover_BT_relay.
+ * @see      https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
  * @link     http://dougfoster.me.
- * @link     https://www.build-electronic-circuits.com/arduino-laser-module-ky-008/.
- *
  */
 
- /** TBD
- * 
- * ===================================
- *             Comments.
- * ===================================
+/**
+ * ----------------------------------------------------------------------------
+ *                          Comments.
+ * ----------------------------------------------------------------------------
  * 
  * --- Description & operation. ---
- *     -- Primary use is ...
+ *     -- Primary use is ... // ToDo: complete.
  *
- * --- Rover, major components. ---
+ * --- Major components - rover. ---
  *     -- Board: "Sparkfun ESP32-S3 Thing Plus" (~/Library/Arduino15/packages/esp32/hardware/esp32/3.2.0/boards.txt)
  *     -- primary MCU        https://www.sparkfun.com/sparkfun-thing-plus-esp32-c6.html (SparkFun Thing Plus - ESP32-C6).
  *        -- micro SD card.  https://www.amazon.com/dp/B0BDYVC5TD (SanDisk 128GB ImageMate microSDXC UHS-1 - Up to 140MB/s).
@@ -31,7 +29,7 @@
  *     -- HC-12 RF radio     https://www.amazon.com/dp/B01MYTE1XR (HiLetgo HC-12 433Mhz SI4438).
  *     -- laser pointer      https://www.petsmart.com/cat/toys/interactive-and-electronic/whisker-city-thrills-and-chills-laser-cat-toy-84577.html.
  * 
- * --- Base station, major components. ---
+ * --- Major components - base. ---
  *     -- base station     https://www.sparkfun.com/sparkfun-rtk-evk.html (SparkFun RTK EVK).
  *     -- RTCM relay MCU   https://www.sparkfun.com/sparkfun-thing-plus-esp32-s3.html (SparkFun Thing Plus - ESP32-S3).
  *     -- HC-12 RF radio   https://www.amazon.com/dp/B01MYTE1XR (HiLetgo HC-12 433Mhz SI4438).
@@ -81,11 +79,9 @@
  *     -- Pin config  https://roboticsbackend.com/arduino-uno-pins-a-complete-practical-guide/.
  * 
  * --- Dev environment. ---
- *     -- IDE        VS Code & Arduino Maker Workshop 1.0.5 extension.
+ *     -- IDE        VS Code & Arduino Maker Workshop 1.0.8 extension (uses Arduino CLI 1.4).
  *     -- GitHub     https://github.com/doug-foster/DougFoster_Ghost_Rover/.
  *     -- Platform   https://github.com/espressif/arduino-esp32/releases/tag/3.3.3 (Arduino Release v3.3.3 based on ESP-IDF v5.5.1+).
- *     -- Libraries  (see // Include libraries. below ).
- *     -- Build      Arduino CLI v1.3.1 (2025-08-28T13:51:41Z).
  * 
  * --- Caveats. ---
  *     -- SoftwareSerial library is not supported on ESP32-S3 (does work on ESP32-C6).
@@ -96,11 +92,15 @@
  *     2. Add debug/details page.
  *     3. Add stand-alone mode using PP.
  *     4. Add "vector to coordinates" (navigate to a location) function.
+ *  * @link     https://www.build-electronic-circuits.com/arduino-laser-module-ky-008/.
  *
- * --- Code organization. ---
- *     -- Include libraries
- *     -- Global vars
- *     -- Functions
+ * --- Code structure. ---
+ *     -- Include libraries.
+ *     -- Global vars.
+ *     -- Setup functions.
+ *     -- Task functions.
+ *     -- Event handlers.
+ *     -- Loop functions.
  *     -- Setup.
  *     -- Loop.
  */
@@ -110,13 +110,10 @@
  *                          Include libraries.
  * ============================================================================
  *
- * @since 3.0.9             [2025-12-01-05:15pm].
- * @link  Arduino           https://docs.arduino.cc/libraries/.
- * @link  ESP32             https://docs.espressif.com/projects/arduino-esp32/en/latest/libraries.html.
- * @link  I2C               https://docs.arduino.cc/language-reference/en/functions/communication/wire/. 
- * @link  LittleFS          https://randomnerdtutorials.com/arduino-ide-2-install-esp32-littlefs/.
- * @link  WiFi/WiFiAP       https://docs.espressif.com/projects/arduino-esp32/en/latest/api/wifi.html.
- * @link  NetworkClient     https://docs.espressif.com/projects/arduino-esp32/en/latest/api/network.html.
+ * @since 3.0.9   [2025-12-01-05:15pm].
+ * @since 3.0.11  [2026-01-08-10:30am] Browser initiated updates.
+ * @link  Arduino https://docs.arduino.cc/libraries/.
+ * @link  ESP32   https://docs.espressif.com/projects/arduino-esp32/en/latest/libraries.html.
  */
 
 // --- Core. ---
@@ -128,270 +125,296 @@
 #include <SPI.h>                                           // https://github.com/espressif/arduino-esp32/tree/master/libraries/SPI.
 #include <Wire.h>                                          // https://github.com/espressif/arduino-esp32/blob/master/libraries/Wire/src/Wire.h.
 #include <time.h>                                          // https://github.com/espressif/arduino-esp32/blob/master/cores/esp32/esp32-hal-time.c#L47.
-#include <HardwareSerial.h>                                // https://github.com/espressif/arduino-esp32/blob/master/cores/esp32/HardwareSerial.cpp.
 #include <esp_system.h>                                    // https://github.com/pycom/pycom-esp-idf.
 #include <esp_chip_info.h>                                 // https://github.com/pycom/pycom-esp-idf.
 
 // --- Additional. ---                  
-#include <AsyncTCP.h>                                      // https://github.com/ESP32Async/AsyncTCP (Async TCP - v3.4.9).
-#include <ESPAsyncWebServer.h>                             // https://github.com/ESP32Async/ESPAsyncWebServer (ESP Async WebServer - v3.8.1).
-#include <ArduinoJson.h>                                   // https://github.com/bblanchon/ArduinoJson (ArduinoJSON - v7.4.2).
-#include <SparkFun_MAX1704x_Fuel_Gauge_Arduino_Library.h>  // https://github.com/sparkfun/SparkFun_MAX1704x_Fuel_Gauge_Arduino_Library (SparkFun MAX1704x Fuel Gauge Arduino Library - 1.0.4)
-#include <SparkFun_u-blox_GNSS_v3.h>                       // https://github.com/sparkfun/SparkFun_u-blox_GNSS_v3 (SparkFun u-blox GNSS v3 - 3.1.13).
+#include <AsyncTCP.h>                                      // https://github.com/ESP32Async/AsyncTCP (3.4.9).
+#include <ESPAsyncWebServer.h>                             // https://github.com/ESP32Async/ESPAsyncWebServer (3.8.1).
+#include <ArduinoJson.h>                                   // https://github.com/bblanchon/ArduinoJson (7.4.2).
+#include <SparkFun_MAX1704x_Fuel_Gauge_Arduino_Library.h>  // https://github.com/sparkfun/SparkFun_MAX1704x_Fuel_Gauge_Arduino_Library (1.0.4).
+#include <SparkFun_u-blox_GNSS_v3.h>                       // https://github.com/sparkfun/SparkFun_u-blox_GNSS_v3 (3.1.13).
 
 /**
  * ============================================================================
  *                          Global vars.
  * ============================================================================
+ * 
+ * --- ESP32 (Arduino framework) data types. ---
  *
- * @since 3.0.9 [2025-12-01-05:15pm].
+ * -- Unsigned integer. --
+ * uint8_t                      %u       8 bits = 1 byte,  0 to 255.
+ * uint16_t/unsigned short      %u      16 bits = 2 bytes, 0 to 65,535.
+ * uint32_t/unsigned long       %u,%lu  32 bits = 4 bytes, 0 to 4,294,967,295.
+ * size_t (size,length,count)   %zu     32 bits = 4 bytes, 0 to 4,294,967,295.
+ * uint64_t/unsigned long long  %llu    64 bits = 8 bytes, 0 to 18,446,744,073,709,551,615.
+ 
+ * -- Signed integer. --
+ * int8_t             %d       8 bits = 1 byte,             -128 to 127.
+ * int16_t/short      %d      16 bits = 2 bytes,         -32,768 to 32,767.
+ * int32_t/int/long   %d,%ld  32 bits = 4 bytes,  -2,147,483,648 to 2,147,483,647.
+ * int64_t/long long  %lld    64 bits = 8 bytes,       -9.22e+18 to 9.22e+18.
+ *
+ * -- Signed decimal/floating point. --
+ * float               %f      32 bits = 4 bytes,   6-7 sig. digits (hardware),  -3.40e+38 to 3.40e+38).
+ * double/long double  %f,%lf  64 bits = 8 bytes, 15-17 sig. digits (software), -1.79e+308 to 1.79e+308).
+ *
+ * -- Character/text. --
+ * char (signed)  %c  8 bit = 1 byte, -128 to 127.
+ * unsigned char  %c  8 bit = 1 byte,    0 to 255.
+ *
+ * -- Other. --
+ *      bool    %d (0/1) or %s (text)  8 bit = 1 byte, true or false.
+ *      void        n/a.
+ *      array       n/a.
+ *      string  %s
+ *
+ * @since 3.0.10 [2026-01-06-10:00pm].
+ * @since 3.0.11 [2026-01-08-10:30am] Browser initiated updates.
  */
 
-// --- Pin. --- 
-// const uint8_t LED_STATUS   =  0;             // ESP-32-S3 Thing Plus - pin for status LED.
-// const uint8_t I2C_SDA      =  8;             // ESP32-S3 Thing+ <-> I2C-1 data pin        {Qwiic} - SDA.
-// const uint8_t I2C_SCL      =  9;             // ESP32-S3 Thing+ <-> I2C-1 clock pin       {Qwiic} - SCL.
-
-const uint8_t SPI_SCK          = 38;            // ESP32-S3 Thing+ SPI serial clock
-const uint8_t SPI_PICO         = 34;            // microSD SDI 
-const uint8_t SPI_POCI         = 39;            // microSD SDO
-const uint8_t SPI_CS           = 33;            // SPI chip select
-
-// const uint8_t HC12_RX      = 43;             // See above.
-// const uint8_t HC12_TX      = 44;             // See above.
-// const uint8_t HC12_SET     = 42;             // ESP32-S3 Thing+ <-> HC-12 SET             {blue wire}.
-// const uint8_t PTH_S0_TX =  1;                // Default S0 (UART0, USB) TX - not used.
-// const uint8_t PTH_S0_RX =  3;                // Default S0 (UART0, USB) RX - not used.
+// -- Pin assignments. --
+const uint8_t HC12_SET    = 7;                      // HC-12 SET {blue wire}.
+const uint8_t LSR_TRIGGER = 15;                     // KY-008 trigger pin {yellow wire}.
 
 // --- LED. ---
-enum ws2812_LED_COLOR {                         // WS2812 RGB STAT LED, pin=RGB_BUILTIN=IO23.
-    OFF,                                        // 0.
-    RED,                                        // 1.
-    YELLOW,                                     // 2.
-    GREEN,                                      // 3.
-    BLUE,                                       // 4.
-    WHITE                                       // 5.
+bool ws2812LedBlink = false;
+enum ws2812_LED_COLOR {                             // WS2812 RGB STAT LED.
+    OFF,                                            // 0.
+    RED,                                            // 1.
+    YELLOW,                                         // 2.
+    GREEN,                                          // 3.
+    BLUE,                                           // 4.
+    WHITE                                           // 5.
 } ws2812LedColor;
-bool ws2812LedBlink;
 
 // --- Battery. ---
-SFE_MAX1704X lipo(MAX1704X_MAX17048);           // LIPO battery.
-
-// --- Serial. --- 
-// Serial 0 (UART0 RX).
-// Serial 0 (UART0 TX).
-// Serial 1 (UART1 RX).
-// Serial 1 (UART1 TX).
-// Serial 2 (UART2 RX).
-// Serial 2 (UART2 TX).
-// I2C.
-const uint32_t SERIAL_MON_SPEED = 115200;       // Serial USB monitor speed.
-      char     inputChar;                       // Input/output character.
-const uint8_t  I2C0_SDA_PIN = 6;                // Primary I2C bus - data.
-const uint8_t  I2C0_SCL_PIN = 7;                // Primary I2C bus - clock.
-const uint8_t  I2C1_SDA_PIN = 14;               // Secondary I2C bus - data.
-const uint8_t  I2C1_SCL_PIN = 10;               // Secondary I2C bus - clock.
-      bool     wireStatus;                      // Status: up (true), down (false).
-      bool     wire1Status;                     // Status: up (true), down (false).
-
-// --- BLE (Bluetooth Low Energy). ---
+SFE_MAX1704X lipo(MAX1704X_MAX17048);               // LiPo battery.
 
 // --- WiFi. ---
-const char      *ssid = "Ghost Rover";
-const char      *password = "snark217$";
-      IPAddress ap_local_IP(192, 168, 23, 1);       // ESP32 access point (AP) IP address.
-      IPAddress ap_gateway(192, 168, 23, 1);        // Gateway address.
-      IPAddress ap_subnet(255, 255, 255, 0);        // Subnet mask.
-const char      *ap_name = "ghost";                 // AP name.
-
-// --- Timing. ---
-const TickType_t LED_TIME_FLASH_ON  = 100/portTICK_PERIOD_MS;       // Timer (ms) =  0.1 seconds.
-const TickType_t LED_TIME_FLASH_OFF = 1000/portTICK_PERIOD_MS;      // Timer (ms) =  1.0 seconds.
-const TickType_t SEND_GNSS_PAUSE    = 250/portTICK_PERIOD_MS;       // Timer (ms) =  0.3 seconds.
-const TickType_t SEND_BATTERY_PAUSE = 5000/portTICK_PERIOD_MS;      // Timer (ms) =  5.0 seconds.
-
-// --- Task handles. ---
-TaskHandle_t loopStatusLEDtaskHandle;           // Task: Loop status LED.
-TaskHandle_t sendGnssTaskHandle;                // Task: send GNSS data.
-TaskHandle_t sendBatteryStatusTaskHandle;       // Task: send battery status.
-
-// --- Operation. ---
-
-// --- JSON. ---
-JsonDocument jsonDocFromClient;                 // JSON document received from client.
-JsonDocument jsonDocToClient;                   // JSON document sent to client.
+const char SSID[]     = "Ghost Rover";
+const char PASSWORD[] = "snark217$";
+const char AP_NAME[]  = "ghost";
 
 // --- HTTP. ---
-AsyncWebServer httpServer(80);                  // HTTP AsyncWebServer object on port 80.
-AsyncWebSocket ws("/ghostRover");               // HTTP WebSocket object.
-uint8_t        clientId;                        // HTTP WebSocket client ID #.
+const char     WEBSOCKET_SERVER_NAME[] = "/ghostRover";
+      uint8_t  clientId                = 0;         // HTTP WebSocket client ID # (+1 for each new connection).
+AsyncWebServer httpServer(80);                      // HTTP AsyncWebServer object on port 80.
+AsyncWebSocket ws(WEBSOCKET_SERVER_NAME);           // HTTP WebSocket object.
 
 // --- GNSS. ---
-      uint16_t  GNSS_SOLN_MS             = 250; // Ms between solution calculations.
-      uint32_t  lastGNGGA;                      // Last time a $GNGGA was received.
-const int8_t    MIN_SATELLITE_THRESHHOLD = 2;   // Minimum SIV for reliable coordinate information.
-      int8_t    siv;                            // Satellites in view.
-      char      fixStatus[7];                   // Fix status: down, single, float, fix.
-      float     alt;                            // Altitude.
-      double    lat;                            // Latitude degrees * 10^-9 (high precision).
-      double    lon;                            // Longitude degrees * 10^-9 (high precision).
-      float     hAcc;                           // Horizontal accuracy.
-      float     vAcc;                           // Vertical accuracy.
-      char      nmeaBuffer[120];                // Buffer for NMEA sentence.
-SFE_UBLOX_GNSS  roverGNSS;                      // GNSS object (uses I2C-1).
+SFE_UBLOX_GNSS roverGNSS;                           // GNSS object (uses I2C-1).
 
-// --- General. ---
-esp_chip_info_t chip_info;                      // Chip info.
-char            operMode[5];                    // Operation mode (rover, base).
-char            operUnits[7];                   // Operation units (meter, feet).
-char            buffer[256];                    // Utility buffer.
-bool            inLoop = false;                 // In loop indicator.
+// --- Task handles. ---
+TaskHandle_t taskLoopStatusLedHandle;               // Task: Loop status LED.
+
+// --- Timing. ---
+const int64_t  NMEA_TIMEOUT   = 3000000;            // Time (us) not to exceed for ACK-NMEA-BT received from MCU2 (3 sec).
+
+// --- Operation. ---
+enum CommandIndex {                                 //  Readable index for command array.
+    TEST_RAD = 0,                                   //  0.
+    DEBUG_RTCM,                                     //  1.
+    DEBUG_GNSS,                                     //  2.
+    DEBUG_NMEA,                                     //  3.
+    DEBUG_BTN,                                      //  4.
+    DEBUG_BT,                                       //  5.
+    DEBUG_SER,                                      //  6.
+    DEBUG_WIFI,                                     //  7.
+    DEBUG_WS,                                       //  8.
+    DEBUG_LIPO,                                     //  9.
+    SHOW_UPTIME,                                    // 10.
+    RESET,                                          // 11.
+    CHECK_WIRE1,                                    // 12.
+    NUM_COMMANDS                                    // 13 = automatic array length.
+};      
+const char* COMMAND[NUM_COMMANDS] = {               // Command strings; match CommandIndex.
+    "testRad",                                      // TEST_RAD
+    "debugRTCM",                                    // DEBUG_RTCM
+    "debugGNSS",                                    // DEBUG_GNSS
+    "debugNMEA",                                    // DEBUG_NMEA
+    "debugBtn",                                     // DEBUG_BTN
+    "debugBT",                                      // DEBUG_BT
+    "debugSer",                                     // DEBUG_SER
+    "debugWiFi",                                    // DEBUG_WIFI
+    "debugWs",                                      // DEBUG_WS
+    "debugLiPo",                                    // DEBUG_LIPO
+    "showUpTime",                                   // SHOW_UPTIME
+    "reset",                                        // RESET
+    "checkWire1"                                    // CHECK_WIRE1
+};      
+static size_t  wsSendCount = 0;                         // # of WebSocket messages sent.
+       bool    commandFlag[NUM_COMMANDS] = {false}; // Command flags.
+       bool    ghostMode = false;                   // Flag, in Ghost mode (i.e. locked coordinates).
+       bool    i2cUp = false;                       // Status: true if both Wire & Wire1 up, else false.
+       bool    inLoop = false;                      // In loop() indicator.
+       bool    RTCMin = false;                      // RTCM received within RTCM_TIMEOUT?
+       bool    NMEAsentByMCU2 = false;              // Ack received from MCU #2 within NMEA_TIMEOUT? 
+       bool    buttonGnssLock;                      // UI - // ToDo: implement.
+       bool    buttonAltitudeLock;                  // UI - // ToDo: implement.
+       bool    buttonLocationLock;                  // UI - // ToDo: implement.
+       bool    buttonLaser;                         // UI - // ToDo: implement.
+       bool    buttonUnlockAll;                     // UI - // ToDo: implement.
+       char    serialState[4];                      // Serial state: [USB] [S0] [S1] [S2]; value = u, d, or -.
+       char    operMode[2];                         // Operation mode (r=rover, b=base).
+       char    operUnit[2];                         // Operation units (m=meter, f=feet).
+       char    buffer[256] = {'\0'};                // Utility buffer. // ToDo: Move to rtcm3GetMessageType().
+       int64_t startTime;                           // Boot time.
 
 // --- Version. ---
-const char BUILD_DATE[]  = "[2025-12-01-05:30pm]";
-const char MAJOR_VERSION = '3';
-const char MINOR_VERSION = '0';
-const char PATCH_VERSION = '9';
-const char NAME[]        = "Ghost Rover 3";
+const uint8_t MAJOR_VERSION = 3;
+const uint8_t MINOR_VERSION = 0;
+const uint8_t PATCH_VERSION = 11;
+const char    NAME[]        = "Ghost Rover 3";
+const char    BUILD_DATE[]  = "[2026-01-17-05:15pm]";
 
 // --- Declaration. ---
-
 // --- Test. ---
 
 /**
  * ============================================================================
- *                              Functions.
+ *                          Setup functions.
  * ============================================================================
+ *
+ * @since 3.0.11 [2026-01-08-10:30am] Browser initiated updates.
+ * @see   showBuild()            - Display build & processor info.
+ * @see   startSerial()          - Start serial interfaces.
+ * @see   initPins()             - Initialize pins & pin values.
+ * @see   startI2C()             - Start I2C Wire interfaces.
+ * @see   startLiPo()            - Start LiPo I2C interface.
+ * @see   startWiFi()            - Start WiFi.
+ * @see   startSD()              - Start & test microSD card reader.
+ * @see   startHttpServer()      - Start HTTP server.
+ * @see   startWebSocketServer() - Start WebSocket server.
+ * @see   startAndConfigGNSS()   - Start GNSS, config ZED settings.
+ * @see   startTasks()           - Start tasks.
+ * @see   preLoop()              - Prepare for loop().
  */
-
-// ==================================
-//         Setup functions.
-// ==================================
 
  /**
  * ------------------------------------------------
- *      Start serial USB monitor.
+ *      Display build & processor info.
  * ------------------------------------------------
- *
+ * 
+ * Default pins for ESP32-S3 Thing Plus using Arduino core:
+ *   GPIO 19 - Serial USB UART0 used as Communication Device Class interface D- (negative data line).
+ *   GPIO 20 - Serial USB UART0 used as Communication Device Class interface D+ (positive data line).
+ * 
  * @return void  No output is returned.
- * @since  3.0.7 [2025-11-14-07:00am].
+ * @since  3.0.10 [2025-12-30-02:00pm].
+ * @since  3.0.10 [2026-01-07-09:45am] Local vars.
+ * @see    setup().
+ * @link   https://github.com/pycom/pycom-esp-idf.
  */
-#line 278 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void startSerialUsbMonitor();
-#line 296 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void chipInfo();
-#line 311 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void initVars();
-#line 334 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 308 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void showBuild();
+#line 346 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void startSerial();
+#line 376 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void initPins();
-#line 353 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void startSerialInterfaces();
-#line 365 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void startWire();
-#line 395 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void startWire1();
-#line 452 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void startLIPO();
-#line 495 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void startWiFiSoftAP();
-#line 518 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void startSDIO();
+#line 402 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void startI2C();
+#line 439 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void startLiPo();
+#line 488 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void startWiFi();
 #line 536 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startSD();
-#line 553 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void testSD();
-#line 576 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 589 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startHttpServer();
-#line 619 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 644 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startWebSocketServer();
-#line 648 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 679 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startAndConfigGNSS();
-#line 699 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 732 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startTasks();
-#line 724 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void startLoop();
-#line 756 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void checkWire1();
-#line 784 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void loopStatusLedTask(void * pvParameters);
-#line 828 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void sendGnssTask(void * pvParameters);
-#line 921 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void sendBatteryStatusTask(void * pvParameters);
-#line 955 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void WiFiEvent(arduino_event_id_t event);
-#line 1028 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void handleFileUpload( AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final);
-#line 1071 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void sdListFiles(char* output, size_t outputMaxSize, char* path);
-#line 1097 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 749 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void preLoop();
+#line 786 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void taskLoopStatusLed(void * pvParameters);
+#line 844 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void onWiFiEvent(arduino_event_id_t event);
+#line 876 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void onHttpFileUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final);
+#line 922 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void onWebSocketEvent(AsyncWebSocket *httpServer, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len);
-#line 1133 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void handleWebSocketMessage(void *arg, uint8_t *data, size_t len);
-#line 1282 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void scanI2C();
-#line 1323 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-float random_in_range(int min, int max);
-#line 1326 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-char * simLatitude();
-#line 1332 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-char * simLongitude();
-#line 1338 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-char * simAltitude();
-#line 1344 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-char * simHac();
-#line 1350 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-char * simVac();
+#line 971 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void onWebSocketMessage(void *arg, uint8_t *data, size_t len);
+#line 1304 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void relaySerial1toSerial2();
 #line 1367 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+uint16_t rtcm3GetMessageType(const char *buffer);
+#line 1390 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void checkZED();
+#line 1418 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void checkSerialUSB();
+#line 1487 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void debug();
+#line 1643 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void checkGnssLockButton();
+#line 1673 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void checkLaserPointerButton();
+#line 1693 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void setup();
-#line 1407 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1719 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void loop();
-#line 278 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void startSerialUsbMonitor() {
-    Serial.begin(SERIAL_MON_SPEED);
-    delay(1000);
-    Serial.printf("\n%s, Version: %c.%c.%c, Build date: %s\n", NAME, MAJOR_VERSION, MINOR_VERSION, PATCH_VERSION, BUILD_DATE);
-    chipInfo();     // Display processor info.
-    Serial.println("\nSetup() started.");
-    Serial.printf("Serial USB monitor started @ %i bps.\n", SERIAL_MON_SPEED);
-}
+#line 308 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void showBuild() {
 
-/**
- * ------------------------------------------------
- *      Display processor info.
- * ------------------------------------------------
- *
- * @return void  No output is returned.
- * @since  3.0.7 [2025-11-14-07:00am].
- * @see    startSerialMonitor().
- */
-void chipInfo() {
+    // --- Local vars. ---
+    const uint32_t SERIAL_USB_SPEED = 115200;   // Serial USB speed.
+          esp_chip_info_t chip_info;
+
+    // --- Run. ---
+    startTime = esp_timer_get_time();
+    Serial.begin(SERIAL_USB_SPEED);
+    serialState[0] = 'u';   // Serial USB is up [u] [S0] [S1] [S2].
     esp_chip_info(&chip_info);
-    Serial.printf("Using %s, Rev %d,  %d core(s), ID (MAC) %012llX\n",
-    ESP.getChipModel(), chip_info.revision, chip_info.cores, ESP.getEfuseMac());
+    Serial.printf("\n%s, Version: %u.%u.%u, Build date: %s\n", NAME, MAJOR_VERSION, MINOR_VERSION, PATCH_VERSION, BUILD_DATE);
+    Serial.printf("Using %s, Rev %d, %d core(s), ID (MAC) %012llX.\n", ESP.getChipModel(), chip_info.revision, chip_info.cores, ESP.getEfuseMac());
+    Serial.println("\nSetup() started.");
+    Serial.printf("Serial  (USB) started        @ %u bps.\n", SERIAL_USB_SPEED);
 }
 
 /**
  * ------------------------------------------------
- *      Initialize global vars.
+ *      Start serial interfaces.
  * ------------------------------------------------
+ * 
+ * Default pins for ESP32-S3 Thing Plus using Arduino core:
+ *   GPIO 43 - Serial1    UART1 TX.
+ *   GPIO 44 - Serial1    UART1 RX.
+ *   GPIO 17 - Serial2    UART2 TX (also default for I2C1).
+ *   GPIO 18 - Serial2    UART2 RX (also default for I2C1).
  *
  * @return void  No output is returned.
- * @since  3.0.7 [2025-11-07-12:30pm].
+ * @since  3.0.3  [2025-10-13-01:00pm].
+ * @since  3.0.10 [2025-12-27-06:00pm] Add Serial2.
+ * @since  3.0.10 [2025-12-30-02:00pm] Add Serial USB.
+ * @since  3.0.10 [2026-01-07-09:45am] Local vars.
+ * @see    showBuild().
  * @see    setup().
+ * @link   https://github.com/G6EJD/ESP32-Using-Hardware-Serial-Ports.
+ * @link   https://randomnerdtutorials.com/esp32-uart-communication-serial-arduino/#esp32-custom-uart-pins.
  */
-void initVars() {
-    Serial.print("Init global vars");
-    inputChar = '\0';           // Serial USB monitor.
-    ws2812LedColor = RED;       // Task - loop status indicator LED.
-    ws2812LedBlink = false;     // Task - loop status indicator LED.
-    clientId  = 0;              // HTTP WebSocket client ID #.
-    lastGNGGA = 0;              // Last time a $GNGGA was received.
-    memset(buffer, '\0', sizeof(buffer));
-    memset(nmeaBuffer, '\0', sizeof(nmeaBuffer));
-    strcpy(operMode, "base");
-    strcpy(operUnits, "meters");
-    Serial.println(".");
+void startSerial() {
+
+    // --- Local vars. ---
+    const uint8_t  HC12_TX       =  5;      // HC-12 TXD     {white wire}.
+    const uint8_t  HC12_RX       =  6;      // HC-12 RXD     {yellow wire}.
+    const uint8_t  ZED_RX2       = 17;      // ZED UART2 RX2 {white wire}.
+    const uint8_t  ZED_TX2       = 16;      // ZED UART2 TX2 {yellow wire} (not used).
+    const uint32_t SERIAL1_SPEED = 9600;    // HC-12 default speed is 9600.
+    const uint32_t SERIAL2_SPEED = 57600;   // ZED UART2 default speed is 38400.
+
+    // --- Start serial interfaces. ---
+    serialState[1] = '-';   // Serial0 is not used. [USB][-][S1][S2]
+    Serial1.begin(SERIAL1_SPEED, SERIAL_8N1, HC12_TX, HC12_RX);     // UART1 object. RX, TX.
+    serialState[2] = 'u';   // Serial1 is up [USB][S0][u][S2].
+    Serial.printf("Serial1 (HC-12) started     @   %i bps.\n", SERIAL1_SPEED);
+    Serial2.begin(SERIAL2_SPEED, SERIAL_8N1, ZED_RX2, ZED_TX2);     // UART2 object. RX, TX.
+    serialState[3] = 'u';   // Serial2 is up [USB][S0][S1][u].
+    Serial.printf("Serial2 (ZED UART2) started @  %i bps.\n", SERIAL2_SPEED);
 }
 
 /**
@@ -400,135 +423,79 @@ void initVars() {
  * ------------------------------------------------
  *
  * @return void No output is returned.
- * @since  3.0.3 [2025-10-13-01:00pm].
+ * @since  3.0.3  [2025-10-13-01:00pm].
+ * @since  3.0.10 [2025-12-27-06:00pm] Add HC12_SET & LSR_TRIGGER.
  * @see    setup().
  */
 void initPins() {
-    Serial.print("Config pins");
-    // pinMode(0, OUTPUT);
-    // pinMode(HC12_SET, OUTPUT);          // HC-12 - set pin for AT command mode.
-    // digitalWrite(HC12_SET, HIGH);       // HC-12 - initially set pin for transparent mode.
-    Serial.println(".");
+    pinMode(HC12_SET, OUTPUT);          // HC-12 - set pin for AT command mode.
+    digitalWrite(HC12_SET, HIGH);       // HC-12 - initially set pin for transparent mode.
+    pinMode(LSR_TRIGGER, OUTPUT);       // KY-008 trigger pin.
+    Serial.println("Init pins.");
 }
 
 /**
  * ------------------------------------------------
- *      Start serial interfaces.
+ *      Start I2C Wire interfaces.
  * ------------------------------------------------
+ * 
+ * Default pins for ESP32-S3 Thing Plus using Arduino core:
+ *   GPIO  8 - SDA for I2C0 {Qwiic}.
+ *   GPIO  9 - SCL for I2C0 {Qwiic}.
+ *   GPIO 17 - SDA for I2C1 {PTH} (also default for Serial2 TX).
+ *   GPIO 18 - SCL for I2C1 {PTH} (also default for Serial2 RX).
  *
  * @return void  No output is returned.
- * @since  3.0.3 [2025-10-13-01:00pm].
- * @link   https://github.com/G6EJD/ESP32-Using-Hardware-Serial-Ports.
- * @link   https://randomnerdtutorials.com/esp32-uart-communication-serial-arduino/#esp32-custom-uart-pins.
+ * @since  3.0.9  [2025-12-05-05:00pm] New.
+ * @since  3.0.10 [2025-12-27-07:00pm] Combine wire & wire1.
+ * @since  3.0.10 [2026-01-07-10:00am] Local vars.
  * @see    setup().
+ * @link   https://github.com/espressif/arduino-esp32/blob/master/libraries/Wire/src/Wire.h.
+ * @link   https://docs.arduino.cc/language-reference/en/functions/communication/wire/. 
  */
-void startSerialInterfaces() {
-}
+void startI2C() {
 
-/**
- * ------------------------------------------------
- *      Start I2C Wire interface.
- * ------------------------------------------------
- *
- * @return void  No output is returned.
- * @since  3.0.9 [2025-12-05-05:00pm] New. 
- * @see    setup().
- */
-void startWire() {
-    if (wireStatus == 0) {      // Wire is down.
-        if (Wire.begin() == false) {
-            Serial.println("Wire start failed. Retrying.");
-            delay(500);
-            startWire();
-        } else {
-            Wire.setClock(400000);
-            Serial.println("Wire started @ 4kHz.");
-            wireStatus = 1;
-        }
+    // --- Local vars. ---
+    const uint8_t  I2C0_SDA   =  6;       // Primary I2C bus - data.
+    const uint8_t  I2C0_SCL   =  7;       // Primary I2C bus - clock.
+    const uint8_t  I2C1_SDA   = 14;       // Secondary I2C bus - data.
+    const uint8_t  I2C1_SCL   = 10;       // Secondary I2C bus - clock.
+    const uint16_t RETRY      = 500;      // Try restarting I2C interfaces.
+    const uint32_t WIRE_SPEED = 400000;   // I2C Fast mode (4kHz).
+
+    // --- Start interfaces. ---
+    i2cUp = false;
+    if ((Wire.begin()) && (Wire1.begin(I2C1_SDA,I2C1_SCL))) {
+        Wire.setClock(WIRE_SPEED);
+        Wire1.setClock(WIRE_SPEED);
+        Serial.printf("Wire & Wire1 started @ 4kHz.\n");
+        i2cUp = true;
     } else {
-        // Wire was up, now down.
-        Wire.end();
-        Serial.println("Wire down. Restarting ...");
-        wireStatus = 0;
-        delay(500);
-        startWire();
-    }
+        Serial.println("Wire & Wire1 failed to start. Retrying.");
+        delay(RETRY);
+        startI2C();
+    };
+
+    // --- Register event functions. ---
 }
 
 /**
  * ------------------------------------------------
- *      Start I2C Wire1 interface.
+ *      Start LiPo I2C interface.
  * ------------------------------------------------
  *
  * @return void  No output is returned.
- * @since  3.0.9 [2025-12-05-05:00pm] New. 
+ * @since  3.0.7  [2025-11-09-10:15pm].
+ * @since  3.0.10 [2026-01-06-11:15am]. Spelling, move lipo.enableDebugging().
  * @see    setup().
+ * @link   https://github.com/sparkfun/SparkFun_MAX1704x_Fuel_Gauge_Arduino_Library.
  */
-void startWire1() {
-    if (wire1Status == 0) {      // Wire is down.
-        if (Wire1.begin(I2C1_SDA_PIN,I2C1_SCL_PIN) == false) {
-            Serial.println("Wire1 start failed. Retrying.");
-            delay(500);
-            startWire1();
-        } else {
-            Wire1.setClock(400000);
-            Serial.println("Wire1 started @ 4kHz.");
-            wire1Status = 1;
-        }
-    } else {
-        Wire1.end();            // Wire was up, now down. Restart.
-        Serial.println("Wire1 down. Restarting ...");
-        wire1Status = 0;
-        delay(1000);
-        startWire1();
-    }
-}
-
-// /**
-//  * ------------------------------------------------
-//  *      Start I2C interface.
-//  * ------------------------------------------------
-//  *
-//  * @return void  No output is returned.
-//  * @since  3.0.3 [2025-10-16-03:00pm].
-//  * @since  3.0.8 [2025-11-21-11:30am] Wire.setClock() does not return a value.
-//  * @since  3.0.8 [2025-11-30-09:15am] Multiple I2C buses. 
-//  * @see    setup().
-//  */
-// void startI2C() {
-//     if (Wire.begin() == false) {
-//         Serial.println("Start Wire0 failed. Freezing.");
-//         while (true);
-//     }
-//     Wire.setClock(400000);
-//     Serial.println("Wire0 started @ 4kHz.");
-//     wireStatus = 1;
-//     if (Wire1.begin(I2C1_SDA_PIN,I2C1_SCL_PIN) == false) {
-//         Serial.println("Start Wire1 failed. Freezing.");
-//         while (true);
-//     }
-//     Wire1.setClock(400000);
-//     Serial.println("Wire1 started @ 4kHz.");
-//     wire1Status = 1;
-// }
-
-/**
- * ------------------------------------------------
- *      Start LIPO I2C interface.
- * ------------------------------------------------
- *
- * @return void  No output is returned.
- * @since  3.0.7 [2025-11-09-10:15pm].
- * @see    setup().
- */
-void startLIPO() {
-    // lipo.enableDebugging();
-    if (lipo.begin() == false) {    // Uses default I2C (wire) port.
-        Serial.println("LIPO not started. MAX17048 not detected.");
+void startLiPo() {
+    if (lipo.begin() == false) {    // Uses I2C0.
+        Serial.println("LiPo not started. MAX17048 not detected.");
     } else {
         lipo.quickStart();          // Restart for a more accurate initial SOC guess.
-        Serial.println("LIPO started.");
-        delay(1000);
+        Serial.println("LiPo started.");
     }
 }
 
@@ -542,12 +509,14 @@ void startLIPO() {
  * @since  3.0.7 [2025-11-20-12:00pm] Renamed function.
  * @since  3.0.8 [2025-11-29-11:15am] Deprecated.
  * @see    setup().
+ * @link   https://github.com/espressif/arduino-esp32/tree/master/libraries/WiFi.
+ * @link   https://docs.espressif.com/projects/arduino-esp32/en/latest/api/wifi.html.
  */
 // void startWiFiClient() {
     // WiFi.mode(WIFI_STA);        // Station mode.
     // WiFi.config (staticIP);
-    // WiFi.begin(ssid, password);
-    // Serial.printf("WiFi started.\nConnecting to SSID = %s ", ssid);
+    // WiFi.begin(SSID, PASSWORD);
+    // Serial.printf("WiFi started.\nConnecting to SSID = %s ", SSID);
     // while (WiFi.status() != WL_CONNECTED) {
     //     Serial.print('.');
     //     delay(1000);            // Try again.
@@ -557,74 +526,96 @@ void startLIPO() {
 
 /**
  * ------------------------------------------------
- *      Start WiFi soft AP.
+ *      Start WiFi.
  * ------------------------------------------------
  *
+ * ToDo: change to AP + STA
+ *
  * @return void  No output is returned.
- * @since  3.0.7 [2025-11-20-12:30pm]. New.
+ * @since  3.0.7  [2025-11-20-12:30pm]. New.
+ * @since  3.0.10 [2026-01-07-11:00am] Local vars.
  * @see    setup().
+ * @link   https://github.com/espressif/arduino-esp32/tree/master/libraries/WiFi.
+ * @link   https://docs.espressif.com/projects/arduino-esp32/en/latest/api/wifi.html.
+ * @link   https://docs.espressif.com/projects/arduino-esp32/en/latest/api/network.html.
  */
-void startWiFiSoftAP() {
+void startWiFi() {
+
+    // --- Local vars. ---
+    // ToDo: change vars to const.
+    IPAddress ap_local_IP(192, 168, 23, 1);     // ESP32 access point (AP) IP address.
+    IPAddress ap_gateway(192, 168, 23, 1);      // Gateway address.
+    IPAddress ap_subnet(255, 255, 255, 0);      // Subnet mask.
+
+    // --- Run. ---
     if (!WiFi.softAPConfig(ap_local_IP, ap_gateway, ap_subnet)) {       // Configure IP.
         Serial.println("Soft AP - config failed.");
     }
-    if (!WiFi.softAP(ssid)) {                                           // Set SSID. No password.
+    if (!WiFi.softAP(SSID)) {                                           // Set SSID. No password.
         Serial.println("Soft AP - create failed. Freezing.");
         while (true);
     }
-    WiFi.softAPsetHostname("ghost");                                    // Set hostname.
+    WiFi.softAPsetHostname(AP_NAME);                                    // Set hostname.
     IPAddress ip = WiFi.softAPIP();                                     // Start WiFi & check status (get IP).
-    Serial.printf("Soft AP %d.%d.%d.%d (aka %s) started.\n", ip[0], ip[1], ip[2], ip[3], ap_name);
-    WiFi.onEvent(WiFiEvent);                                            // Add WiFiEvent() as event handler.
+    Serial.printf("WiFi AP %d.%d.%d.%d \"%s\" started.\n", ip[0], ip[1], ip[2], ip[3], AP_NAME);
+    WiFi.onEvent(onWiFiEvent);                                          // Add WiFiEvent() as event handler.
 }
 
 /**
  * ------------------------------------------------
- *      Start SDIO for microSD reader.
+ *      Start & test microSD card reader.
  * ------------------------------------------------
  *
+ * Using SanDisk 128GB ImageMate microSDXC UHS-1 - Up to 140MB/s.
+ * 
+ * Default pins for ESP32-S3 Thing Plus using Arduino core:
+ *   GPIO 33 - SDIO3.
+ *   GPIO 34 - SDIO_CMD.
+ *   GPIO 38 - SDIO_CLK.
+ *   GPIO 39 - SDIO0.
+ *   GPIO 40 - SDIO1.
+ *   GPIO 47 - SDIO2.
+ *   GPIO 48 - SDIO_~{DET}.
+ * 
  * @return void  No output is returned.
  * @since  3.0.3 [2025-10-13-01:00pm].
+ * @since  3.0.10 [2026-01-07-11:30am] Local vars.
  * @see    setup().
+ * @link   https://github.com/espressif/arduino-esp32/tree/master/libraries/SD.
+ * @link   https://github.com/espressif/arduino-esp32/tree/master/libraries/FS.
+ * @link   https://github.com/espressif/arduino-esp32/tree/master/libraries/SPI.
+ * @link   https://docs.sparkfun.com/SparkFun_Thing_Plus_ESP32-S3/hardware_overview/#sd-card-slot.
+ * @link   https://randomnerdtutorials.com/arduino-ide-2-install-esp32-littlefs/.
  */
-void startSDIO() {
+void startSD() {
+
+    // --- Local vars. ---
+    const uint8_t  SPI_CS      = 33;                // SPI chip select.
+    const uint8_t  SPI_PICO    = 34;                // microSD SDI.
+    const uint8_t  SPI_SCK     = 38;                // ESP32-S3 Thing+ SPI serial clock.
+    const uint8_t  SPI_POCI    = 39;                // microSD SDO.
+    const uint16_t STARTUP     = 750;               // Allow time for SDIO to start up.
+    const char     TEST_FILE[] = "/index.html";     // Test file (should always exist).
+
+    // --- Start SDIO interface. ---
     if (!SPI.begin(SPI_SCK, SPI_POCI, SPI_PICO, SPI_CS)) {
         Serial.println("SDIO not started. Freezing.");
         while (true);
     }
-    delay(1000);
-    Serial.println("SDIO started.");  // SanDisk 128GB ImageMate microSDXC UHS-1 - Up to 140MB/s.
-}
+    Serial.println("SDIO started.");
 
-/**
- * ------------------------------------------------
- *      Start built-in microSD card reader.
- * ------------------------------------------------
- *
- * @return void  No output is returned.
- * @since  3.0.3 [2025-10-13-01:00pm].
- * @see    setup().
- */
-void startSD() {
+    // --- Start SD reader. ---
+    delay(STARTUP);
     if (!SD.begin(SPI_CS)) {
         Serial.println("SD card not started. Freezing.");
         while (true);
     }
-    Serial.println("SD card started.");  // SanDisk 128GB ImageMate microSDXC UHS-1 - Up to 140MB/s.
-}
+    Serial.println("SD card started.");
 
-/**
- * ------------------------------------------------
- *      Test built-in microSD reader.
- * ------------------------------------------------
- *
- * @return void  No output is returned.
- * @since  3.0.3 [2025-10-13-01:00pm].
- * @see    setup().
- */
-void testSD() {
+    // --- Test card. ---
+    delay(STARTUP);
     Serial.print("SD card test - ");
-    File file = SD.open("/index.html", "r");
+    File file = SD.open(TEST_FILE, "r");
     if (file == false){
         Serial.println("failed. Freezing.");
         while (true);
@@ -642,23 +633,35 @@ void testSD() {
  * 
  * @return void  No output is returned.
  * @since  3.0.7 [2025-11-11-06:15pm].
+ * @since  3.0.10 [2026-01-07-11:30am] Local vars.
  * @see    setup().
+ * @see    onHttpFileUpload().
  * @link   https://github.com/ESP32Async/ESPAsyncWebServer/wiki#get-post-and-file-parameters.
+ * @link   https://github.com/ESP32Async/AsyncTCP.
+ * @link   https://github.com/ESP32Async/ESPAsyncWebServer.
  */
 void startHttpServer() {
 
-    // --- Home page. ---
-    httpServer.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {       // Set root.
-        request->send(SD, "/index.html", "text/html");
-        Serial.println("httpServer requested \"/\", sent \"/index.html\"");}) ;
+    // --- Local vars. ---
+    const char PAGE_ROOT[]     = "/";
+    const char PAGE_UPLOAD[]   = "/upload";
+    const char PAGE_DOWNLOAD[] = "/download";
 
-    httpServer.on("/upload", HTTP_POST, [](AsyncWebServerRequest *req) {
+    // --- Set root/home page endpoint. ---
+    httpServer.on(PAGE_ROOT, HTTP_GET, [](AsyncWebServerRequest *request) {
+        request->send(SD, "/index.html", "text/html");      // Set root.
+        Serial.println("httpServer requested \"/\", sent \"/index.html\"");
+    }) ;
+
+    // --- Set upload page endpoint. ---   
+    httpServer.on(PAGE_UPLOAD, HTTP_POST, [](AsyncWebServerRequest *req) {
         req->send(200, "text/plain", "Upload complete");
-        Serial.println("httpServer upload complete.");}, handleFileUpload);    // Register handler.
+        Serial.println("httpServer upload complete.");
+    }, onHttpFileUpload);                                   // Register endpoint handler.
 
-    // --- Download. TBD. ---
-    httpServer.on("/download", HTTP_GET, [](AsyncWebServerRequest *request) { 
-        if (request->hasParam("file")) {
+    // --- Download page endpoint. ---
+    httpServer.on(PAGE_DOWNLOAD, HTTP_GET, [](AsyncWebServerRequest *request) { 
+        if (request->hasParam("file")) {                    // Process request.
             String filename = request->getParam("file")->value();
             String filepath = "/" + filename;
             if (SD.exists(filepath)) {
@@ -673,8 +676,8 @@ void startHttpServer() {
         }
     });
 
-    // --- Start. ---
-    httpServer.serveStatic("/", SD, "/");
+    // --- Start server. ---
+    httpServer.serveStatic(PAGE_ROOT, SD, PAGE_ROOT);       // File system root ("/") is on SD card.
     httpServer.begin();
     Serial.println("httpServer started.");
 }
@@ -686,12 +689,16 @@ void startHttpServer() {
  *
  * @return void  No output is returned.
  * @since  3.0.3 [2025-10-13-01:00pm].
+ * @since  3.0.10 [2026-01-07-12:00pm] WEBSOCKET_SERVER_NAME.
  * @see    setup().
+ * @see    onWebSocketEvent().
+ * @link   https://randomnerdtutorials.com/esp32-websocket-server-arduino/.
+ * @link   https://shawnhymel.com/1882/how-to-create-a-web-server-with-websockets-using-an-esp32-in-arduino/.
  */
 void startWebSocketServer() {
     ws.onEvent(onWebSocketEvent);
     httpServer.addHandler(&ws);     // startWebServer() must run first.
-    Serial.println("WebSocket server \"ghostRover\" started.");
+    Serial.printf("WebSocket server \"%s\" started.\n", WEBSOCKET_SERVER_NAME);
 }
 
 /**
@@ -700,12 +707,18 @@ void startWebSocketServer() {
  * ------------------------------------------------
  * 
  * Uses library SparkFun_u-blox_GNSS_v3 for UBX-CFG-VALGET & UBX-CFG-VALSET binary commands.
+ * 
+ * SW Maps needs these (5) sentences:
+ *   Position & time: GNGGA, GNRMC.
+ *   Skyplot display: GNGSA, GPGSV (significant bandwidth).
+ *   Accuracy: GNGST.
  *
  * @return void No output is returned.
- * @since  0.1.0 [2025-04-24-12:00pm] New.
- * @since  3.0.7 [2025-11-14-04:00pm] Import from Ghost Rover V2.
+ * @since  0.1.0  [2025-04-24-12:00pm] New.
+ * @since  3.0.7  [2025-11-14-04:00pm] Import from Ghost Rover V2.
+ * @since  3.0.11 [2026-01-14-10:45am] Cleanup.
  * @see    Global vars: GNSS.
- * @see    beginSerialInterfaces().
+ * @see    startSerial().
  * @see    beginI2C().
  * @link   https://github.com/sparkfun/SparkFun_u-blox_GNSS_v3/blob/main/examples/Example1_PositionVelocityTime/Example1_PositionVelocityTime.ino.
  * @link   https://github.com/sparkfun/SparkFun_u-blox_GNSS_v3/blob/main/src/u-blox_config_keys.h.
@@ -718,43 +731,44 @@ void startWebSocketServer() {
  * @link   GNVTG = Tracking.                                  https://receiverhelp.trimble.com/alloy-gnss/en-us/NMEA-0183messages_VTG.html.
  */
 void startAndConfigGNSS() {
+
+    // --- Local vars. ---
+    const uint8_t NAV_FREQ = 5;                                     // Generate a solution 5 times per second (interval = 200ms).
     
-    // -- Start GNSS interface on I2C-1. --
-    Serial.print("startAndConfigGNSS() - roverGNSS: start");                            // Print status.
+    // --- Start GNSS interface on I2C-1. ---
     if (roverGNSS.begin() == false) {
-        Serial.println(" failed. Freezing ...");                                        // Something is wrong, freeze.
-        while (true);                                                                   // Infinite loop.
+        Serial.println("Start roverGNSS failed. Freezing ...");     // Something is wrong, freeze.
+        while (true);                                               // Infinite loop.
     } else {
-        Serial.println(".");
+        roverGNSS.setNavigationFrequency(NAV_FREQ);                 // Set solution interval.
+        Serial.printf("roverGNSS started @ %u solutions per second.\n", roverGNSS.getNavigationFrequency());
     }
 
-    // -- Configure interfaces. --
-    Serial.print("startAndConfigGNSS() - roverGNSS: valset keys");
-    roverGNSS.newCfgValset(VAL_LAYER_RAM);                                              // New config template.
-    roverGNSS.addCfgValset(UBLOX_CFG_NMEA_HIGHPREC,            1);                      // High precision NMEA.  9 decimal places.
-    roverGNSS.addCfgValset(UBLOX_CFG_RATE_MEAS,     250);                      // Ms between solution calculations.
-    roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_UBX_NAV_PVT_I2C,   1);                      // I2C - Output solutions periodically.
-    roverGNSS.addCfgValset(UBLOX_CFG_I2CINPROT_UBX,            1);                      // I2C - Turn on UBX protocol in.
-    roverGNSS.addCfgValset(UBLOX_CFG_I2COUTPROT_UBX,           1);                      // I2C - Turn on UBX protocol out.
-    roverGNSS.addCfgValset(UBLOX_CFG_I2CINPROT_NMEA,           0);                      // I2C - Turn off NMEA protocol in.
-    roverGNSS.addCfgValset(UBLOX_CFG_I2COUTPROT_NMEA,          1);                      // I2C - Turn on NMEA protocol out.
-    roverGNSS.addCfgValset(UBLOX_CFG_I2CINPROT_RTCM3X,         0);                      // I2C - Turn off RTCM3 protocol in.
-    roverGNSS.addCfgValset(UBLOX_CFG_I2COUTPROT_RTCM3X,        0);                      // I2C - Turn off RTCM3 protocol out.
-    roverGNSS.addCfgValset(UBLOX_CFG_UART1_ENABLED,            0);                      // UART1 - Disable.
-    roverGNSS.addCfgValset(UBLOX_CFG_UART2_ENABLED,            1);                      // UART2 - Enable.     
-    // roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_GGA_UART2, 1);                      // UART2 - Turn on GGA sentences for SW Maps.
-    // roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_GSV_UART2, 1);                      // UART2 - Turn on GSV sentences for SW Maps.
-    // roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_GSA_UART2, 1);                      // UART2 - Turn on GSA sentences for SW Maps.
-    // roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_RMC_UART2, 1);                      // UART2 - Turn on RMC sentences for SW Maps.
-    // roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_GST_UART2, 1);                      // UART2 - Turn on GST sentences for SW Maps.
-    // roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_GLL_UART2, 0);                      // UART2 - Turn off GLL sentences.
-    // roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_VTG_UART2, 0);                      // UART2 - Turn off VTG sentences.
-    roverGNSS.sendCfgValset() ? Serial.println(".") : Serial.println(". Failed.");      // Send the config.
-    // - ZDA & GNS sentences are off by default. -
-    // roverGNSS.saveConfiguration();                                                   // Save current settings to BBR/Flash.
-    // roverGNSS.saveConfigSelective(VAL_CFG_SUBSEC_IOPORT);                            // Save port settings to flash and BBR.
-    // roverGNSS.setNMEAOutputPort(ble);                                                // Debug - pipe all NMEA sentences to serial USB.
-    // roverGNSS.enableDebugging();                                                     // Debug - all messages over Serial (default).
+    // --- Configure ZED. ---
+    roverGNSS.newCfgValset(VAL_LAYER_RAM);                          // New config template.
+    // roverGNSS.newCfgValset(VAL_LAYER_RAM_BBR);
+    roverGNSS.addCfgValset(UBLOX_CFG_NMEA_HIGHPREC,          1);    // High precision NMEA.  9 decimal places.
+    roverGNSS.setI2COutput(COM_TYPE_NMEA | COM_TYPE_UBX);           // Enable both UBX & NMEA messages.
+    roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_UBX_NAV_PVT_I2C, 1);    // Output solutions periodically on I2C.
+    roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_GGA_I2C, 1);    // Enable GGA messages on I2C @ 1 per 1 solution.
+    roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_RMC_I2C, 1);    // Enable RMC messages on I2C @ 1 per 1 solution.
+    roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_GSA_I2C, 1);    // Enable GSA messages on I2C @ 1 per 1 solution.
+    roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_GSV_I2C, 5);    // Enable GSV messages on I2C @ 1 per 5 solutions (minimize bandwidth).
+    roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_GST_I2C, 1);    // Enable GSA messages on I2C @ 1 per 1 solution.
+    roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_GLL_I2C, 0);    // Disable GLL messages on I2C.
+    roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_VTG_I2C, 0);    // Disable GLL messages on I2C.
+                                                                    // ZDA & GNS sentences are off by default.
+    // roverGNSS.addCfgValset(UBLOX_CFG_I2CINPROT_UBX,       1);    // I2C - Turn on UBX protocol in. Default is on.
+    // roverGNSS.addCfgValset(UBLOX_CFG_I2COUTPROT_UBX,      1);    // I2C - Turn on UBX protocol out. Default is on.
+    // roverGNSS.addCfgValset(UBLOX_CFG_I2CINPROT_NMEA,      0);    // I2C - Turn off NMEA protocol in. Default is on.
+    // roverGNSS.addCfgValset(UBLOX_CFG_I2COUTPROT_NMEA,     0);    // I2C - Turn on NMEA protocol out. Default is on.
+    // roverGNSS.addCfgValset(UBLOX_CFG_I2CINPROT_RTCM3X,    0);    // I2C - Turn off RTCM3 protocol in. Default is ?.
+    // roverGNSS.addCfgValset(UBLOX_CFG_I2COUTPROT_RTCM3X,   0);    // I2C - Turn off RTCM3 protocol out. Default is ?.
+    // roverGNSS.addCfgValset(UBLOX_CFG_UART1_ENABLED,       0);    // UART1 - Disable. Default is enabled.
+    roverGNSS.sendCfgValset() ? Serial.println("roverGNSS configured using valset keys.") : Serial.println("roverGNSS config failed."); // Send the config.
+    // roverGNSS.saveConfiguration();                               // Save current settings to BBR/Flash.
+    // roverGNSS.saveConfigSelective(VAL_CFG_SUBSEC_IOPORT);        // Save port settings to flash and BBR.
+    // roverGNSS.enableDebugging();                                 // Debug - all messages over Serial (default).
 }
 
 /**
@@ -763,29 +777,22 @@ void startAndConfigGNSS() {
  * ------------------------------------------------
  *
  * @return void  No output is returned.
- * @since  3.0.7 [2025-11-14-04:30pm].
+ * @since  3.0.7  [2025-11-14-04:30pm].
+ * @since  3.0.11 [2026-01-08-10:30am] Remove taskSendGnss() & taskSendBatteryStatus().
  * @see    Global vars: Task handles.
  * @see    setup().
  * @link   https://www.freertos.org/Documentation/02-Kernel/04-API-references/01-Task-creation/01-xTaskCreate.
  */
 void startTasks() {
 
-    // -- LOOP status LED. --
-    xTaskCreate(loopStatusLedTask, "LOOP status LED", 2048, NULL, 2, &loopStatusLEDtaskHandle);
-    Serial.println("Task started: \"loop() LED.\".");
-
-    // -- Send GNSS numbers. --
-    xTaskCreate(sendGnssTask, "Send GNSS data", 2048, NULL, 2, &sendGnssTaskHandle);
-    Serial.println("Task started: \"send GNSS data\".");
-
-    // -- Send battery status. --
-    xTaskCreate(sendBatteryStatusTask, "Send battery status", 2048, NULL, 2, &sendBatteryStatusTaskHandle);
-    Serial.println("Task started: \"Send battery status\".");
+    // --- Loop status LED. ---
+    xTaskCreate(taskLoopStatusLed, "Loop status LED", 2048, NULL, 2, &taskLoopStatusLedHandle);
+    Serial.println("Task \"Loop status LED\" started.");
 }
 
 /**
  * ------------------------------------------------
- *      Start loop().
+ *      Prepare for loop().
  * ------------------------------------------------
  *
  * @return void  No output is returned.
@@ -793,230 +800,94 @@ void startTasks() {
  * @since  3.0.7 [2025-11-21-06:00pm] Added inLoop.
  * @see    setup().
  */
-void startLoop() {
+void preLoop() {
     ws2812LedColor = RED;
     ws2812LedBlink = true;
-    Serial.println("Loop() started.\n");
-    inLoop = true;
+    operMode[0]    = 'b';
+    operUnit[0]    = 'm';
+    inLoop         = true;
+    Serial.println("Loop() starting.");
 }
 
-// ==================================
-//         Loop functions.
-// ==================================
-
 /**
- * ------------------------------------------------
- *      Check serial monitor (USB) for input.
- * ------------------------------------------------
+ * ============================================================================
+ *                          Task functions.
+ * ============================================================================
  *
- * @return void No output is returned.
- * @since  3.0.3 [2025-10-13-01:00pm].
- * @see    loop().
+ * @since 3.0.11 [2026-01-08-10:30am] Browser initiated updates.
+ * @see   startTasks()        - Start tasks in setup().
+ * @see   taskLoopStatusLed() - Status LED for loop().
  */
-void checkSerialMonitor(char print = ' ') {
-}
 
 /**
  * ------------------------------------------------
- *      Check I2C Wire1 interface.
+ *      Task: Loop() status LED.
  * ------------------------------------------------
- *
- * @return void No output is returned.
- * @since  3.0.9 [2025-12-05-06:15pm].
- * @see    loop(), DevUBLOXGNSS::processNMEA().
- */
-void checkWire1() {
-    u8_t status;
-    Wire1.beginTransmission(8);                             // Test Wire1. Receiver is device #8.
-    status = Wire1.endTransmission(8);                      // Test Wire1. Is device up?
-    if (status != 0) {
-        Serial.printf("\nI2C error = %i. \n", status);      // Slave is down.
-        startWire1();                                       // Restart Wire1.
-    } else {
-        wire1Status = 1;                                    // Slave is up.
-        Serial.print("u");
-    }
-}
-
-// ==================================
-//         Task functions.
-// ==================================
-
-/**
- * ------------------------------------------------
- *      Task - loop status LED.
- * ------------------------------------------------
+ * 
+ * Default pins for ESP32-S3 Thing Plus using Arduino core:
+ *   GPIO 46 - green Status (STAT) LED.
+ *   GPIO  2 - WS2812 LED.
+ *   GPIO 23 - RGB BUILTIN LED.
  *
  * @param  void  * pvParameters Pointer to task parameters.
  * @return void  No output is returned.
- * @since  3.0.3 [2025-11-09-10:30am].
+ * @since  3.0.3  [2025-11-09-10:30am] New.
+ * @since  3.0.10 [2026-01-07-09:00am] Local vars.
+ * @since  3.0.11 [2026-01-08-02:30pm] Remove debug.
  * @see    startTasks().
  * @link   https://www.freertos.org/Documentation/02-Kernel/04-API-references/02-Task-control/06-vTaskSuspend.
  */
-void loopStatusLedTask(void * pvParameters) {
-    u8_t bright = 18;                                   // 0-255.
+void taskLoopStatusLed(void * pvParameters) {
+
+    // --- Local vars. ---
+    const uint8_t    BRIGHT        = 18;                        // 0-255.
+    const TickType_t TIME_ON       = 100/portTICK_PERIOD_MS;    // Timer (ms) =  0.1 seconds.
+    const TickType_t TASK_INTERVAL = 1000/portTICK_PERIOD_MS;   // Timer (ms) =  1.0 seconds.
+
+    // --- Loop. ---
     while(true) {
-        switch (ws2812LedColor) {
-            case RED:
-                rgbLedWrite(LED_BUILTIN, bright, 0, 0);  // red, green, blue.
+        switch (ws2812LedColor) {                               // Set color.
+            case RED:                                           // 1.
+                rgbLedWrite(LED_BUILTIN, BRIGHT, 0, 0);         // Pin, Red, green, blue.
                 break;
-            case YELLOW:
-                rgbLedWrite(LED_BUILTIN, bright, bright, 0);
+            case YELLOW:                                        // 2.
+                rgbLedWrite(LED_BUILTIN, BRIGHT, BRIGHT, 0);
                 break;
-            case GREEN:
-                rgbLedWrite(LED_BUILTIN, 0, bright, 0);
+            case GREEN:                                         // 3.
+                rgbLedWrite(LED_BUILTIN, 0, BRIGHT, 0);
                 break;
-            case BLUE:
-                rgbLedWrite(LED_BUILTIN, 0, 0, bright);
+            case BLUE:                                          // 4.
+                rgbLedWrite(LED_BUILTIN, 0, 0, BRIGHT);
                 break;
-            case WHITE:
+            case WHITE:                                         // 5.
                 rgbLedWrite(LED_BUILTIN, 0, 0, 0);
                 break;
         }
-        vTaskDelay(LED_TIME_FLASH_ON);                  // LED remains on.
-        if (ws2812LedBlink == true) {
-            rgbLedWrite(LED_BUILTIN, 0, 0, 0);          // LED off.
-            vTaskDelay(LED_TIME_FLASH_OFF);             // LED remains off.
+        vTaskDelay(TIME_ON);                                    // LED remains on: 0.1 seconds.
+        if (ws2812LedBlink) {
+            rgbLedWrite(LED_BUILTIN, 0, 0, 0);                  // LED off.
         }
+        vTaskDelay(TASK_INTERVAL);                              // Task interval: every 1.0 seconds.
     }
 }
 
 /**
- * ------------------------------------------------
- *      Task - send GNSS numbers.
- * ------------------------------------------------
+ * ============================================================================
+ *                          Event handlers.
+ * ============================================================================
  *
- * Uses SparkFun_u-blox_GNSS_v3 library.
- * 
- * @param  void  * pvParameters Pointer to task parameters.
- * @return void  No output is returned.
- * @since  3.0.7 [2025-11-14-04:00pm] New.
- * @since  3.0.8 [2025-11-21-01:00pm] Display {GNSS update}.
- * @see    startTasks().
- * @link   https://www.freertos.org/Documentation/02-Kernel/04-API-references/02-Task-control/06-vTaskSuspend.
- * @link   https://github.com/sparkfun/SparkFun_u-blox_GNSS_v3/blob/main/examples/ZED-F9P/Example10_GetHighPrecisionPositionAndAccuracy/Example10_GetHighPrecisionPositionAndAccuracy.ino
- *         // TODO: check GNSS lock button is in upPosition (GNSS unlocked).
+ * @since 3.0.11 [2026-01-12-06:00pm] Browser initiated updates.
+ * @see   onWiFiEvent()               - WiFi event handler.
+ * @see   onHttpFileUpload()          - HTTP server endpoint handler.
+ * @see   onWebSocketEvent()          - WebSocket event handler.
+ * @see   onWebSocketMessage()        - WebSocket message event handler.
+ * @see   DevUBLOXGNSS::processNMEA() - DevUBLOXGNSS: process NMEA bytes.
  */
-void sendGnssTask(void * pvParameters) {
-    while(true) {
-        if (roverGNSS.getSIV() < MIN_SATELLITE_THRESHHOLD) {                    // Enough satellites?
-            strcpy(fixStatus, "down");
-            siv      = 0;
-            lat      = 0;
-            lon      = 0;
-            alt      = 0;
-            hAcc     = 0;
-            vAcc     = 0;
-        } else if (roverGNSS.getHPPOSLLH() == true) {                           // New high precision GNSS data is available.
-            
-            // Fix type: 0=none, 1=dead reckoning, 2=2D, 3=3D, 4=GNSS, 5=Time.
-            int8_t fixType       = roverGNSS.getFixType();
-            // Carrier solution: 0=none, 1=RTK float, 2=RTK fixed.
-            int8_t solnType      = roverGNSS.getCarrierSolutionType();
-            // Fix status.
-            if (fixType == 3) {
-                strcpy(fixStatus, "single");
-            } else if (solnType == 1 ) {
-                strcpy(fixStatus, "float");
-            } else if (solnType == 2 ) {
-                strcpy(fixStatus, "fix");
-            }
 
-            // Number of satellites in view.
-            siv = roverGNSS.getSIV();
-
-            // High precision latitude. 
-            int32_t latitude = roverGNSS.getHighResLatitude();                  // degrees * 10^-7.
-            int8_t latitudeHp = roverGNSS.getHighResLatitudeHp();               // degrees * 10^-9 (high precision component).
-            lat = latitude / 10000000.0;                                        // Convert to to 64 bit double - degrees (8 decimal places).
-            lat += latitudeHp / 1000000000.0;                                   // Add high precision component.
-
-            // High precision longitude.
-            int32_t longitude = roverGNSS.getHighResLongitude();
-            int8_t longitudeHp = roverGNSS.getHighResLongitudeHp();
-            lon = longitude / 10000000.0;
-            lon += longitudeHp / 1000000000.0;
-
-            // Altitude.
-            int32_t ellipsoid = roverGNSS.getElipsoid();                        // mm.
-            int8_t ellipsoidHp = roverGNSS.getElipsoidHp();                     // mm * 10^-1.
-            float altEllipsoid = (ellipsoid * 10 + ellipsoidHp) / 10000.0;      // Convert to meters.
-            int32_t msl = roverGNSS.getMeanSeaLevel();                          // mm.
-            int8_t mslHp = roverGNSS.getMeanSeaLevelHp();                       // mm * 10^-1.
-            float altMSL = (msl * 10 + mslHp) / 10000.0;                        // Convert to meters.
-            // TODO: allow config change
-            alt = altMSL;                                                       // float.
-
-            // Accuracy.
-            uint32_t horizontalAccuracy = roverGNSS.getHorizontalAccuracy() ;   // mm * 10^-1
-            hAcc = horizontalAccuracy / 10000.0;                                // Convert to meters.
-            uint32_t verticalAccuracy = roverGNSS.getVerticalAccuracy();
-            vAcc = verticalAccuracy / 10000.0;
-        }
-
-        // -- Build reply. --
-        jsonDocToClient.clear();
-        jsonDocToClient["fix"]       = fixStatus;
-        jsonDocToClient["siv"]       = siv;
-        jsonDocToClient["altitude"]  = alt;
-        jsonDocToClient["latitude"]  = lat;
-        jsonDocToClient["longitude"] = lon;
-        jsonDocToClient["hac"]       = hAcc;
-        jsonDocToClient["vac"]       = vAcc;
-
-        memset(buffer, '\0', sizeof(buffer));
-        serializeJson(jsonDocToClient, buffer, sizeof(buffer));
-
-        // -- Send reply. --
-        ws.textAll(buffer);
-
-        // -- Debug. -- 
-        // Serial.printf("WebSocket #%u - browser <-- server %s\n", clientId, buffer);
-        // Serial.printf("WebSocket #%u - browser <-- server {GNSS update}\n", clientId);
-    }
-
-    // -- Pause. --
-    vTaskDelay(SEND_GNSS_PAUSE);               // Update interval.
-}
-
-/**
- * ------------------------------------------------
- *      Task - Send battery status.
- * ------------------------------------------------
- *
- * @param  void  * pvParameters Pointer to task parameters.
- * @return void  No output is returned.
- * @since  3.0.7 [2025-11-10-11:00am].
- * @see    startTasks().
- * @link   https://www.freertos.org/Documentation/02-Kernel/04-API-references/02-Task-control/06-vTaskSuspend.
- */
-void sendBatteryStatusTask(void * pvParameters) {
-    while(true) {
-        
-        // -- Build reply. --
-        jsonDocToClient.clear();
-        jsonDocToClient["batterySoc"]    = (double) lipo.getSOC();
-        jsonDocToClient["batteryChange"] = (double) lipo.getChangeRate();
-        memset(buffer, '\0', sizeof(buffer));
-        serializeJson(jsonDocToClient, buffer, sizeof(buffer));
-
-        // -- Send reply. --
-        ws.textAll(buffer);
-
-        // -- Debug. --
-        // Serial.printf("LIPO: %.2f V, %.2f %, %.2f %\n", lipo.getVoltage(), lipo.getSOC(), lipo.getChangeRate());
-    
-        // -- Pause. --
-        vTaskDelay(SEND_BATTERY_PAUSE);               // Update interval.
-    }
-}
-
-/**
+ /**
  * ------------------------------------------------
  *      WiFi task - event handler.
  * ------------------------------------------------
- *
- * WARNING: This function is called from a separate FreeRTOS task (thread).
  *
  * @param  WiFiEvent_t event WiFi event object.
  * @return void No output is returned.
@@ -1024,21 +895,358 @@ void sendBatteryStatusTask(void * pvParameters) {
  * @see    startWiFiSoftAP().
  * @link   https://docs.espressif.com/projects/arduino-esp32/en/latest/api/wifi.html.
  */
-void WiFiEvent(WiFiEvent_t event) {
-  Serial.printf("[WiFi-event] event %d - ", event);
-    switch (event) {
-    case ARDUINO_EVENT_WIFI_READY:               Serial.println("WiFi interface ready"); break;
-    case ARDUINO_EVENT_WIFI_SCAN_DONE:           Serial.println("Completed scan for access points"); break;
-    case ARDUINO_EVENT_WIFI_AP_START:           Serial.println("WiFi access point started"); break;
-    case ARDUINO_EVENT_WIFI_AP_STOP:            Serial.println("WiFi access point  stopped"); break;
-    case ARDUINO_EVENT_WIFI_AP_STACONNECTED:    Serial.println("Client connected."); break;
-    case ARDUINO_EVENT_WIFI_AP_STADISCONNECTED: Serial.println("Client disconnected"); break;
-    case ARDUINO_EVENT_WIFI_AP_STAIPASSIGNED:   Serial.println("IP address assigned to client."); break;
-    case ARDUINO_EVENT_WIFI_AP_PROBEREQRECVED:  Serial.println("Received probe request"); break;
-    case ARDUINO_EVENT_WIFI_AP_GOT_IP6:         Serial.println("AP IPv6 is preferred"); break;
-    default:                                    break;
-  }
-  Serial.printf("[WiFi-event] Clients connected: %i\n", WiFi.softAPgetStationNum());
+void onWiFiEvent(WiFiEvent_t event) {
+    if (commandFlag[DEBUG_WIFI]) {
+        Serial.printf("[WiFi-event] event %d - ", event);
+        switch (event) {
+            case ARDUINO_EVENT_WIFI_READY:              Serial.println("WiFi interface ready"); break;
+            case ARDUINO_EVENT_WIFI_SCAN_DONE:          Serial.println("Completed scan for access points"); break;
+            case ARDUINO_EVENT_WIFI_AP_START:           Serial.println("WiFi access point started"); break;
+            case ARDUINO_EVENT_WIFI_AP_STOP:            Serial.println("WiFi access point  stopped"); break;
+            case ARDUINO_EVENT_WIFI_AP_STACONNECTED:    Serial.println("Client connected."); break;
+            case ARDUINO_EVENT_WIFI_AP_STADISCONNECTED: Serial.println("Client disconnected"); break;
+            case ARDUINO_EVENT_WIFI_AP_STAIPASSIGNED:   Serial.println("IP address assigned to client."); break;
+            case ARDUINO_EVENT_WIFI_AP_PROBEREQRECVED:  Serial.println("Received probe request"); break;
+            case ARDUINO_EVENT_WIFI_AP_GOT_IP6:         Serial.println("AP IPv6 is preferred"); break;
+            default:                                    break;
+        }
+        Serial.printf("[WiFi-event] Clients connected: %i\n", WiFi.softAPgetStationNum());
+    }
+}
+
+/**
+ * ------------------------------------------------
+ *      httpServer endpoint "/upload".
+ * ------------------------------------------------
+ *
+ * Upload a file to the SD card.
+ *
+ * @return void   No output is returned.
+ * @since  3.0.7  [2025-11-11-06:00pm].
+ * @since  3.0.10 [2026-01-07-12:00pm] Local vars.
+ * @see    startHttpServer().
+ * @link   https://randomnerdtutorials.com/esp32-async-web-server-espasyncwebserver-library/.
+ */
+void onHttpFileUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+
+    // --- Local vars. ---
+    static File uploadFile;                                 // HTTP upload file.
+
+    // --- Begin. ---
+    if (index == 0) {                                       // Start.
+        Serial.println("\nhttpServer endpoint \"/upload\".\nonHttpFileUpload() running.");
+        SD.remove("/" + filename);                          // Delete file.
+        Serial.printf("%s deleted on SD.\n", filename.c_str());
+        uploadFile = SD.open("/" + filename, FILE_WRITE);   // Open file for writing.
+        if (uploadFile) {
+            Serial.printf("%s opened on SD.\n", filename.c_str());
+        } else {
+            request->send(500, "text/plain", "Cannot open file for writing on SD.");
+            Serial.printf("Cannot open %s on SD for writing.\n", filename.c_str());
+            return;  
+        }
+    }
+
+    // --- Continue (write data to SD). ---
+    if (len) {                                              // Data chunk.                                            
+        uploadFile.write(data, len);                        // Write received data to file.
+        Serial.printf("%u total bytes written.\n", (unsigned int)(index + len));
+    }
+
+    // --- Finish. ---
+    if (final) {                                            // Complete.
+        uploadFile.close();
+        Serial.printf("%s closed on SD.\n", filename.c_str());
+        request->send(200, "text/plain", "Upload complete. File saved to SD.");
+    }
+}
+
+/**
+ * ------------------------------------------------
+ *      Event - WebSocket event handler.
+ * ------------------------------------------------
+ *
+ * @return void  No output is returned.
+ * @since  3.0.3 [2025-11-08-03:15pm] New.
+ * @since  3.0.8 [2025-12-01-05:15pm] Changed color & blink status.
+ * @see    startWebSocketServer().
+ * @link   https://randomnerdtutorials.com/esp32-websocket-server-arduino/.
+ * @link   https://shawnhymel.com/1882/how-to-create-a-web-server-with-websockets-using-an-esp32-in-arduino/.
+ */
+void onWebSocketEvent(AsyncWebSocket *httpServer, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
+    clientId = client->id();
+    switch (type) {
+        case WS_EVT_CONNECT:
+            Serial.printf("WS #%u: %s connected to server.\n", clientId, client->remoteIP().toString().c_str());
+            ws2812LedColor = BLUE;                          // Loop status indicator LED.
+            ws2812LedBlink = true;
+            wsSendCount    = 0;                             // Reset counter.
+            break;
+        case WS_EVT_DISCONNECT:
+            Serial.printf("WS #%u: disconnected.\n\n", clientId);
+            ws2812LedColor = RED;
+            ws2812LedBlink = true;
+            wsSendCount    = 0;                             // Reset counter.
+            break;
+        case WS_EVT_DATA:
+            onWebSocketMessage(arg, data, len);             // Register WebSocket message handler.
+            break;
+        case WS_EVT_PONG:
+        case WS_EVT_ERROR:
+            break;
+    }
+}
+
+/**
+ * ------------------------------------------------
+ *      Event - WebSocket message.
+ * ------------------------------------------------
+ * 
+ * serializeJson(jsonDocToClient, Serial); // Debug.
+ * Serial.println();
+ *
+ * @return void  No output is returned.
+ * @since  3.0.7  [2025-11-10-12:00pm].
+ * @since  3.0.10 [2026-01-07-02:30pm] Change {"operate":"ready"} to {"operate":"update"}.
+ * @since  3.0.10 [2026-01-08-09:30am] Shortened keywords (e.g. latitude to lat).
+ * @since  3.0.11 [2026-01-08-10:30am] Browser initiated updates.
+ * @see    startWebSocketServer().
+ * @see    onWebSocketEvent().
+ * @see    Global vars.
+ * @link   https://randomnerdtutorials.com/esp32-websocket-server-arduino/.
+ * @link   https://randomnerdtutorials.com/esp32-websocket-server-sensor/.
+ * @link   https://shawnhymel.com/1882/how-to-create-a-web-server-with-websockets-using-an-esp32-in-arduino/.
+ * @link   https://arduinojson.org/v6/api/json/deserializejson/.
+ * @link   https://arduinojson.org/v6/doc/deserialization/.
+ * @link   https://arduinojson.org/v7/api/jsonvariant/.
+ * @link   https://github.com/espressif/arduino-esp32/blob/master/libraries/SD/examples/SD_Test/SD_Test.ino.
+ */
+
+void onWebSocketMessage(void *arg, uint8_t *data, size_t len) {
+
+    // --- Local vars. ---
+    const size_t       WS_LIPO_SEND_COUNT       = 20;
+    const int8_t       MIN_SATELLITE_THRESHHOLD =  2;   // Minimum SIV for reliable coordinate information.
+          char         JSONbuffer[256];
+          char         numberbuffer[64];
+          uint32_t     lastGNGGA;                       // Last time a $GNGGA was received.  // ToDo: remove, not used?
+          AwsFrameInfo *info                    = (AwsFrameInfo*)arg;
+          JsonDocument jsonDocFromClient;               // JSON document received from client.
+          JsonDocument jsonDocToClient;                 // JSON document sent to client.
+
+    // --- Read WebSocket JSON message. ---
+    if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
+
+        // -- Deserialize the JSON data into jsonDocFromClient. --
+        jsonDocFromClient.clear();
+        DeserializationError error = deserializeJson(jsonDocFromClient, data);
+        if (error) {
+            Serial.printf("JSON deserialize failed: %s\n", error.f_str());
+            return;
+        }
+
+        // -- Create JSON key/value pairs. --
+        memset(JSONbuffer, '\0', sizeof(JSONbuffer));
+        serializeJson(jsonDocFromClient, JSONbuffer, sizeof(JSONbuffer));
+
+        // -- Debug. --
+        if (commandFlag[DEBUG_WS]) {
+            Serial.printf("WS #%u: browser --> %s\n", clientId, JSONbuffer);
+        }
+        
+        // -- Process each JSON key/value pair. --
+        for (JsonPair kv : jsonDocFromClient.as<JsonObject>()) {
+            jsonDocToClient.clear();
+
+            // --------------------------------------------
+            //  browser --> {"operate":"update"}.
+            //  browser <-- {"ver":"3.0.3","mode":"b","unit":"m","fix":"1","siv":"28","lat":"35.5536111","lon":"-78.7713888","alt":"100.05"},"hac":"0.016","vac":"0.014","bat":"97.50","batc":"-3.1"}.
+            // --------------------------------------------
+            if ((strcmp(kv.key().c_str(), "operate") == 0) && (strcmp(kv.value().as<const char*>(), "update") == 0 )) {
+
+                  // NMEA_GGA_data_t data;
+                  // NMEA_VTG_data_t dataVTG;
+                  // uint8_t result = 0;
+                  // result = roverGNSS.getLatestNMEAGNGGA(&data);
+                  // Serial.printf("%u %s",result, (const char *)data.nmea);
+                  // result = roverGNSS.getLatestNMEAGNVTG(&dataVTG);
+                  // Serial.printf("%u %s",result, (const char *)dataVTG.nmea);
+                  // return;
+                
+                // - Send version, mode, & units only on first {"operate":"update"} message. -
+                if (wsSendCount == 0) {
+                    sprintf(JSONbuffer, "%u.%u.%u", MAJOR_VERSION, MINOR_VERSION, PATCH_VERSION);
+                    jsonDocToClient["ver"] = JSONbuffer;
+                    jsonDocToClient["mode"] = operMode;
+                    jsonDocToClient["unit"] = operUnit;
+                }
+
+                // - Send battery status every WS_LIPO_SEND_COUNT {"operate":"update"} messages. -
+                if (wsSendCount % WS_LIPO_SEND_COUNT == 0) {
+                    memset(numberbuffer, '\0', sizeof(numberbuffer));
+                    sprintf(numberbuffer, "%.2f", lipo.getSOC());
+                    jsonDocToClient["bat"] = numberbuffer;
+                    memset(numberbuffer, '\0', sizeof(numberbuffer));
+                    sprintf(numberbuffer, "%.1f", lipo.getChangeRate());
+                    jsonDocToClient["batc"] = numberbuffer;                   
+                }
+
+                // - Send GNSS data for evey {"operate":"update"} message. -
+                if (roverGNSS.getSIV() < MIN_SATELLITE_THRESHHOLD) {        // Enough satellites?
+                    jsonDocToClient["fix"]  = 0;                            // GNSS down. 
+                    jsonDocToClient["siv"]  = 0;
+                    jsonDocToClient["lat"]  = 0;
+                    jsonDocToClient["long"] = 0;
+                    jsonDocToClient["alt"]  = 0;
+                    jsonDocToClient["hac"]  = 0;
+                    jsonDocToClient["vac"]  = 0;
+                } else if (roverGNSS.getHPPOSLLH() == true) {               // New high precision GNSS data is available.
+                    // Fix type.
+                    if (roverGNSS.getFixType() == 3) {
+                        jsonDocToClient["fix"] = 1;                         // Single.
+                    } else if (roverGNSS.getCarrierSolutionType() == 1 ) {
+                        jsonDocToClient["fix"] = 2;                         // RTK-float.
+                    } else if (roverGNSS.getCarrierSolutionType() == 2 ) {
+                        jsonDocToClient["fix"] = 3;                         // RTK-fix.
+                    }
+                    // Satellites in view.
+                    jsonDocToClient["siv"] = roverGNSS.getSIV();            
+                    // Latitude.
+                    int32_t latitude   = roverGNSS.getHighResLatitude();    // Degrees * 10^-7.
+                    int8_t  latitudeHp = roverGNSS.getHighResLatitudeHp();  // High precision component: degrees * 10^-9.
+                    double  lat        = latitude / 10000000.0;             // Convert to to 64 bit double - degrees (8 decimal places).
+                    lat += latitudeHp / 1000000000.0;                       // Add high precision component.
+                    memset(numberbuffer, '\0', sizeof(numberbuffer));
+                    sprintf(numberbuffer, "%.8f", lat);
+                    jsonDocToClient["lat"] = numberbuffer;
+                    // Longitude.
+                    int32_t longitude   = roverGNSS.getHighResLongitude();
+                    int8_t  longitudeHp = roverGNSS.getHighResLongitudeHp();
+                    double  lon         = longitude / 10000000.0;
+                    lon += longitudeHp / 1000000000.0;
+                    memset(numberbuffer, '\0', sizeof(numberbuffer));
+                    sprintf(numberbuffer, "%.8f", lon);
+                    jsonDocToClient["lon"] = numberbuffer;
+                    // Altitude.
+                    int32_t msl   = roverGNSS.getMeanSeaLevel();            // mm. 
+                    int8_t  mslHp = roverGNSS.getMeanSeaLevelHp();          // mm * 10^-1.
+                    float   alt   = (msl * 10 + mslHp) / 10000.0;           // Convert to meters.
+                    memset(numberbuffer, '\0', sizeof(numberbuffer));
+                    sprintf(numberbuffer, "%.2f", alt);
+                    jsonDocToClient["alt"] = numberbuffer;
+                    // Ellipsoid height.  // ToDo: Not used. allow config change.
+                      // int32_t ellipsoid  = roverGNSS.getElipsoid();
+                      // int8_t ellipsoidHp = roverGNSS.getElipsoidHp();
+                      // float altEllipsoid = (ellipsoid * 10 + ellipsoidHp) / 10000.0;
+                    // Horizontal accuracy.
+                    memset(numberbuffer, '\0', sizeof(numberbuffer));
+                    sprintf(numberbuffer, "%.3f", (roverGNSS.getHorizontalAccuracy() / 10000.0));
+                    jsonDocToClient["hac"] = numberbuffer;
+                    // Vertical accuracy.
+                    memset(numberbuffer, '\0', sizeof(numberbuffer));
+                    sprintf(numberbuffer, "%.3f", (roverGNSS.getVerticalAccuracy() / 10000.0));
+                    jsonDocToClient["vac"] = numberbuffer;
+                }
+            }
+
+            // --------------------------------------------
+            //  browser --> {"main/files/config":"ready"}.
+            //  browser <-- {"main/files/config":"ready"}.
+            // --------------------------------------------
+            else if (strcmp(kv.value().as<const char*>(), "ready") == 0 ) {
+                jsonDocToClient["server"] = kv.value().as<const char*>();   // Echo ready.
+            }
+
+            // --------------------------------------------
+            //  browser --> {"main/files/config":"leaving"}.
+            //  browser <-- No reply.
+            // --------------------------------------------
+            else if (strcmp(kv.value().as<const char*>(), "leaving") == 0 ) {
+                return;
+            }
+
+            // --------------------------------------------
+            // browser --> {"altitude"/laser/location:"lock/unlock"}.
+            // browser <-- {"altitude"/laser/location:"TBD"}.
+            // --------------------------------------------
+            else if ((strcmp(kv.value().as<const char*>(), "lock") == 0 ) ||
+                     (strcmp(kv.value().as<const char*>(), "unlock") == 0 )) {
+                if ((strcmp(kv.key().c_str(), "altitude") == 0) ||
+                    (strcmp(kv.key().c_str(), "laser") == 0) ||
+                    (strcmp(kv.key().c_str(), "location") == 0)) {
+
+                    // - Reply with value sent + "ed". -
+                    memset(JSONbuffer, '\0', sizeof(JSONbuffer));
+                    strcpy(JSONbuffer, kv.value().as<const char*>());
+                    strcat(JSONbuffer, "ed");
+                    jsonDocToClient[kv.key().c_str()] = JSONbuffer;
+                }
+            }
+
+            // --------------------------------------------
+            // browser --> {"listFiles":""}.
+            // browser <-- {"listFiles":"file1.ext, file2.ext, ..."}.
+            // --------------------------------------------
+            if (strcmp(kv.key().c_str(), "listFiles") == 0) {
+                char output[2048];
+                memset(output, '\0', sizeof(output));
+                File root = SD.open("/");
+                File file = root.openNextFile();
+                while(file) {
+                    if (strlen(output) + strlen(file.name()) + 2 < sizeof(output)) {       
+                        if ((file.name()[0] != '.') && (file.name() != "") && (!file.isDirectory())) {
+                            // TODO: Flat fs for now, add directories & recursive call.
+                            strcat(output, "/");
+                            strcat(output, file.name());
+                            strcat(output, ",");
+                        }
+                    }
+                    file = root.openNextFile();
+                }
+                jsonDocToClient[kv.key().c_str()] = output;
+            }
+
+            // --------------------------------------------
+            // browser --> {"deleteFile":"filename"}.
+            // browser <-- {"deleteFile":"fileDeleted/fileNOTdeleted"}.
+            // --------------------------------------------
+            if (strcmp(kv.key().c_str(), "deleteFile") == 0) {
+                if (SD.remove(kv.value().as<const char*>())) {  // Delete file.
+                    jsonDocToClient["fileDeleted"] = kv.value().as<const char*>();
+                } else {
+                    jsonDocToClient["fileNOTdeleted"] = kv.value().as<const char*>();
+                }
+            }
+
+            // --------------------------------------------
+            // browser --> {"echo":"hello/etc"}.
+            // browser <-- {"echo":"hello/etc"}.
+            // --------------------------------------------
+            else if (strcmp(kv.key().c_str(), "echo") == 0) {
+                jsonDocToClient[kv.key().c_str()] = kv.value().as<const char*>();
+            }
+
+            // --------------------------------------------
+            // browser --> {"mcu":"restart"}.
+            // browser <-- No reply.
+            // --------------------------------------------
+            else if ((strcmp(kv.key().c_str(), "mcu") == 0) && (strcmp(kv.value().as<const char*>(), "restart") == 0 )) {
+                Serial.println("Restarting ...\n");
+                esp_restart();  // Restart.
+            }
+
+            // - Send reply JSON doc. -
+            memset(JSONbuffer, '\0', sizeof(JSONbuffer));
+            serializeJson(jsonDocToClient, JSONbuffer, sizeof(JSONbuffer));
+            ws.textAll(JSONbuffer);
+            wsSendCount++;
+
+            // - Debug. -
+            if (commandFlag[DEBUG_WS]) {
+                Serial.printf("WS #%u: browser <-- %s\n", clientId, JSONbuffer);
+            }
+        }
+    }
 }
 
 /**
@@ -1061,369 +1269,469 @@ void WiFiEvent(WiFiEvent_t event) {
  * @since  3.0.9 [2025-12-02] Reworked.
  * @see    
  * @link   https://docs.espressif.com/projects/arduino-esp32/en/latest/api/wifi.html.
+ * @link   https://github.com/sparkfun/SparkFun_u-blox_GNSS_v3/tree/main/examples/Basics/Example2_NMEAParsing.
  */
 void DevUBLOXGNSS::processNMEA(char incoming) {
+
+    // --- Local vars. ---
+    static size_t  nmeaCount        = 0;
+    static int64_t lastNMEAsendTime = 0;                             // Last time (us) when NMEA was sent to Wire1.
+    static char    nmeaBuffer[120]  = {'\0'};                        // Buffer for NMEA sentence.
+
+    // --- Loop. ---
     if (inLoop) {
         strncat(nmeaBuffer, &incoming, 1);                          // Add NMEA byte from RTK-SMA to outbound buffer.
         if ((incoming == '\n') && (nmeaBuffer[0] == '$')) {         // We have a full sentence.
-            checkWire1();
-            if (wire1Status == 1) {                                 // Slave is up.
-                Wire1.beginTransmission(8);                         // Prepare to send.
-                for (int i = 0; i <= strlen(nmeaBuffer); i++) {
-                    Wire1.write(nmeaBuffer[i]);                     // Add bytes to output queue.
+            if (i2cUp) {                                            // Slave is up.
+                if (commandFlag[DEBUG_NMEA]) {                      // Debug.
+                    if (strncmp("$GNGGA", nmeaBuffer, 6) == 0) {
+                        Serial.printf("\n%u ", nmeaCount);
+                    } else {
+                        Serial.printf("%u ", nmeaCount);
+                    }
                 }
-                Wire1.endTransmission(8);                           // Send sentence.
-                wire1Status = 1;                                    // Succesful I2C write. Slave is up.
-                Serial.print('-');
+                Wire1.beginTransmission(8);                         // Prepare to send on I2C1.
+                for (int i = 0; i < strlen(nmeaBuffer); i++) {      // Add bytes to output queue.
+                    Wire1.write(nmeaBuffer[i]);
+                    if (commandFlag[DEBUG_NMEA]) {                  // Debug.
+                        Serial.printf("%c",nmeaBuffer[i]);
+                    }
+                }
+                Wire1.endTransmission(8);                           // Send sentence on I2C1.
+                i2cUp = true;                                       // Succesful I2C write. Slave is up.
+                lastNMEAsendTime = esp_timer_get_time();            // Last time (us) when NMEA was sent to Wire1.
+                nmeaCount++;
             }
             memset(nmeaBuffer, '\0', sizeof(nmeaBuffer));
         }
     }
 }
 
-
-// ==================================
-//         General functions.
-// ==================================
-
 /**
- * ------------------------------------------------
- *      HTTP endpoint - /upload.
- * ------------------------------------------------
- *
- * Send files to SD.
- *
- * @return void  No output is returned.
- * @since  3.0.7 [2025-11-11-06:00pm].
- * @see    startHttpServer().
+ * ============================================================================
+ *                          Loop functions.
+ * ============================================================================
+ * 
+ * Check task functions and event handlers. These are independent of loop().
+ * 
+ * @since 3.0.11 [2026-01-12-06:00pm] Browser initiated updates.
+ * @see relaySerial1toSerial2()   - RTCM - Relay from Serial1 (HC-12 radio) to Serial2 (ZED UART2).
+ * @see checkZED()                - NMEA - Check ZED to trigger DevUBLOXGNSS::processNMEA() send to MCU #2.
+ * @see checkSerialUSB()          - Check serial USB for input.
+ * @see checkNMEAoutBT()          - // ToDo: add check for NMEA ACK from MCU2 within NMEA_TIMEOUT window. See logic in relaySerial1toSerial2().
+ * @see checkGnssLockButton()     - Check GNSS lock button. // ToDo: implement.
+ * @see checkLaserPointerButton() - Check Laser pointer button. // ToDo: implement.
+ * @see roverGNSS.checkUblox()    - New data? Process bytes as they come in. Not needed, why?
+ * @see ws.cleanupClients()       - HTTP WebSocket cleanup.
+ * @see debug()                   - Display debug.
  */
-void handleFileUpload( AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
-    static File uploadFile;                                 // HTTP upload file.
 
-    // --- Start. ---
-    if (index == 0) {
-        Serial.println("\nhttpServer endpoint \"/upload\".\nhandleFileUpload() running.");
-        SD.remove("/" + filename);                          // Delete file.
-        Serial.printf("%s deleted on SD.\n", filename.c_str());
-        uploadFile = SD.open("/" + filename, FILE_WRITE);   // Open file for writing.
-        if (uploadFile) {
-            Serial.printf("%s opened on SD.\n", filename.c_str());
-        } else {
-            request->send(500, "text/plain", "Cannot open file for writing on SD.");
-            Serial.printf("Cannot open %s on SD for writing.\n", filename.c_str());
-            return;  
-        }
-    }
-
-    // --- Data chunk. ---
-    if (len) {                                                       
-        uploadFile.write(data, len);  // Write received data to file.
-        Serial.printf("%u total bytes written.\n", (unsigned int)(index + len));
-    }
+ /**
+ * ------------------------------------------------
+ *      RTCM - Relay from Serial1 (HC-12 radio) to Serial2 (ZED UART2).
+ * ------------------------------------------------
+ * 
+ * RTCM preamble = '11010011 000000xx' = 0xd3 0x00.
+ *
+ *  ESP32-S3 Serial1 (HC12) is set to 9,600 bps (default speed) in Global Vars.
+ *  ESP32-S3 Serial2 (ZED UART2) is set to 57,600 bps in Global Vars.
+ *  RTK-SMA (ZED UART2) is set to 57,600 bps by default or startAndConfigGNSS()?  // ToDo: check - is this correct?
+ *
+ * @return void No output is returned.
+ * @since  0.3.6  [2025-05-07-03:45] New.
+ * @since  0.3.7  [2025-05-09-04:30pm] Add loop() throttle.
+ * @since  0.4.5  [2025-05-15-05:00pm] Refactor.
+ * @since  0.4.7  [2025-05-21-11:45am] Switch Radio & BT LEDs. Cleanup.
+ * @since  0.5.1  [2025-06-07-06:45pm] Removed gotbits. Tweked debug.
+ * @since  0.6.3  [2025-07-19-09:45am] Tweaked.
+ * @since  3.0.10 [2025-12-30-04:30pm] Version 3.
+ * @since  3.0.11 [2026-01-14-09:00am] Global serialChar to local inputChar.
+ * @since  3.0.11 [2026-01-15-12:45pm] RTCM_TIMEOUT changed from ms to us.
+ * @see    Global vars: Serial.
+ * @see    startSerialInterfaces().
+ * @see    loop().
+ * @link   https://github.com/sparkfun/SparkFun_u-blox_GNSS_v3/blob/main/examples/ZED-F9P/Example3_StartRTCMBase/Example3_StartRTCMBase.ino.
+ * @link   https://www.use-snip.com/kb/knowledge-base/an-rtcm-message-cheat-sheet/.
+ * @link   https://www.use-snip.com/kb/knowledge-base/rtcm-3-message-list/.
+ * @link   https://www.singularxyz.com/blog_detail/11.
+ */
+void relaySerial1toSerial2() {
     
-    // --- Complete. ---
-    if (final) {
-        uploadFile.close();
-        Serial.printf("%s closed on SD.\n", filename.c_str());
-        request->send(200, "text/plain", "Upload complete. File saved to SD.");
-    }
-}
+    // -- Local vars. --
+    const  uint16_t RTCM_TIMEOUT      = 3000000;            // Time (us) not to exceed for RTCM input received (3 sec).
+    static uint8_t  preamble          =       0;
+    static uint16_t byteCount         =       0;
+    static int64_t  lastRTCMtime      =       0;            // Last time (us) when RTCM input received.
+    static char     rtcmSentence[300] =  {'\0'};            // RTCM3 sentence buffer.
+           uint16_t msg_type          =       0;
 
-/**
- * ------------------------------------------------
- *      HTTP server - /list.
- * ------------------------------------------------
- *
- * Create SD file list.
- *
- * @return void  No output is returned.
- * @since  3.0.3 [2025-11-10-02:00pm].
- * @see    onListFiles().
- */
-void sdListFiles(char* output, size_t outputMaxSize, char* path) {
-    File root = SD.open(path);
-    File file = root.openNextFile();
-    while(file) {
-        if (strlen(output) + strlen(file.name()) + 2 < outputMaxSize) {       
-            if ((file.name()[0] != '.') && (file.name() != "") && (!file.isDirectory())) {
-                // TODO: Flat fs for now, add directories & recursive call.
-                strcat(output, "/");
-                strcat(output, file.name());
-                strcat(output, ",");
-            }
+    // -- Check for Radio down. Set RTCMin state. --
+    if ((esp_timer_get_time()-lastRTCMtime) > RTCM_TIMEOUT) {       // RTCM received within RTCM_TIMEOUT?
+        RTCMin = false;
+    }
+
+    // -- Read from Serial1 (HC-12), write to Serial2 (ZED UART2). --
+    if (Serial1.available() > 0) {                                  // HC-12 data to read?
+        char inputChar = Serial1.read();                            // Read a character from Serial1 (HC-12) @ SERIAL1_SPEED.
+        Serial2.write(inputChar);                                   // Write a character to Serial2 (ZED UART2) @ SERIAL2_SPEED.
+        // Serial.printf("[%x]",inputChar);
+        if (inputChar == 0xd3) {                                    // Look for preamble (beginning of RTCM3 sentence).
+            preamble = (preamble == 0) ? 1 : 2;                     // First (1) or new (2) preamble?
         }
-      file = root.openNextFile();
-    }
-}
-
-/**
- * ------------------------------------------------
- *      WebSocket event handler.
- * ------------------------------------------------
- *
- * @return void  No output is returned.
- * @since  3.0.3 [2025-11-08-03:15pm] New.
- * @since  3.0.8 [2025-12-01-05:15pm] Changed color & blink status.
- * @see    startWebSocketServer().
- */
-void onWebSocketEvent(AsyncWebSocket *httpServer, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
-    clientId = client->id();
-    switch (type) {
-        case WS_EVT_CONNECT:
-            Serial.printf("WebSocket #%u - %s connected to server \n", clientId, client->remoteIP().toString().c_str());
-            ws2812LedColor = BLUE;                         // Loop status indicator LED.
-            ws2812LedBlink = true;
-            break;
-        case WS_EVT_DISCONNECT:
-            Serial.printf("WebSocket #%u - disconnected\n\n", clientId);
-            ws2812LedColor = RED;
-            ws2812LedBlink = true;
-            break;
-        case WS_EVT_DATA:
-            handleWebSocketMessage(arg, data, len);         // WebSocket message handler.
-            break;
-        case WS_EVT_PONG:
-        case WS_EVT_ERROR:
-            break;
-    }
-}
-
-/**
- * ------------------------------------------------
- *      WebSocket message handler.
- * ------------------------------------------------
- *
- * @return void  No output is returned.
- * @since  3.0.7 [2025-11-10-12:00pm].
- * @see    onWebSocketEvent().
- * @link   https://arduinojson.org/v6/api/json/deserializejson/.
- * @link   https://arduinojson.org/v6/doc/deserialization/.
- * @link   https://arduinojson.org/v7/api/jsonvariant/.
- * @link   https://github.com/espressif/arduino-esp32/blob/master/libraries/SD/examples/SD_Test/SD_Test.ino.
- */
-
-void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
-    AwsFrameInfo *info = (AwsFrameInfo*)arg;
-    if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
-
-        // --- Deserialize the JSON message. ---
-        jsonDocFromClient.clear();
-        DeserializationError error = deserializeJson(jsonDocFromClient, data);
-        if (error) {
-            Serial.printf("JSON deserialize failed: %s\n", error.f_str());
-            return;
+        if (preamble == 1) {                                        // First preamble.
+            rtcmSentence[byteCount] = inputChar;                    // Add byte to sentence buffer.
+            byteCount++;                                            // Increment byte counter.
+            RTCMin = true;                                          // Set state.
+        } else if (preamble == 2) {                                 // New Preamble.
+            if (commandFlag[DEBUG_RTCM]) {                          // Debug.
+                msg_type = rtcm3GetMessageType(rtcmSentence);       // Parse message type.
+                uint16_t RTCMinterval = ((esp_timer_get_time()-lastRTCMtime)/1000);
+                Serial.printf("\nRTCM3 %ld (%u ms): %i bytes.\n", msg_type, RTCMinterval, byteCount);
+                for (size_t i = 0; i < byteCount; i++) {
+                    Serial.printf("%02x ", rtcmSentence[i]);
+                }
+                Serial.println();
+            }
+            byteCount = 0;
+            preamble  = 0;
+            memset(rtcmSentence, '\0', sizeof(rtcmSentence));       // Clear the RTCM3 sentence buffer.
+            lastRTCMtime = esp_timer_get_time();                    // Used to check for timeout.
         }
+    }
+}
 
-        // --- Create JSON key/value pairs. ---
-        memset(buffer, '\0', sizeof(buffer));
-        serializeJson(jsonDocFromClient, buffer, sizeof(buffer));
-        Serial.printf("WebSocket #%u - browser --> server %s\n", clientId, buffer);
+/**
+ * ------------------------------------------------
+ *      Return RTCM3 message type.
+ * ------------------------------------------------
+ * 
+ * RTCM3 message structure:
+ *   Byte 0: Preamble (0xD3).
+ *   Byte 1-2: Reserved (6 bits) + Message length (10 bits).
+ *   Byte 3-4: Message type (12 bits) + rest of message.
+ *      - Message type starts at bit 24 (byte 3) and is 12 bits long.
+ *      - It occupies the upper 8 bits of byte 3 and upper 4 bits of byte 4.
+ *
+ * @param  array RTCM3 sentence.
+ * @return uint16_t Message type.
+ * @since  0.8.7 [2025-12-16-06:00pm] New.
+ * @see    checkRTCMtoRadio().
+ * @link   https://portal.u-blox.com/s/question/0D52p0000C7MwDfCQK/can-you-find-out-the-message-type-of-a-given-rtcm3-message.
+ */
+uint16_t rtcm3GetMessageType(const char *buffer) {
+    // Serial.printf("[%02x] [%02x] [%02x] [%02x] [%02x]\n", buffer[0],  buffer[1], buffer[2], buffer[3], buffer[3]);
+    if (buffer[0] != 0xD3) {    // Check if preamble is correct
+        return 0;               // Invalid preamble.
+    }
+    uint16_t message_type = ((uint16_t)buffer[3] << 4) | (buffer[4] >> 4);
+    return message_type;
+}
 
-        // --- Process each JSON key/value pair. ---
-        for (JsonPair kv : jsonDocFromClient.as<JsonObject>()) {
+/**
+ * ------------------------------------------------
+ *      Check ZED to trigger DevUBLOXGNSS::processNMEA() send to MCU #2.
+ * ------------------------------------------------
+ * 
+ * checkZED() will trigger the DevUBLOXGNSS::processNMEA() event handler which reads NMEA characters from the ZED read buffer
+ *  to build a NMEA sentence. A full NMEA sentence is then sent out Wire1 to MCU #2 for Bluetooth output to SWMaps, etc.
+ * checkZED() does not run when the "Operate" web page is loaded since the onWebSocketMessage browser --> {"operate":"update"}
+ *  message calls roverGNSS.xxx (where xxx = getSIV, ...) which also queries the ZED and triggers DevUBLOXGNSS::processNMEA().
+ *
+ * @return void  No output is returned.
+ * @since  3.0.11  [2026-01-17-08:00pm] New.
+ * @see    DevUBLOXGNSS::processNMEA().
+ */
+void checkZED() {
 
-            jsonDocToClient.clear();
+    // -- Local vars. --
+    const  uint16_t CHECK_ZED_INTERVAL = 250000;                            // Time (ms) not to exceed for RTCM input received (3 sec).
+           int64_t  lastCheckZEDtime   = 0;
 
-            // --------------------------------------------
-            // -- {"operate":"ready"}.
-            // --------------------------------------------
-            if ((strcmp(kv.key().c_str(), "operate") == 0) && (strcmp(kv.value().as<const char*>(), "ready") == 0 )) {
+    // --- Throttle checkUblox() calls. ---
+    if ((esp_timer_get_time()-lastCheckZEDtime) < CHECK_ZED_INTERVAL) {     // Time to run?
+        return;
+    }
+    // ToDo: do not run when the "Operate" web page is loaded.
+    lastCheckZEDtime = esp_timer_get_time();
+    roverGNSS.checkUblox();
+}
 
-                // - Resume tasks. - 
-                vTaskResume(sendGnssTaskHandle);
-                vTaskResume(sendBatteryStatusTaskHandle);
+/**
+ * ------------------------------------------------
+ *      Check serial USB for input.
+ * ------------------------------------------------
+ *
+ * @return void No output is returned.
+ * @since  3.0.9  [2025-12-17-06:00pm] New.
+ * @since  3.0.10 [2025-12-30-01:15pm] Refactor.
+ * @since  3.0.10 [2026-01-06-11:15am] Add LiPo.
+ * @since  3.0.11 [2026-01-12-02:00pm] Refactor.
+ * @since  3.0.11 [2026-01-16-08:40pm] if (Serial.available() == 0).
+ * @see    loop().
+ */
+void checkSerialUSB() {
 
-                // - Reply with version, mode, & units. -
-                sprintf(buffer, "%c.%c.%c", MAJOR_VERSION, MINOR_VERSION, PATCH_VERSION);
-                jsonDocToClient["version"] = buffer;
-                jsonDocToClient["mode"]    = operMode;
-                jsonDocToClient["units"]   = operUnits;
+    // --- Local vars. ---
+    static size_t posn        = 0;                              // Input position for command buffer.
+    static char   command[20] = {'\0'};                         // Serial USB command buffer.
+    static char   inputChar   = '\0';
+
+    if (Serial.available() == 0) {                                   // Nothing to see, move on.
+        return;
+    }
+
+    // --- Fill command buffer. ---
+    while ((Serial.available() > 0) )  {
+        inputChar = Serial.read();                              // Read char from USB Serial.
+        if ((inputChar != '\n') && (inputChar != '\r')) {
+            command[posn] = inputChar;                          // Add input to buffer.
+            posn++;
+        }
+    }
+
+    // --- Process command. ---
+    if (inputChar == '\n')  {
+        if ((command[0]) == '?') {                              // List commands.
+            Serial.print("\nGR-MCU1 commands:");
+            for (size_t i = 0; i <= NUM_COMMANDS-1; i++) {
+                Serial.printf(" %s", COMMAND[i]);
             }
-
-            // --------------------------------------------
-            // -- {"main":"ready"}.
-            // -- {"files":"ready"}.
-            // -- {"config":"ready"}.
-            // --------------------------------------------
-            else if (strcmp(kv.value().as<const char*>(), "ready") == 0 ) {
-
-                // - Suspend tasks. -
-                vTaskSuspend(sendGnssTaskHandle);
-                vTaskSuspend(sendBatteryStatusTaskHandle);
-
-                // - Reply with ready. -
-                jsonDocToClient["server"] = kv.value().as<const char*>();
+            Serial.println('.');
+        } else if ((command[0]) == '!') {                       // Disable all debugs.
+            for (size_t i = 0; i <= NUM_COMMANDS; i++) {
+                commandFlag[i] = false;
             }
-
-            // --------------------------------------------
-            // -- {"main":"leaving"}.
-            // -- {"files":"leaving"}
-            // -- {"config":"leaving"}.
-            // --------------------------------------------
-            else if (strcmp(kv.value().as<const char*>(), "leaving") == 0 ) {
-
-                // - No reply. -
-                return;
-            }
-
-            // --------------------------------------------
-            // -- {"altitude":"lock/unlock"}.
-            // -- {"laser":"lock/unlock"}.
-            // -- {"location":"lock/unlock"}.
-            // --------------------------------------------
-            else if ((strcmp(kv.value().as<const char*>(), "lock") == 0 ) ||
-                     (strcmp(kv.value().as<const char*>(), "unlock") == 0 )) {
-                if ((strcmp(kv.key().c_str(), "altitude") == 0) ||
-                    (strcmp(kv.key().c_str(), "laser") == 0) ||
-                    (strcmp(kv.key().c_str(), "location") == 0)) {
-
-                    // - Reply with value sent + "ed". -
-                    memset(buffer, '\0', sizeof(buffer));
-                    strcpy(buffer, kv.value().as<const char*>());
-                    strcat(buffer, "ed");
-                    jsonDocToClient[kv.key().c_str()] = buffer;
+            Serial.println("All debugging disabled.");
+        } else {                                                // Possible command.
+            size_t i;
+            for (i = 0; i < NUM_COMMANDS; i++) {
+                if (strcmp(COMMAND[i], command) == 0) {
+                    break;
                 }
             }
-
-            // --------------------------------------------
-            // -- {"listFiles":""}.
-            // --------------------------------------------
-            if (strcmp(kv.key().c_str(), "listFiles") == 0) {
-
-                // - Reply with list of SD files. -
-                char output[2048];
-                memset(output, '\0', sizeof(output));
-                sdListFiles(output, sizeof(output), "/");                               // List files.
-                jsonDocToClient[kv.key().c_str()] = output;
+            if (i == NUM_COMMANDS) {                            // Invalid command.
+                Serial.printf("%s is not a command. \n", command);
+            } else {
+                commandFlag[i] = !commandFlag[i];               // Toggle the debug flag.
+                Serial.printf("%s %s\n", COMMAND[i], (commandFlag[i]  ? "enabled." : "disabled."));
             }
+        }
+        posn = 0;                                               // Prepare for next command.
+        memset(command, '\0', sizeof(command));
+        inputChar = 0;
+    }
+}
 
-            // --------------------------------------------
-            // -- {"deleteFile":"filename"}.
-            // --------------------------------------------
-            if (strcmp(kv.key().c_str(), "deleteFile") == 0) {
+/**
+ * ------------------------------------------------
+ *      Display debug.
+ * ------------------------------------------------
+ *
+ * // ToDo: rework for V3. Will not compile.
+ * @return void No output is returned.
+ * @since  0.3.3 [2025-05-02-12:00pm] New.
+ * @since  0.3.7 [2025-05-09-04:30pm] Add loop() throttle.
+ * @since  0.5.1 [2025-06-07-03:45pm] Removed gotbits.
+ * @since  0.6.1 [2025-07-13-08:00am] Added debugNMEA.
+ * @since  3.0.11 [2026-01-12-03:30pm] Refactor.
+ * @since  3.0.11 [2026-01-12-10:00pm] Added checkWire1.
+ * @since  3.0.11 [2026-01-15-10:45am] Moved THROTTLE_DEBUG from global to local var.
+ * @see    checkSerialUSB().
+ */
+void debug() {
 
-                // - Reply with "deleted" or "NOT deleted". -
-                if (SD.remove(kv.value().as<const char*>())) {                          // Delete file.
-                    jsonDocToClient["fileDeleted"] = kv.value().as<const char*>();      // Success.
-                } else {
-                    jsonDocToClient["fileNOTdeleted"] = kv.value().as<const char*>();   // Fail.
+    // --- Local vars. ---
+    const int64_t  THROTTLE_DEBUG = 1000000;                            // Time (us) between debug() = (every 1 sec).
+    static int64_t lastThrottleTime = esp_timer_get_time();             // Throttle. Initialize only once, then persist.
+           int64_t lastTime;
+
+    // --- Throttle loop() calls. ---
+    if ((esp_timer_get_time() - lastThrottleTime) < THROTTLE_DEBUG) {   // Not time to run.
+        return; 
+    }
+    lastThrottleTime = esp_timer_get_time();                // Time to run. Reset timer.
+
+    // --- Test radio. ---
+    if (commandFlag[TEST_RAD]) {
+
+        // -- Local vars. --
+        static size_t posn        = 0;                      // Input position for command buffer.
+        static char   command[20] = {'\0'};                 // Serial USB command buffer.
+
+        // -- HC-12 into command mode. --
+        digitalWrite(HC12_SET, LOW);
+        Serial1.write('\n');                                // Clear garbage.
+        delay(200);
+        while (Serial1.available() > 0) {
+            Serial1.read();                          
+        }
+        Serial.println("\nHC-12 command mode enabled (! to exit)"); // Display instructions.
+        Serial.println("Don't forget, the HC-12 needs LiPo power!");
+        Serial.println("  AT, AT+Bxxxx, AT+Cxxx, AT+FUx, AT+Px,");
+        Serial.println("  AT+Ry (AT+RB, AT+RC, AT+RF, AT+RP, AT+RX),");
+        Serial.println("  (y = B=baudrate, C=channel, F=mode, P=power),");
+        Serial.println("  AT+Udps, AT+V, AT+SLEEP, AT+DEFAULT, AT+UPDATE.");
+        Serial.println("  See https://www.datsi.fi.upm.es/docencia/DMC/HC-12_v2.3A.pdf\n");
+
+        // -- Interact with HC-12. --
+        while (true) {
+
+            // - Fill command buffer. -
+            while (Serial.available() > 0)  {
+                char inputChar = Serial.read();         // Read char from USB Serial.
+                if ((inputChar != '\n') && (inputChar != '\r')) {
+                    command[posn] = toupper(inputChar); // Add input to buffer.
+                    posn++;
+                } else if (inputChar == '\n') {
+                    if (command[posn-1] == '!') {
+                        digitalWrite(HC12_SET, HIGH);       // Reset pin.
+                        commandFlag[TEST_RAD] = false;      // Clear test flag.
+                        Serial.println("\nHC-12 command mode disabled.\n");
+                        return;
+                    } else {
+                        Serial1.write(command);             // Write command.
+                        posn = 0;                           // Prepare for next command.
+                        memset(command, '\0', sizeof(command));
+                    }
                 }
             }
-
-            // --------------------------------------------
-            // -- {"echo":"hello"}.
-            // --------------------------------------------
-            else if (strcmp(kv.key().c_str(), "echo") == 0) {
-
-                // - Reply with value sent. -
-                jsonDocToClient[kv.key().c_str()] = kv.value().as<const char*>();
+            if (Serial1.available() > 0) {
+                while (Serial1.available() > 0)  {
+                    char outoutChar = Serial1.read();
+                    if (((int) outoutChar > 31) && ((int) outoutChar < 128)) {
+                        Serial.printf("%c",outoutChar);     // Display character from HC-12.
+                        lastTime = esp_timer_get_time();
+                    }
+                }
             }
+        }
+    }
 
-            // --------------------------------------------
-            // -- {"mcu":"restart"}.
-            // --------------------------------------------
-            else if ((strcmp(kv.key().c_str(), "mcu") == 0) && (strcmp(kv.value().as<const char*>(), "restart") == 0 )) {
+    // --- debug RTCM. ---
+    // @see relaySerial1toSerial2().
 
-                // - Restart. -
-                Serial.println("Restarting ...\n");
-                esp_restart();                                                          // Restart.
-            }
+    // --- GNSS. ---
+    if (commandFlag[DEBUG_GNSS]) {
+        roverGNSS.enableDebugging();    // "Pipe all NMEA sentences to serial USB."
+    }
+    if (!commandFlag[DEBUG_GNSS]) {
+        roverGNSS.disableDebugging();
+    }
 
-            // -- Send reply. --
-            memset(buffer, '\0', sizeof(buffer));
-            serializeJson(jsonDocToClient, buffer, sizeof(buffer));
-            ws.textAll(buffer);
-            Serial.printf("WebSocket #%u - browser <-- server %s\n", clientId, buffer);
+    // --- NMEA. ---
+    // see "if (debugNMEA)" in checkNMEAin() in loop().
+
+    // --- Buttons. ---
+    // if (debugBtn)  {
+    //     // - GNSS lock button state (0,1). -
+    //     Serial.print("GNSS lock button position = ");
+    //     (UIstate[0] == '0') ? Serial.println("up.") : Serial.println("down.");
+    // }
+
+    // --- Serial. ---
+    if (commandFlag[DEBUG_SER]) {
+        // - Serial state (d,u). -
+        Serial.printf(
+            "USB %c  Serial0 %c  serial1 %c  serial2 %c\n",
+            serialState[0],        // Serial USB.
+            serialState[1],        // Serial0.
+            serialState[2],        // Serial1.
+            serialState[3]         // Serial2.
+            );
+    }
+
+    // --- WiFi. ---
+    // --- WS. ---
+
+    // --- LiPo. ---
+    if (commandFlag[DEBUG_LIPO]) {
+        lipo.enableDebugging();
+    } else {
+        lipo.disableDebugging();
+    }
+
+    // --- Uptime. ---
+    if (commandFlag[SHOW_UPTIME]) {
+        int32_t seconds = (esp_timer_get_time() - startTime)/1000000;
+        int32_t minutes = seconds / 60;
+        int32_t hours = minutes / 60;
+        Serial.printf("Uptime: %u hrs %u min %u sec\n", hours % 24, minutes % 60, seconds % 60);
+    }
+
+    // --- Reset. ---
+    if (commandFlag[RESET]) {
+        Serial.println("Restarting ...");
+        esp_restart();
+    }
+
+    // --- Wire1. ---
+    if (commandFlag[CHECK_WIRE1]) {
+        Wire1.beginTransmission(8);                             // Test Wire1. Receiver is device #8.
+        uint8_t status = Wire1.endTransmission(8);                      // Test Wire1. Is device up?
+        Serial.print("Wire 1 is ");
+        if (status != 0) {
+            Serial.printf("down. Error = %i. \n", status);
+            i2cUp = false;                                      // Slave is down.
+            startI2C();                                         // Restart Wire1.
+        } else {
+            i2cUp = true;                                       // Slave is up.
+            Serial.println("up.");
         }
     }
 }
-
-// ==================================
-//         Test functions.
-// ==================================
 
 /**
  * ------------------------------------------------
- *      I2C scanner.
+ *      Check GNSS lock button (upPosition or downPosition).
  * ------------------------------------------------
  *
- * @return void  No output is returned.
- * @since  3.0.7 [2025-11-11-07:00pm].
- * @link   .
+ * // ToDo: implment.
+ * @return void No output is returned.
+ * @since  0.1.0 [2025-04-24-12:00pm] New.
+ * @since  0.3.3 [2025-05-02-08:00am] Refactored.
+ * @since  0.3.8 [2025-05-10-09:30am] Set state.
+ * @since  0.4.2 [2025-05-15-07:00am] Refactored.
+ * @since  0.4.7 [2025-05-21-07:30pm] Switch Radio & BT LEDs.
+ * @link   https://roboticsbackend.com/arduino-turn-led-on-and-off-with-button/.
  */
-void scanI2C() {
-    byte error, address;
-    int nDevices;
-    Serial.println("Scanning...");
-    nDevices = 0;
-    for(address = 1; address < 127; address++ ) {
-        Wire.beginTransmission(address);
-        error = Wire.endTransmission();
-        if (error == 0) {
-        Serial.print("I2C device found at address 0x");
-        if (address<16) {
-            Serial.print("0");
+void checkGnssLockButton() {
+
+    static bool lastButtonPos = false;
+
+    // -- Set state of GNSS lock button. --
+    if (digitalRead(buttonGnssLock) == true) {
+        // UIstate[0] = '0';                   // GNSS lock button is in upPosition.
+        if (lastButtonPos == 1) {           // Only true if lock button was in downPosition and now is in upPosition.
+            // updateLEDs('-','-','2');        // Overide BT LED.
+            lastButtonPos = 0;              // Reset lock button position.
         }
-        Serial.println(address,HEX);
-        nDevices++;
-        }
-        else if (error==4) {
-        Serial.print("Unknow error at address 0x");
-        if (address<16) {
-            Serial.print("0");
-        }
-        Serial.println(address,HEX);
-        }    
+    } else {
+        // updateLEDs('-','-','1');            // Overide BT LED.
+        // UIstate[0] = '1';                   // GNSS lock button is in downPosition.
+        lastButtonPos = 1;                  // Last lock button position.
+        ghostMode = true;                   // Flag for checkNMEAin().
     }
-    if (nDevices == 0) {
-        Serial.println("No I2C devices found\n");
-    }
-    else {
-        Serial.println("done\n");
-    }
-    delay(5000);
 }
 
 /**
  * ------------------------------------------------
- *      Generate random test values.
+ *      Check Laser pointer button (locked or unlocked).
  * ------------------------------------------------
  *
- * @return float  Random value.
- * @since  3.0.7 [2025-11-10-10:30am].
+ * // ToDo: implement.
+ * @return void No output is returned.
+ * @since  0.6.3 [2025-07-19-05:45pm] New.
+ * @link https://www.build-electronic-circuits.com/arduino-laser-module-ky-008/.
+ * @link https://docs.sparkfun.com/SparkFun_Thing_Plus_ESP32-S3/arduino_example/#rgb-led.
  */
-float random_in_range(int min, int max) {
-    return (rand() % (max - min + 1)) + min; // Generate a random integer in the range [min, max]
-}
-char* simLatitude() {
-    float num = (355530000 + random_in_range(6050, 6250))/10000000.0;
-    memset(buffer, '\0', sizeof(buffer));
-    sprintf(buffer, "%.7f", num);
-    return buffer;       // E.g. 35.5536111).
-}
-char* simLongitude() {
-    float num = (-787710000.0 - random_in_range(3500, 4500))/10000000.0;
-    memset(buffer, '\0', sizeof(buffer));
-    sprintf(buffer, "%.7f", num);
-    return buffer;      // E.g. -78.7713888.
-}
-char* simAltitude() {
-    float num = 100 + random_in_range(0, 50)/100.0;
-    memset(buffer, '\0', sizeof(buffer));
-    sprintf(buffer, "%.2f", num);
-    return buffer;      // E.g. 103.56.
-}
-char* simHac() {
-    float num = (random_in_range(10, 25))/100.0;
-    memset(buffer, '\0', sizeof(buffer));
-    sprintf(buffer, "%.2f", num);
-    return buffer;      // E.g. 0.190.
-}
-char* simVac() {
-    float num = (random_in_range(15, 25))/100.0;
-    memset(buffer, '\0', sizeof(buffer));
-    sprintf(buffer, "%.2f", num);
-    return buffer;      // E.g. 0.190.
+void checkLaserPointerButton() {
+
+    // -- Set state of GNSS lock button. --
+    if (buttonLaser) {                          // Laser pointer is on.
+        digitalWrite(LSR_TRIGGER, LOW);       // Turn laser pointer off.
+    } else {
+        digitalWrite(LSR_TRIGGER, HIGH);        // Laser is off.
+    }
 }
 
 /**
@@ -1433,58 +1741,43 @@ char* simVac() {
  *
  * @since  3.0.3 [2025-10-13-01:00pm] New.
  * @since  3.0.8 [2025-11-21-12:15pm] Removed startWiFiClient(), added startWiFiSoftAP().
- * @since  3.0.9 [2025-12-05-05:00pm] Split startI2C() into startWire() & startWire1().
+ * @see    Global vars.
  */
 
 void setup() {
-    startSerialUsbMonitor();            // Start serial USB monitor.
-    initVars();                         // Initialize global vars.
-    initPins();                         // Initialize pin modes & pin values.
-    startSerialInterfaces();            // Start serial interfaces.
-    startWire();                        // Start I2C Wire interface.
-    startWire1();                       // Start I2C Wire1 interface.
-    startLIPO();                        // Start LIPO I2C interface.
-    startWiFiSoftAP();                  // Start WiFi soft AP.
-    startSDIO();                        // Start SDIO for microSD reader.
-    startSD();                          // Start built-in microSD card reader.
-    testSD();                           // Test built-in microSD reader.
-    startHttpServer();                  // Start HTTP server.
-    startWebSocketServer();             // Start WebSocket server.
-    startAndConfigGNSS();               // Start GNSS, config ZED settings.
-    startTasks();                       // Start tasks.
-    startLoop();                        // On to loop().
+    showBuild();                // Display build & processor info.
+    startSerial();              // Start serial interfaces.
+    initPins();                 // Initialize pin modes & pin values.
+    startI2C();                 // Start I2C Wire interfaces.
+    startLiPo();                // Start LiPo I2C interface.
+    startWiFi();                // Start WiFi.
+    startSD();                  // Start & test microSD card reader.
+    startHttpServer();          // Start HTTP server.
+    startWebSocketServer();     // Start WebSocket server.
+    startAndConfigGNSS();       // Start GNSS, config ZED settings.
+    startTasks();               // Start tasks.
+    preLoop();                  // Prepare for loop().
 }
-
-/**
- * ============================================================================
- *                              Tasks.
- * ============================================================================
- *
- * loopStatusLedTask()        Loop status LED - LED_TIME_FLASH_ON, LED_TIME_FLASH_OFF.
- * sendGnssTask()             Send GNSS data - SEND_GNSS_PAUSE.
- * sendBatteryStatusTask()    Send battery status - SEND_BATTERY_PAUSE.
- * WiFiEvent()                WiFi events.
- *
- * @since 3.0.8 [2025-11-14-02:00pm] New.
- */
 
 /**
  * ============================================================================
  *                              Loop.
  * ============================================================================
- *
- * @since  3.0.3 [2025-10-13-01:00pm] New.
+ * 
+ * @since 3.0.10 [2025-12-27-08:00pm] New.
+ * @see   startTasks().
+ * @see   Task functions.
+ * @see   Event handlers.
  */
 
 void loop() {
-    checkWire1();                       // Check I2C Wire1 interface.
-    checkSerialMonitor();               // Check serial monitor (USB) for input.
-    ws.cleanupClients();
-
-    // New data is available? Process bytes as they come in.
-    // roverGNSS.checkUblox();
-
-    Serial.println("\npausing");
-    delay(GNSS_SOLN_MS);  // Pause to match the solution rate.
+    relaySerial1toSerial2();            // RTCM - Relay from Serial1 (HC-12 radio) to Serial2 (ZED UART2).
+    checkZED();                         // NMEA - Check ZED to trigger DevUBLOXGNSS::processNMEA() send to MCU #2.
+    checkSerialUSB();                   // Check serial USB for input.
+    // checkNMEAoutBT() // ToDo: add check for NMEA ACK from MCU2 within NMEA_TIMEOUT window. See logic in relaySerial1toSerial2().
+    // checkGnssLockButton();           // Check GNSS lock button. // ToDo: implement.
+    // checkLaserPointerButton();       // Check Laser pointer button. // ToDo: implement.
+    ws.cleanupClients();                // HTTP WebSocket cleanup.
+    debug();                            // Display debug.
 }
 

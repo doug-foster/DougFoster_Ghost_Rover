@@ -7,6 +7,7 @@
  *
  * @author   D. Foster <doug@dougfoster.me>.
  * @since    3.0.3 [2025-11-14-05:00pm].
+ * @since    3.0.10 [2026-01-08-02:00pm] Changed sub-header font weight.
  * @link     http://dougfoster.me.
 */
 
@@ -20,7 +21,7 @@
     justify-content: space-between;
     margin: 4px 10px 12px;
     font-size: 14px;
-    font-weight: 200;
+    font-weight: 400;
 }
 #sub-header .sub-header-item {
   flex: 1;

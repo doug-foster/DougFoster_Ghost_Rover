@@ -1,6 +1,6 @@
 profiles:
   ESP32-S3:
-    fqbn: esp32:esp32:sparkfun_esp32s3_thing_plus:UploadSpeed=460800,USBMode=default,CDCOnBoot=cdc,MSCOnBoot=default,DFUOnBoot=default,UploadMode=default,CPUFreq=240,FlashMode=qio,PartitionScheme=default,DebugLevel=none,PSRAM=enabled,LoopCore=1,EventsCore=1,EraseFlash=none,JTAGAdapter=builtin,ZigbeeMode=default
+    fqbn: esp32:esp32:sparkfun_esp32s3_thing_plus:UploadSpeed=460800,USBMode=default,CDCOnBoot=cdc,MSCOnBoot=default,DFUOnBoot=default,UploadMode=default,CPUFreq=240,FlashMode=qio,PartitionScheme=no_fs,DebugLevel=none,PSRAM=enabled,LoopCore=1,EventsCore=1,EraseFlash=none,JTAGAdapter=builtin,ZigbeeMode=default
     platforms:
       - platform: esp32:esp32 (3.3.3)
     programmer: ""
@@ -10,7 +10,7 @@ profiles:
       bits: "8"
       parity: none
       stop_bits: "1"
-    port: /dev/cu.usbmodem2141401
+    port: /dev/cu.usbmodem2141101
     libraries:
       - Async TCP (3.4.9)
       - ESP Async WebServer (3.9.2)
@@ -37,3 +37,4 @@ profiles:
       stop_bits: "1"
     notes: Next version of https://github.com/doug-foster/DougFoster_Ghost_Rover/.
     port: /dev/cu.usbmodem2141401
+default_profile: ESP32-S3
