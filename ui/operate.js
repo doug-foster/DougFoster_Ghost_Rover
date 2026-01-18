@@ -6,7 +6,7 @@
  * operate.js
  *
  * @author   D. Foster <doug@dougfoster.me>.
- * @since    3.0.11 [2026-01-13-07:00pm].
+ * @since    3.0.11 [2026-01-18-03:45pm] Basic functionality.
  * @link     http://dougfoster.me.
 */
 
