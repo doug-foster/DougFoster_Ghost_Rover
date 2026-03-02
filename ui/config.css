@@ -5,20 +5,30 @@
  *
  * config.css
  *
- * @author   D. Foster <doug@dougfoster.me>.
- * @since    3.0.3 [2025-10-20-10:45am].
- * @link     http://dougfoster.me.
-*/
+ * @author D. Foster <doug@dougfoster.me>.
+ * @since  3.0.3 [2025-10-20-10:45am].
+ * @since  3.0.11 [2026-01-28-12:00pm] UI tweaks.
+ * @since  3.0.12 [2026-02-08-08:30pm] Tweaks.
+ * @since  3.1.0  [2026-03-02-05:00pm] Stable 3.0 version.
+ * @link   http://dougfoster.me.
+
 
 /**
 // -------------------------------------
 //      General.
 // -------------------------------------
 */
+
+/* --- Form. --- */
+form#config * {
+    font-size: 16px !important;
+}
+
+/* --- Switches. --- */
  #config {
     padding: 10px;
  }
-.config-grid {
+.config-grid-buttons {
     display: grid;
     grid-template-rows: 1fr;
     grid-template-columns: 1fr 2fr;
@@ -63,4 +73,119 @@
 }
 .switch-field label:last-of-type {
     border-radius: 0 var(--std-border-radius) var(--std-border-radius) 0;
+}
+/* --- Fields. --- */
+.config-grid-fields {
+    display: grid;
+    grid-template-columns: minmax(0, 3.5fr) minmax(0, 2fr);
+    gap: 10px;
+    margin-top: 10px;
+}
+#message-output-interval {
+    grid-column: 1 / -1;
+    width: 100%;
+    box-sizing: border-box;
+}
+.config-grid-fields label {
+    padding: 5px 5px 5px 0;
+}
+.config-grid-fields input {
+    padding: 5px;
+    border: 1px solid var(--gray-2);
+    border-radius: 3px;
+    font-size: 1rem;
+}
+/* --- Other. --- */
+#update-config-btn,
+#reset-config-btn {
+    margin: 20px 0;
+    width: 160px !important;
+}
+#update-config-btn.std-button,
+#reset-config-btn.std-button {
+    max-width: unset;
+}
+#reset-config-btn {
+    background-color: red;
+    border-color: red;
+}
+#message-form,
+#message-output-interval {
+    margin: 10px auto;
+    padding: 10px;
+    background-color: var(--gray-4);
+    font-family: 'Courier New', Courier, monospace;
+}
+
+/* Custom Checkbox - https://www.w3schools.com/howto/tryit.asp?filename=tryhow_css_custom_checkbox */
+
+/* The container */
+.container {
+  display: block;
+  position: relative;
+  padding-left: 35px;
+  margin-top: 20px;
+  cursor: pointer;
+  font-size: 22px;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.container span:first-of-type {
+    padding: 4px 0 5px 5px;
+    font-size: 1rem;;
+    display: block;
+}
+
+/* Hide the browser's default checkbox */
+.container input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+/* Create a custom checkbox */
+.checkmark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 25px;
+  width: 25px;
+  margin-right: 10px;
+  border-radius: 3px;
+  border: 1px solid var(--gray-1);
+}
+
+/* When the checkbox is checked, add a blue background */
+.container input:checked ~ .checkmark {
+  background-color: black;
+}
+
+/* Create the checkmark/indicator (hidden when not checked) */
+.checkmark:after {
+  content: "";
+  position: absolute;
+  display: none;
+}
+
+/* Show the checkmark when checked */
+.container input:checked ~ .checkmark:after {
+  display: block;
+}
+
+/* Style the checkmark/indicator */
+.container .checkmark:after {
+  left: 9px;
+  top: 5px;
+  width: 5px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 3px 3px 0;
+  -webkit-transform: rotate(45deg);
+  -ms-transform: rotate(45deg);
+  transform: rotate(45deg);
 }

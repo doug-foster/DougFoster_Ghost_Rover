@@ -5,48 +5,27 @@
  *
  * operate.css
  *
- * @author   D. Foster <doug@dougfoster.me>.
- * @since    3.0.3 [2025-11-14-05:00pm].
- * @since    3.0.10 [2026-01-08-02:00pm] Changed sub-header font weight.
- * @since    3.0.11 [2026-01-18-03:45pm] Basic functionality.
- * @link     http://dougfoster.me.
+ * @author D. Foster <doug@dougfoster.me>.
+ * @since  3.0.3 [2025-11-14-05:00pm].
+ * @since  3.0.10 [2026-01-08-02:00pm] Changed sub-header font weight.
+ * @since  3.0.11 [2026-01-18-03:45pm] Basic functionality.
+ * @since  3.0.11 [2026-01-20-07:00pm] Altitude to height, unlock to lock-unlock.
+ * @since  3.0.11 [2026-01-22-02:15pm] Set ".numbers table" to 96%.
+ * @since  3.0.11 [2026-02-08-06:30pm] UI tweaks.
+ * @since  3.0.12 [2026-02-16-09:00pm] Add RTCM & NMEA status.
+ * @since  3.0.12 [2026-02-17-10:00am] Change location to position.
+ * @since  3.0.12 [2026-02-27-06:45pm] UI tweaks.
+ * @since  3.1.0  [2026-03-02-05:00pm] Stable 3.0 version.
+ * @link   http://dougfoster.me.
 */
 
 /**
-// -------------------------------------
-//      Sub-header.
-// -------------------------------------
-*/
-#sub-header {
-    display: flex;
-    justify-content: space-between;
-    margin: 4px 10px 12px;
-    font-size: 14px;
-    font-weight: 400;
-}
-#sub-header .sub-header-item {
-  flex: 1;
-}
-#sub-header #version::before {
-  content: "v ";
-}
-#sub-header #version {
-    text-align: left;
-}
-#sub-header #mode {
-    text-align: center;
-}
-#sub-header #units {
-    text-align: right;
-}
-
- /**
 // -------------------------------------
 //      Operation: Fix state.
 // -------------------------------------
 */
 .fix {
-    margin-top: 20px;
+    margin-top: 25px;
 }
 .fix #state-indicator {
     position: relative;
@@ -111,6 +90,7 @@
     margin: 10px 0 20px 0;
 }
 .numbers table {
+    width: 96%;
     margin: auto;
 }
 .numbers td {
@@ -130,34 +110,41 @@
 //      Operation: buttons.
 // -------------------------------------
 */
-.buttons {
+.buttons .oper-button {
+    display: flex;
+    color: #ffffff;
+    border-radius: var(--std-border-radius);
+    font-size: 20px;
+    font-weight: 800;
     max-width: 300px;
-    margin: auto;
+    margin: 0 auto 15px;
     cursor: pointer;
+}
+.buttons .oper-button .label {
+    display: flex;
+    flex: 1;  /* Use remaining space. */
+    align-items: center;      /* Center vertically. */
+    padding: 20px;
+    border-radius: var(--std-border-radius);
+    justify-content: center;  /* Center horizontally. */
+    transition: border-radius 0.3s ease;
+}
+.buttons .oper-button .shadow {
+    box-shadow: inset 0px 0px 90px 0px rgba(3,3,46,0.9);
 }
 .buttons .icon.show-column {
     flex-basis: 20%;
-    border-right: 1px solid;
     border-color: var(--gray-1);
 }
 .buttons .label.remove-left-border-radius {
     border-top-left-radius: 0;
     border-bottom-left-radius: 0;
 }
-.buttons #unlock {
-    width: 260px;
+.buttons #lock-unlock {
     margin-left: auto;
     margin-right: auto;
 }
-.buttons .btn {
-    display: flex;
-    margin-bottom: 15px;
-    color: #ffffff;
-    font-size: 20px;
-    font-weight: 800;
-}
-.buttons .icon,
-.buttons .label {
+.buttons .icon {
     display: flex;
     align-items: center;      /* Center vertically. */
     justify-content: center;  /* Center horizontally. */
@@ -169,20 +156,11 @@
     border-top-left-radius: var(--std-border-radius);
     border-bottom-left-radius: var(--std-border-radius);
 }
-.buttons .label {
-    flex: 1;  /* Use remaining space. */
-    padding: 15px;
-    border-radius: var(--std-border-radius);
-    transition: border-radius 0.3s ease;
-}
-.buttons .shadow {
-    box-shadow: inset 0px 0px 90px 0px rgba(3,3,46,0.9);
-}
 /* --- Buttons: specific buttons. --- */
-.buttons #altitude .icon {
+.buttons #height .icon {
     background-color: #2c81ba; 
 }
-.buttons #altitude .label {
+.buttons #height .label {
     background-color: #3498db;
 }
 .buttons #laser .icon {
@@ -191,15 +169,16 @@
 .buttons #laser .label {
     background-color: #e74c3c;
 }
-.buttons #location .icon {
+.buttons #position .icon {
     background-color: #27ae60; 
 }
-.buttons #location .label {
+.buttons #position .label {
     background-color: #2ecc71;
 }
-.buttons #unlock .label {
+.buttons #lock-unlock .label {
     background-color: #dcdcdc;
-    color: black;
+    border: 1px solid #bababa;
+    color: var(--gray-1);
 }
 /* --- Buttons: lock icon (https://codepen.io/lnenad/pen/VXGRdb). --- */
 .buttons .lock {
@@ -239,11 +218,6 @@
     width: 24px;
     border-radius: 16px;
     border: 1px solid var(--black-1);
-    background-color: var(--red-1);
-}
-/* --- Info: RTCM & BT. --- */
-.info .up {
-    background-color: var(--green-1) !important;
 }
 /* --- Info: battery. --- */
 .info {
@@ -296,4 +270,77 @@
 }
 .info #battery-label span {
     margin-right: 5px;
+}
+/* --- Info: RTCM & BT. --- */
+.info #rtcm,    
+.info #bt {
+    background-color: red;  /* Comm down. */
+    animation: none;
+}
+.info #rtcm.up,
+.info #bt.up {
+    background-color: var(--green-1); /* Comm up. */
+}
+
+/**
+// -------------------------------------
+//      Operation: status.
+// -------------------------------------
+*/
+.status {
+    margin: 10px 0 20px 0;
+}
+.status #status {
+    margin: auto;
+}
+.status table {
+    width: 99%;
+    margin: 20px auto;
+    font-size: 14px;
+}
+.status table th {
+    background-color: var(--gray-5);
+    font-size: 16px;
+    font-weight: 400;
+}
+.status table td {
+    background-color: var(--gray-4);
+}
+.status table td:has(span[id]) {
+  background-color: var(--gray-3);
+}
+.status table td.empty {
+    text-align: center !important;
+    vertical-align: center;
+}
+.status table th,
+.status table td {
+    padding: 5px 8px;
+    text-align: right;
+}
+.status table td:nth-of-type(2),
+.status table td:nth-of-type(3) {
+    width: 90px;
+}
+.status table td .ws-ditto {
+    padding:0 11px 0 9px;
+}
+.status table td .rtcm-ditto,
+.status table td .nmea-ditto {
+    padding:0 16px 0 16px;
+}
+.status table td:has(span.pref) {
+    background-color: var(--gray-2);
+}
+.status table.key {
+    width: 106px;
+    margin-right: 4px;
+    border: 1px solid var(--gray-2);
+}
+.status table.key td {
+    margin: 20px;
+    text-align: center;
+}
+.status table.key td.clear {
+   background-color: unset;
 }

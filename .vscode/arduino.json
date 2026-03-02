@@ -7,7 +7,7 @@
   "useProgrammer": false,
   "optimize_for_debug": false,
   "configurationRequired": true,
-  "compile_profile": "ESP32-S3",
+  "compile_profile": "ESP32-S3-mobile",
   "monitorPortSettings": {
     "settings": {
       "port": "/dev/tty.usbmodem2141401",

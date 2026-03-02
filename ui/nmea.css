@@ -1,0 +1,28 @@
+/**
+ * *************************************
+ *      Ghost Rover 3 - UI CSS.
+ * *************************************
+ *
+ * nmea.css
+ *
+ * @author D. Foster <doug@dougfoster.me>.
+ * @since  3.0.12  [2026-02-07-12:45pm] New.
+ * @since  3.1.0  [2026-03-02-05:00pm] Stable 3.0 version.
+ * @link   http://dougfoster.me.
+*/
+
+/**
+// -------------------------------------
+//      General.
+// -------------------------------------
+*/
+#nmeaOutput #nmeaMessage {
+    margin: 10px 0 20px 0;
+    font-size: 14px;
+}
+ #nmeaDisplay {
+    padding: 5px 2px;
+    text-align: left;
+    /* background-color: var(--gray-3); */
+    font-size: 9px;
+ }

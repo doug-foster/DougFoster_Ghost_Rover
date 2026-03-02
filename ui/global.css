@@ -5,11 +5,13 @@
  *
  * global.css
  *
- * @author   D. Foster <doug@dougfoster.me>.
- * @since    3.0.3  [2025-11-11-08:00pm].
- * @since    3.0.10 [2026-01-18-03:45pm] Changed font from Verdana to Helvetica.
- * @since    3.0.11 [2026-01-18-03:45pm] Basic functionality.
- * @link     http://dougfoster.me.
+ * @author D. Foster <doug@dougfoster.me>.
+ * @since  3.0.3  [2025-11-11-08:00pm].
+ * @since  3.0.10 [2026-01-18-03:45pm] Changed font from Verdana to Helvetica.
+ * @since  3.0.11 [2026-01-18-03:45pm] Basic functionality.
+ * @since  3.0.11 [2026-01-28-03:30pm] UI tweaks & cleanup.
+ * @since  3.1.0  [2026-03-02-05:00pm] Stable 3.0 version.
+ * @link   http://dougfoster.me.
 */
 
 /**
@@ -31,6 +33,7 @@
     --gray-2:   #b3b3b3;
     --gray-3:   #e8e8e8;
     --gray-4:   #f5f5f5;
+    --gray-5:   #d9d9d9;
     --tan-1:    #fff8dc;
     --std-border-radius: 5px;
 }
@@ -43,6 +46,9 @@ body {
 a {
     text-decoration: none;
 }
+.hide {
+    display: none;
+}
 
 /**
 // -------------------------------------
@@ -52,9 +58,13 @@ a {
 header {
     background-color: var(--black-2);
 }
+header #header-items {
+    display: flex;
+    justify-content: space-between;
+}
 header h1 {
     margin: 0;
-    padding: 10px 0;
+    padding: 10px 0 0 0;
     color: #ffffff;
     font-size: 24px;
     font-weight: 400;
@@ -73,26 +83,32 @@ header h1.red {
     }
 }
 
+header #version-rover,
+header #unit-display {
+    font-size: 12px;
+    margin-top: 5px;
+    padding: 4px 8px;
+    color: #aaaaaa;
+}
+
 /**
 // -------------------------------------
-//      Button.
+//      Buttons.
 // -------------------------------------
 */
-button,
-.button {
+.std-button {
     max-width: 100px;
     min-width: 100px;
-    flex: 1;
     padding: 12px;
     background-color: var(--green-3);
     border: 1px solid;
     border-color: var(--green-5);
     border-radius: var(--std-border-radius);
     font-size: 18px;
+    text-align: center;
     color: #ffffff;
     cursor: pointer;
 }
-button:hover,
-.button:hover {
-    background-color: var(--green-5);
+.std-button.shadow {
+    box-shadow: inset 0px 0px 90px 0px var(--green-5);
 }

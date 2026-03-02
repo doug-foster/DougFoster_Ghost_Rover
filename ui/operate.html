@@ -6,9 +6,17 @@
  *
  * operate.html
  *
- * @author   D. Foster <doug@dougfoster.me>.
- * @since    3.0.7 [2025-11-15-05:00pm].
- * @link     http://dougfoster.me.
+ * @author D. Foster <doug@dougfoster.me>.
+ * @since  3.0.7 [2025-11-15-05:00pm].
+ * @since  3.0.11 [2026-01-20-07:00pm] Altitude to height, lock to lock-unlock.
+ * @since  3.0.11 [2026-01-28-12:00pm] UI tweaks.
+ * @since  3.0.12 [2026-02-08-06:00pm] UI tweaks.
+ * @since  3.0.12 [2026-02-16-09:00pm] Add RTCM & NMEA status.
+ * @since  3.0.12 [2026-02-17-09:15pm] Change location to position.
+ * @since  3.0.12 [2026-02-18-11:00pm] Shorten RTCM & NMEA status.
+ * @since  3.0.12 [2026-02-28-03:00pm] Add WebSocket #.
+ * @since  3.1.0  [2026-03-02-05:00pm] Stable 3.0 version.
+ * @link   http://dougfoster.me.
 -->
 
 <html>
@@ -23,19 +31,14 @@
     </head>
 
     <body>
+
         <!---- Header. ---->
         <header>
             <a class="new-page" href="menu.html">
                 <h1 class="red">Ghost Rover</h1>
+                <div id="header-items"><div id="unit-display"></div><div id="version-rover"></div></div>
             </a>
         </header>
-
-        <!---- Sub-header. ---->
-        <section id="sub-header">
-            <div id="version" class="sub-header-item">0.0.0</div>
-            <div id="mode" class="sub-header-item">none</div>
-            <div id="units" class="sub-header-item">none</div>
-        </section>
 
         <!-- Operation. -->
         <section id="operation" class="grid-container">
@@ -64,59 +67,64 @@
                 <section class="numbers">
                     <table>
                         <tr>
-                            <td>Altitude (MSL)</td>
+                            <td>Hgt (ellipsoid)</td>
                             <!-- 3 posn = 10 mm. -->
-                            <td id="altitude" class="num">00000.000</td>
-                            <td class="num">+/- <span id="vac">00.000</span></td>
+                            <td id="height-ellipsoid" class="num">00000.000</td>
+                            <td class="num">+/- <span class="vac">00.000</span></td>
+                        </tr>
+                        <tr>
+                            <td>Hgt (ortho MSL)</td>
+                            <!-- 3 posn = 10 mm. -->
+                            <td id="height-orthometric" class="num">00000.000</td>
+                            <td class="num">+/- <span class="vac">00.000</span></td>
                         </tr>
                         <tr>
                             <td>Latitude</td>
                             <!-- 8 posn = 1.11 mm. -->
                             <td id="latitude" class="num">00.00000000</td>
-                            <td class="num">+/- <span id="hac-lat" class="hac">00.000</span></td>
+                            <td class="num">+/- <span class="hac">00.000</span></td>
                         </tr>
                         <tr>
                             <td>Longitude</td>
                             <!-- 8 posn = 1.11 mm. -->
                             <td id="longitude" class="num">-000.00000000</td>
-                            <td class="num">+/- <span id="hac-lon" class="hac">00.000</span></td>
+                            <td class="num">+/- <span class="hac">00.000</span></td>
                         </tr>       
                     </table>
                 </section>
 
                 <!-- Button. -->
                 <section class="buttons">
-                    <div id="altitude" class="btn">
-                        <span class="icon">
-                            <div class="lock"></div>
-                        </span>
-                        <span class="label">ALTITUDE</span>
-                    </div>
-                    <div id="laser" class="btn">
+                    <div id="laser" class="oper-button">
                         <span class="icon">
                             <div class="lock"></div>
                         </span>
                         <span class="label">LASER</span>
                     </div>
-                    <div id="location" class="btn">
+                    <div id="height" class="oper-button">
                         <span class="icon">
                             <div class="lock"></div>
                         </span>
-                        <span class="label">LOCATION</span>
+                        <span class="label">HEIGHT</span>
                     </div>
-                    <div id="unlock" class="btn">
-                        <span class="label">UNLOCK</span>
+                    <div id="position" class="oper-button">
+                        <span class="icon">
+                            <div class="lock"></div>
+                        </span>
+                        <span class="label">POSITION</span>
+                    </div>
+                    <div id="lock-unlock" class="oper-button">
+                        <span class="label">LOCK</span>
                     </div>
                 </section>
-
 
                 <!-- Comm & battery. -->
                 <section class="info">
                     <div class="item">
-                        <div id="rtcm"></div>
+                        <div id="rtcm" class="down"></div>
                     </div>
                     <div class="item">
-                        <div id="bt"></div>
+                        <div id="bt" class="down"></div>
                     </div>
                     <div id="battery" class="item">
                         <div class='bar' data-power='10'></div>
@@ -131,13 +139,158 @@
                         <div class='bar' data-power='100'></div>
                     </div>
                     <div id="rtcm-label" class="item">RTCM</div>
-                    <div id="ble-label" class="item">BT</div>
+                    <div id="ble-label" class="item">NMEA</div>
                     <div id="battery-label" class="item">
                         <div id="battery-status"></div>
                     </div>
                 </section>
-            </div>
-        </section>
+
+                <!-- Info. -->
+                <section class="status">
+                    <div id="status" class="std-button">
+                        <span class="label">Status</span>
+                    </div>
+                    <div id="status-stuff" class="hide">
+                        <table id="status-table">
+                            <tr>
+                                <th></th>
+                                <th>This page</th>
+                                <th>Rover</th>
+                            </tr>
+                            <tr>
+                                <td>Uptime</td>
+                                <td><span id="uptime-operate"></span></td>
+                                <td><span id="uptime-rover"></span></td>
+                            </tr>
+                            <tr>
+                                <td>Solution interval (ms)</td>
+                                <td class="empty">-</td>
+                                <td><span class="pref" id="solution-interval"></span></td>
+                            </tr>
+                            <tr>
+                                <td>WebSocket #<span id="ws-socket-num"></span> count</td>
+                                <td><span id="ws-message-count"></span></td>
+                                <td class="empty">-</td>
+                            </tr>
+                            <tr>
+                                <td><span class="ws-ditto">"</span>every (ms)</td>
+                                <td><span id="ws-message-interval"></span></td>
+                                <td class="empty">-</td>
+                            </tr>
+                            <tr>
+                                <td><span class="ws-ditto">"</span></span>size (Bytes)</td>
+                                <td><span id="ws-message-length"></span></td>
+                                <td class="empty">-</td>
+                            </tr>
+                            <tr>
+                                <td><span class="ws-ditto">"</span></span>rate (kbps)</td>
+                                <td><span id="ws-message-rate"></span></td>
+                                <td class="empty">-</td>
+                            </tr>
+                            <tr>
+                                <td>RTCM In</td>
+                                <td class="empty">-</td>
+                                <td><span class="pref" id="rtcm-in"></span></td>
+                            </tr>
+                            <tr>
+                                <td><span class="rtcm-ditto">"</span>count</td>
+                                <td class="empty">-</td>
+                                <td><span id="rtcm-sentence-count-all"></span></td>
+                            </tr>
+                            <tr>
+                                <td><span class="rtcm-ditto">"</span>rate (kbps)</td>
+                                <td class="empty">-</td>
+                                <td><span id="rtcm-sentence-rate"></span></td>
+                            </tr>
+                            <tr>
+                                <td>NMEA Out</td>
+                                <td class="empty">-</td>
+                                <td><span>BT LE (fixed)</span></td>
+                            </tr>
+                            <tr>
+                                <td><span class="ws-ditto">"</span>GGA</td>
+                                <td class="empty">-</td>
+                                <td><span id="nmea-sentence-count-gga"></span></td>
+                            </tr>
+                            <tr>
+                                <td><span class="ws-ditto">"</span>RMC</td>
+                                <td class="empty">-</td>
+                                <td><span id="nmea-sentence-count-rmc"></span></td>
+                            </tr>
+                            <tr>
+                                <td><span class="ws-ditto">"</span>GSA</td>
+                                <td class="empty">-</td>
+                                <td><span id="nmea-sentence-count-gsa"></span></td>
+                            </tr>
+                            <tr>
+                                <td><span class="ws-ditto">"</span>GSV</td>
+                                <td class="empty">-</td>
+                                <td><span id="nmea-sentence-count-gsv"></span></td>
+                            </tr>
+                            <tr>
+                                <td><span class="ws-ditto">"</span>GST</td>
+                                <td class="empty">-</td>
+                                <td><span id="nmea-sentence-count-gst"></span></td>
+                            </tr>
+                            <tr>
+                                <td><span class="ws-ditto">"</span>TXT</td>
+                                <td class="empty">-</td>
+                                <td><span id="nmea-sentence-count-txt"></span></td>
+                            </tr>
+                            <tr>
+                                <td><span class="ws-ditto">"</span>OTHR</td>
+                                <td class="empty">-</td>
+                                <td><span id="nmea-sentence-count-other"></span></td>
+                            </tr>
+                            <tr>
+                                <td><span class="ws-ditto">"</span>All</td>
+                                <td class="empty">-</td>
+                                <td><span id="nmea-sentence-count-all"></span></td>
+                            </tr>
+                            <tr>
+                                <td><span class="ws-ditto">"</span>rate (kbps)</td>
+                                <td class="empty">-</td>
+                                <td><span id="nmea-sentence-rate"></span></td>
+                            </tr>
+                            <tr>
+                                <td>Local IP</td>
+                                <td class="empty">-</td>
+                                <td><span id="local-ip"></span></td>
+                            </tr>
+                            <tr>
+                                <td>Hotspot IP (NTRIP)</td>
+                                <td class="empty">-</td>
+                                <td><span id="hotspot-ip"></span></td>
+                            </tr>
+                            <tr>
+                                <td>Hotspot SSID</td>
+                                <td class="empty">-</td>
+                                <td><span class="pref" id="hotspot-ssid"></span></td>
+                            </tr>
+                            <tr>
+                                <td>Hotspot password</td>
+                                <td class="empty">-</td>
+                                <td><span class="pref" id="hotspot-pass"></span></td>
+                            </tr>
+                        </table>
+                        <table class="key hide">
+                            <tr >
+                                <td class="clear">Key</td>
+                            </tr>
+                            <tr >
+                                <td class="empty">n/a or fixed</td>
+                            </tr>
+                            <tr>
+                                <td><span id="null">Calculated</span></td>
+                            </tr>
+                            <tr>
+                                <td><span class="pref">Preference</span></td>
+                            </tr>
+                        </table>
+                    </div>
+                </section>
+             </div>
+       </section>
     </body>
 </html>
 

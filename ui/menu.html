@@ -6,9 +6,12 @@
  *
  * menu.html
  *
- * @author   D. Foster <doug@dougfoster.me>.
- * @since    3.0.7 [2025-11-10-12:30pm].
- * @link     http://dougfoster.me.
+ * @author D. Foster <doug@dougfoster.me>.
+ * @since  3.0.7  [2025-11-10-12:30pm].
+ * @since  3.0.12 [2026-01-28-02:45pm] Cleanup.
+ * @since  3.0.12 [2026-02-21-12:00am] Add unit & build to header.
+ * @since  3.1.0  [2026-03-02-05:00pm] Stable 3.0 version.
+ * @link   http://dougfoster.me.
 -->
 
 <html>
@@ -27,22 +30,26 @@
         <header>
             <a class="new-page" href="menu.html">
                 <h1 class="red">Menu</h1>
+                <div id="header-items"><div id="unit-display"></div><div id="version-rover"></div></div>
             </a>
         </header>
 
         <!---- Menu. ---->
         <section id="menu-items">
             <!--- Items. --->
-                <a id="operate" class="menu-item button new-page" href="operate.html">
+                <a id="operate" class="menu-item std-button new-page" href="operate.html">
                     <span class="label">Operate</span>
                 </a>
-                <a id="config" class="menu-item button new-page" href="config.html">
+                <a id="config" class="menu-item std-button new-page" href="config.html">
                     <span class="label">Config</span>
                 </a>
-                <a id="files" class="menu-item button new-page" href="files.html">
+                <a id="nmea" class="menu-item std-button new-page" href="nmea.html">
+                    <span class="label">NMEA</span>
+                </a>
+                <a id="files" class="menu-item std-button new-page" href="files.html">
                     <span class="label">Files</span>
                 </a>
-                <a id="restart" class="menu-item button new-page">
+                <a id="restart" class="menu-item std-button new-page">
                     <span class="label">Restart</span>
                 </a>
         </section>

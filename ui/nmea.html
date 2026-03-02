@@ -1,0 +1,42 @@
+ <!DOCTYPE html>
+<!--
+ * *************************************
+ *      Ghost Rover 3 - UI HTML.
+ * *************************************
+ *
+ * nmea.html
+ *
+ * @author D. Foster <doug@dougfoster.me>.
+ * @since  3.0.12  [2026-02-07-12:45pm] New.
+ * @since  3.0.12 [2026-02-21-12:00am] Add unit & build to header.
+ * @since  3.1.0  [2026-03-02-05:00pm] Stable 3.0 version.
+ * @link   http://dougfoster.me.
+-->
+
+<html>
+    <!---- Head. ---->
+    <head>
+        <title>menu</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" type="text/css" href="global.css">
+        <link rel="stylesheet" type="text/css" href="nmea.css">
+        <script src="global.js" defer></script>
+        <script src="nmea.js" defer></script>
+    </head>
+
+    <body>
+        <!---- Header. ---->
+        <header>
+            <a class="new-page" href="menu.html">
+                <h1 class="red">NMEA</h1>
+                <div id="header-items"><div id="unit-display"></div><div id="version-rover"></div></div>
+            </a>
+        </header>
+
+        <!---- Section. ---->
+        <section id="nmeaOutput">
+            <div id="nmeaDisplay"></div>
+            <div id="nmeaMessage"></div>
+        </section>
+    </body>
+</html>

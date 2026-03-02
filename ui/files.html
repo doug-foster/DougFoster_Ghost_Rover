@@ -6,9 +6,12 @@
  *
  * files.html
  *
- * @author   D. Foster <doug@dougfoster.me>.
- * @since    3.0.3 [2025-11-10-02:00pm].
- * @link     http://dougfoster.me.
+ * @author D. Foster <doug@dougfoster.me>.
+ * @since  3.0.3  [2025-11-10-02:00pm].
+ * @since  3.0.12 [2026-02-19-09:30am].
+ * @since  3.0.12 [2026-02-21-12:00am] Add unit & build to header.
+ * @since  3.1.0  [2026-03-02-05:00pm] Stable 3.0 version.
+ * @link   http://dougfoster.me.
 -->
 
 <html>
@@ -27,6 +30,7 @@
         <header>
             <a class="new-page" href="menu.html">
                 <h1 class="red">Files</h1>
+                <div id="header-items"><div id="unit-display"></div><div id="version-rover"></div></div>
             </a>
         </header>
 
@@ -41,13 +45,13 @@
                 </div>
             </div>
             <div id="buttons" >
-                <button id="view">
+                <button id="view" class="std-button">
                     <span class="label">View</span>
                 </button>
-                <button id="download">
+                <button id="download" class="std-button">
                     <span class="label">Download</span>
                 </button>
-                <button id="delete">
+                <button id="delete" class="std-button">
                     <span class="label">Delete</span>
                 </button>
             </div>

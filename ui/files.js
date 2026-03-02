@@ -5,9 +5,13 @@
  * 
  * files.js
  *
- * @author   D. Foster <doug@dougfoster.me>.
- * @since    3.0.7 [2025-11-11-05:30pm].
- * @link     http://dougfoster.me.
+ * @author D. Foster <doug@dougfoster.me>.
+ * @since  3.0.7 [2025-11-11-05:30pm].
+ * @since  3.0.12 [2026-02-07-07:30am] Add THIS_PAGE.
+ * @since  3.0.12 [2026-02-25-10:30pm] Websocket send - preserve KV pair order by changing JSON data to array.
+ * @since  3.0.12 [2026-02-26-11:00am] Check download/upload for host 127.0.0.x.
+ * @since  3.1.0  [2026-03-02-05:00pm] Stable 3.0 version.
+ * @link   http://dougfoster.me.
 */
 
 /**
@@ -16,17 +20,21 @@
  * ============================================================================
  *
  * @since 3.0.7 [2025-11-11-03:30pm].
+ * @since 3.0.12 [2026-02-07-07:30am] Add THIS_PAGE.
+ * @since 3.0.12 [2026-02-25-10:30pm] Websocket send - preserve KV pair order by changing JSON data to array. 
  */
 
 // --- General. ---
-const dropArea          = document.querySelector('#drop-area');
-const dropAreaBanner    = document.querySelector('#drop-area-banner');
-// const uploadStatus      = document.querySelector('#upload-status');
-// let uploadResponse      = null;
-let droppedFiles        = null;
-const listUrl           = '/list';
-const uploadUrl         = '/upload';
-const fileList          = document.querySelector('#file-list');
+const dropArea       = document.querySelector('#drop-area');
+const dropAreaBanner = document.querySelector('#drop-area-banner');
+// const uploadStatus   = document.querySelector('#upload-status');
+// let uploadResponse   = null;
+let droppedFiles     = null;
+const listUrl        = '/list';
+const uploadUrl      = '/upload';
+const fileList       = document.querySelector('#file-list');
+const THIS_PAGE      = '[{"page":"files"}]';
+const LIST_FILES     = '[{"listFiles":""}]';
 
 
 /**
@@ -35,7 +43,28 @@ const fileList          = document.querySelector('#file-list');
  * ============================================================================
  *
  * @since 3.0.7 [2025-11-11-03:30pm].
+ * @since 3.0.12 [2026-02-07-07:30am] Add THIS_PAGE.
+ * @see   update()             - Update server.
+ * @see   filesMessage()       - Execute WebSocket message.
+ * @see   fileListRequest()    - File list - request.
+ * @see   fileListBuild()      - File list - build.
+ * @see   uploadDroppedFiles() - Drop area - upload files.
  */
+
+/**
+ * ------------------------------------------------
+ *      Update server.
+ * ------------------------------------------------
+ * 
+ * @return void  No output is returned.
+ * @since  3.0.12 [2026-01-31-03:30pm] New.
+ * @since  3.0.12 [2026-02-07-07:30am] Add THIS_PAGE.
+ * @see    openedWebSocket() in global.js.
+ */
+function update() {
+    websocket.send(THIS_PAGE);  // Send THIS_PAGE message.
+    console.log('browser --> ' + THIS_PAGE);
+}
 
 /**
  * ------------------------------------------------
@@ -74,13 +103,14 @@ function filesMessage(key, value) {
  *      File list - request.
  * ------------------------------------------------
  *
- * @return void  No output is returned.
- * @since  3.0.7 [2025-11-10-12:45pm].
+ * @return void   No output is returned.
+ * @since  3.0.7  [2025-11-10-12:45pm].
+ * @since  3.0.12 [2026-02-25-10:30pm] Websocket send - preserve KV pair order by changing JSON data to array. 
  */
 function fileListRequest(e) {
-    message = '{"listFiles":""}';
+    message = LIST_FILES;
     websocket.send(message);
-    console.log('browser --> server ' + message);
+    console.log('browser --> ' + message);
 }
 
 /**
@@ -129,14 +159,20 @@ function fileListBuild(listOfFiles) {
  *
  * @return void  No output is returned.
  * @since  3.0.7 [2025-11-11-03:30pm].
+ * @since  3.0.12 [2026-02-26-11:00am] Check download/upload for host 127.0.0.x.
  */
 function uploadDroppedFiles(e) {
 
     // --- Check for correct server. ---
-    if (window.location.pathname.includes('ui')) {
-        alert('This is not the ESP32 server. Stopping.');
-        return false;
+    // if (window.location.pathname.includes('ui')) {
+    //     alert('This is not the ESP32 server. Stopping.');
+    //     return false;
+    // }
+    if (window.location.host.includes('127.0.0')) {
+        alert('Upload to ' + window.location.host + ' not allowed.')
+        return;
     }
+
 
     // --- Prepare. ---
     droppedFiles = e.dataTransfer.files;  // Dropped files object.
@@ -204,14 +240,19 @@ function preventDefaults(e) {
  *      General.
  * ------------------------------------------------
  *
- * @return void  No output is returned.
- * @since  3.0.7 [2025-11-10-05:30pm].
+ * @return void   No output is returned.
+ * @since  3.0.7  [2025-11-10-05:30pm].
+ * @since  3.0.12 [2026-02-25-10:30pm] Websocket send - preserve KV pair order by changing JSON data to array.
+ * @since  3.0.12 [2026-02-26-11:00am] Check download/upload for host 127.0.0.x.
  */
 
 // --- Page. ---
  document.addEventListener('DOMContentLoaded', () => {
     initWebSocket();
     setTimeout(function() { fileListRequest(); }, 500);
+
+    // --- Console debug. ---
+    console.log('Show console messages is "' + sessionStorage.getItem("displayJsConsoleMessages") + '".');
 });
 
 // --- Prevent default actions. ---
@@ -262,6 +303,10 @@ document.querySelector('#view').addEventListener('click', (event) => {
 // -- Download a file. --
 document.querySelector('#download').addEventListener('click', (event) => {
     document.querySelectorAll('#files .selected').forEach(file => {
+        if (window.location.host.includes('127.0.0')) {
+            alert('Download from ' + window.location.host + ' not allowed.')
+            return;
+        }
         file.classList.toggle('selected');
         window.location.href = `/download?file=${encodeURIComponent(file.innerText)}`;
     });
@@ -271,9 +316,9 @@ document.querySelector('#download').addEventListener('click', (event) => {
 document.querySelector('#delete').addEventListener('click', (event) => {
     document.querySelectorAll('#files .selected').forEach(file => {
         if (confirm('delete "' + file.textContent + '"')) {
-            let message = '{"deleteFile":"' + file.innerText + '"}';
+            let message = '[{"deleteFile":"' + file.innerText + '"}]';
             websocket.send(message);
-            console.log('browser --> server ' + message);
+            console.log('browser --> ' + message);
         }
     });
 });

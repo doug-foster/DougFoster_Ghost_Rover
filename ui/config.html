@@ -6,9 +6,13 @@
  *
  * config.html
  *
- * @author   D. Foster <doug@dougfoster.me>.
- * @since    3.0.3 [2025-10-20-10:45am].
- * @link     http://dougfoster.me.
+ * @author D. Foster <doug@dougfoster.me>.
+ * @since  3.0.3  [2025-10-20-10:45am].
+ * @since  3.0.12 [2026-01-31-01:30pm] UI tweaks.
+ * @since  3.0.12 [2026-02-08-06:30pm] Removed prfRqsPvtInt.
+ * @since  3.0.12 [2026-02-21-12:00am] Add unit & build to header.
+ * @since  3.1.0  [2026-03-02-05:00pm] Stable 3.0 version.
+ * @link   http://dougfoster.me.
 -->
 
 <html>
@@ -26,28 +30,87 @@
         <header>
             <a class="new-page" href="menu.html">
                 <h1 class="red">Config</h1>
+                <div id="header-items"><div id="unit-display"></div><div id="version-rover"></div></div>
             </a>
         </header>
 
         <!---- Config. ---->
-        <section id="config" class="grid-container collapsed">
-            <div class="config-grid">
-                <div class="grid-item">Rover mode</div>
-                <div class="switch-field grid-item">
-                    <input type="radio" id="switch-mode-base" name="switch-mode" value="base" checked/>
-                    <label for="switch-mode-base">Base</label>
-                    <input type="radio" id="switch-mode-pp" name="switch-mode" value="pp" />
-                    <label for="switch-mode-pp">PP</label>
+        <form id="config">
+            <section class="grid-container collapsed">
+                <div class="config-grid-buttons">
+                    <div class="grid-item">Unit</div>
+                    <div id="set-unit" class="switch-field grid-item">
+                        <input type="radio" id="unit-meter" name="switch-unit" value="meter" />
+                        <label for="unit-meter">Meter</label>
+                        <input type="radio" id="unit-feet" name="switch-unit" value="feet"/>
+                        <label for="unit-feet">Feet</label>
+                    </div>
+                    <div class="grid-item">RTCM In</div>
+                    <div id="set-rtcm-in" class="switch-field grid-item">
+                        <input type="radio" id="rtcm-in-off" name="switch-rtcm-in" value="off" />
+                        <label for="rtcm-in-off">Off</label>
+                        <input type="radio" id="rtcm-in-radio" name="switch-rtcm-in" value="radio" />
+                        <label for="rtcm-in-radio">Radio</label>
+                        <input type="radio" id="rtcm-in-ntrip" name="switch-rtcm-in" value="ntrip" />
+                        <label for="rtcm-in-ntrip">NTRIP</label>
+                    </div>
+                    <div class="grid-item">NMEA BT out</div>
+                    <div class="switch-field grid-item">
+                        <input type="radio" id="nmea-off" name="switch-nmea-out" value="off" />
+                        <label for="nmea-off">Off</label>
+                        <input type="radio" id="nmea-on" name="switch-nmea-out" value="on"/>
+                        <label for="nmea-on">On</label>
+                    </div>
                 </div>
+                <div class="config-grid-fields">
+                    <!-- gnss.setMeasurementRate(100); -->
+                    <label for="gnss-measure-interval">GNSS measure every (ms) *</label>
+                    <select id="gnss-measure-interval">
+                        <option value="1000">1000 (1 Hz)</option>
+                        <option value="900">900</option>
+                        <option value="800">800</option>
+                        <option value="700">700</option>
+                        <option value="600">600</option>
+                        <option value="500">500 (2 Hz)</option>
+                        <option value="400">400</option>
+                        <option value="300">300</option>
+                        <option value="200">200 (5 Hz)</option>
+                        <option value="100">100 (10 Hz)</option>
+                        <option value="50">50 (20 Hz)</option>
+                    </select>
+                <!-- gnss.setNavigationRate(1); -->
+                    <label for="gnss-nav-rate">Navigation rate *</label>
+                    <select id="gnss-nav-rate">
+                        <option value="1">1 Hz</option>
+                        <option value="2">2 Hz</option>
+                        <option value="3">3 Hz</option> 
+                        <option value="4">4 Hz</option>
+                        <option value="5">5 Hz</option>
+                        <option value="6">6 Hz</option>
+                        <option value="7">7 Hz</option>
+                        <option value="8">8 Hz</option>
+                        <option value="9">9 Hz</option>
+                        <option value="10">10 Hz</option>
+                    </select>
+                    <div id="message-output-interval">* Output PVT every <span id="output-interval"></span> ms.</div>
 
-                <div class="grid-item">Units</div>
-                <div class="switch-field grid-item">
-                    <input type="radio" id="switch-units-feet" name="switch-units" value="feet" checked/>
-                    <label for="switch-units-feet">Feet</label>
-                    <input type="radio" id="switch-units-meters" name="switch-units" value="meters" />
-                    <label for="switch-units-meters">Meters</label>
+                    <label for="hotspot-ssid">Hotspot SSID</label>
+                    <input type="text" id="hotspot-ssid" />
+                    <label for="hotspot-password">Hotspot password</label>
+                    <input type="text" id="hotspot-password"/>
                 </div>
-            </div>
-        </section>
+                <div id="update-config-btn" class="std-button">
+                    <span class="label">Apply new values</span>
+                </div>
+                <div id="reset-config-btn" class="std-button">
+                    <span class="label">Reset to Defaults</span>
+                </div>
+                <div id="message-form">&nbsp;</div>  
+            </section>
+        </form>
+        <label id="js-console-messages" class="container"><span>Display WebSocket global JS console messages.</span>
+            <input type="checkbox">
+            <span class="checkmark"></span>
+        </label>
     </body>
 </html>
