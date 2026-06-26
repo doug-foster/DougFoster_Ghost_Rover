@@ -1,5 +1,5 @@
 /Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/build/build_ESP32-S3/libraries/SparkFun\ u-blox\ GNSS\ v3/sfe_bus.cpp.o: \
- /Users/dougfoster/Library/Arduino15/internal/SparkFun_u-blox_GNSS_v3_3.1.13_dd5712fde194fdfa/SparkFun\ u-blox\ GNSS\ v3/src/sfe_bus.cpp \
+ /Users/dougfoster/Library/Arduino15/internal/SparkFun_u-blox_GNSS_v3_3.1.14_50ec5b48c7a01d4a/SparkFun\ u-blox\ GNSS\ v3/src/sfe_bus.cpp \
  /Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/cores/esp32/Arduino.h \
  /Users/dougfoster/Library/Arduino15/internal/esp32_esp32-arduino-libs_idf-release_v5.5-f1a1df9b-v3_a6193c21d0/esp32s3/include/newlib/platform_include/stdio.h \
  /Users/dougfoster/Library/Arduino15/internal/esp32_esp32-arduino-libs_idf-release_v5.5-f1a1df9b-v3_a6193c21d0/esp32s3/qio_qspi/include/sdkconfig.h \
@@ -169,7 +169,7 @@
  /Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/cores/esp32/freertos_stats.h \
  /Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/cores/esp32/io_pin_remap.h \
  /Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/cores/esp32/Arduino.h \
- /Users/dougfoster/Library/Arduino15/internal/SparkFun_u-blox_GNSS_v3_3.1.13_dd5712fde194fdfa/SparkFun\ u-blox\ GNSS\ v3/src/sfe_bus.h \
+ /Users/dougfoster/Library/Arduino15/internal/SparkFun_u-blox_GNSS_v3_3.1.14_50ec5b48c7a01d4a/SparkFun\ u-blox\ GNSS\ v3/src/sfe_bus.h \
  /Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/Wire/src/Wire.h \
  /Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/cores/esp32/esp32-hal.h \
  /Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/cores/esp32/esp32-hal-log.h \

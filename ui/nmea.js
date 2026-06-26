@@ -11,6 +11,8 @@
  * @since  3.0.12 [2026-02-08-06:30pm] Removed prfRqsPvtInt.
  * @since  3.0.12 [2026-02-15-01:30pm] Removed summary statistics.
  * @since  3.0.12 [2026-02-25-05:45pm] Websocket send - preserve KV pair order by changing JSON data to array.
+ * @since  3.1.0  [2026-03-20-11:15am] Update var names.
+ * @since  3.1.1  [2026-06-25-02:00pm] Regroup: upload to SD card.
  * @link   http://dougfoster.me.
 */
 
@@ -52,7 +54,7 @@ let   lastDate;
  * @return void  No output is returned.
  * @since  3.0.12 [2026-01-31-04:15pm] New.
  * @since  3.0.12 [2026-02-07-04:00pm] Add THIS_PAGE.
- * @see    openedWebSocket() in global.js.
+ * @see    webSocketOpened() in global.js.
  */
 function update() {
     websocket.send(THIS_PAGE);  // Send THIS_PAGE message.
@@ -70,7 +72,7 @@ function update() {
  * @since  3.0.12 [2026-02-09-03:45pm] Correct kbps.
  * @since  3.0.12 [2026-02-15-01:30pm] Removed summary statistics.
  * @since  3.1.0  [2026-03-02-05:00pm] Stable 3.0 version.
- * @see    messageRcvWebSocket() in global.js.
+ * @see    webSocketRcvMessage() in global.js.
  */
 function nmeaMessage(key, value) {
     switch (key) {     
@@ -119,10 +121,11 @@ function nmeaMessage(key, value) {
  *
  * @return void  No output is returned.
  * @since 3.0.12 [2026-01-31-01:30pm] New.
+ * @since  3.1.0  * @since  3.1.0  [2026-03-20-11:15am] Update var names.[2026-03-20-11:15am] Update var names.
  * @see global.js.
  */
  document.addEventListener('DOMContentLoaded', () => {
-    initWebSocket();
+    webSocketInit();
 
     // --- Console debug. ---
     console.log('Show console messages is "' + sessionStorage.getItem("displayJsConsoleMessages") + '".');

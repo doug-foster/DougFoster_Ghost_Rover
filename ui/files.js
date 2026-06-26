@@ -11,6 +11,8 @@
  * @since  3.0.12 [2026-02-25-10:30pm] Websocket send - preserve KV pair order by changing JSON data to array.
  * @since  3.0.12 [2026-02-26-11:00am] Check download/upload for host 127.0.0.x.
  * @since  3.1.0  [2026-03-02-05:00pm] Stable 3.0 version.
+ * @since  3.1.0  [2026-03-20-11:15am] Update var names.
+ * @since  3.1.1  [2026-06-25-02:00pm] Regroup: upload to SD card.
  * @link   http://dougfoster.me.
 */
 
@@ -59,7 +61,7 @@ const LIST_FILES     = '[{"listFiles":""}]';
  * @return void  No output is returned.
  * @since  3.0.12 [2026-01-31-03:30pm] New.
  * @since  3.0.12 [2026-02-07-07:30am] Add THIS_PAGE.
- * @see    openedWebSocket() in global.js.
+ * @see    webSocketOpened() in global.js.
  */
 function update() {
     websocket.send(THIS_PAGE);  // Send THIS_PAGE message.
@@ -73,7 +75,7 @@ function update() {
  *
  * @return void  No output is returned.
  * @since  3.0.7 [2025-11-11-05:30pm].
- * @see    messageRcvWebSocket() in global.js.
+ * @see    webSocketRcvMessage() in global.js.
  */
 function filesMessage(key, value) {
     switch (key) {     
@@ -120,7 +122,7 @@ function fileListRequest(e) {
  *
  * @return void  No output is returned.
  * @since  3.0.7 [2025-11-10-09:15pm].
- * @see messageRcvWebSocket() in global.js.
+ * @see webSocketRcvMessage() in global.js.
  */
 function fileListBuild(listOfFiles) {
 
@@ -244,11 +246,12 @@ function preventDefaults(e) {
  * @since  3.0.7  [2025-11-10-05:30pm].
  * @since  3.0.12 [2026-02-25-10:30pm] Websocket send - preserve KV pair order by changing JSON data to array.
  * @since  3.0.12 [2026-02-26-11:00am] Check download/upload for host 127.0.0.x.
+ * @since  3.1.0  [2026-03-20-11:15am] Update var names.
  */
 
 // --- Page. ---
  document.addEventListener('DOMContentLoaded', () => {
-    initWebSocket();
+    webSocketInit();
     setTimeout(function() { fileListRequest(); }, 500);
 
     // --- Console debug. ---

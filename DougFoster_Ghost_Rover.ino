@@ -1,140 +1,86 @@
 /**
  * **********************************************************************
- * Ghost Rover 3 - GNSS "invisible" rover (with RTK base/PP) for SW Maps.
+ * Ghost Rover 3 - "Invisible" GNSS rover
  * **********************************************************************
- * 
- * ------------------------------------------------
- *      Code structure.
- * ------------------------------------------------
- *  --- Docs. ---
- *          Comments.
- *          ESP32 (Arduino framework) data types.
- *          WebSocket exchange protocol and data.
- *  --- Include libraries. ---
- *          Core.
- *          Additional.
- *  --- Global vars.---
- *          Pin assignments.
- *          LED.
- *          Battery.
- *          WiFi.
- *          HTTP.
- *          WebSocket.
- *          GNSS.
- *          Task handles.
- *          Operation.
- *          Preferences.
- *          Oper status.
- *          Declaration.
- *          Test.
- *  --- General functions. ---
- *          wsKey()             - Replace [wsKey(WS_VERSION)] with ["0"], ["1"], etc.
- *          statusLedOn()       - Turn on status LED.
- *          prefUtility()       - Preference utility.
- *          operDataToJsonDoc() - Load "operate" page data into JSON doc.
- *  --- Setup functions. ---
- *          showBuild()            - Display build & processor info.
- *          prefUtility(PREF_INIT) - Preference utility.
- *          startSerial()          - Start serial interfaces.
- *          initPins()             - Initialize pins & pin values.
- *          startI2C()             - Start I2C wire interfaces.
- *          startLiPo()            - Start LiPo I2C interface.
- *          startWiFi()            - Start WiFi.
- *          startSD()              - Start & test microSD card reader.
- *          startHttpServer()      - Start HTTP server.
- *          startWebSocketServer() - Start WebSocket server.
- *          startAndConfigGNSS()   - Start GNSS, config ZED settings.
- *          startTasks()           - Start tasks.
- *          preLoop()              - Prepare for loop().
- *  --- Task functions. ---
- *          startTasks()        - Start tasks in setup().
- *          taskLoopStatusLed() - Status LED for loop().
- *  --- Event handlers. ---
- *          onWiFiEvent()               - WiFi event handler.
- *          onHttpFileUpload()          - HTTP server endpoint handler.
- *          onWebSocketEvent()          - WebSocket event handler.
- *          onWebSocketMessage()        - WebSocket message event handler.
- *          DevUBLOXGNSS::processNMEA() - SparkFun_u-blox_GNSS_v3 library: process NMEA bytes.
- *  --- Loop functions. ---
- *          checkZED()                - NMEA - Check ZED to trigger DevUBLOXGNSS::processNMEA().
- *          relaySerial1toSerial2()   - RTCM - Relay from Serial1 (HC-12 radio) to Serial2 (ZED UART2).
- *          rtcm3GetMessageType()     - RTCM - Return RTCM3 message type.
- *          checkSerialUSB()          - Check serial USB for input.
- *          debug()                   - Display debug.
- *          checkGnssLockButton()     - Check GNSS lock button. // ToDo: implement.
- *          ws.cleanupClients()       - HTTP WebSocket cleanup.
- *  --- Setup. ---
- *          See "Setup functions" above.
- *  --- Loop. ---
- *          See "Loop functions" above.
  *
  * @author D. Foster <doug@dougfoster.me>.
  * @since  3.1.0  [2026-03-02-05:00pm] Stable 3.0 version.
+ * @since  3.1.0  [2026-03-10-11:30am] Add pole height preference.
+ * @since  3.1.1  [2026-06-25-10:30pm] Regroup. Cleanup.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover_BT_relay.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
  * @link   http://dougfoster.me.
  */
 
-/**
+ /**
  * ============================================================================
  *  Docs.
  * ============================================================================
- *
- * @since 3.0.12 [2026-02-20-12:00pm] New.
+ * 
+ * @since 3.1.1 [2026-06-25-01:00pm] New.
+ * 
+ * --- Comments. ---
+ * --- Code structure. ---
+ * --- Code operation. ---
+ * --- Board LED status. ---
+ * --- ESP32 (Arduino framework) data types. ---
+ * --- WebSocket exchange protocol and data. ---
  */
 
-/**
+ /**
  * ------------------------------------------------
- *      Comments.
+ * Comments.
  * ------------------------------------------------
+ * 
+ * @since 3.1.1 [2026-06-25-01:00pm] New.
  * 
  * --- Description & operation. ---
  *     -- Primary use is ... // ToDo: complete.
  *
- * --- Major components - rover. ---
- *     -- Board: "Sparkfun ESP32-S3 Thing Plus" (~/Library/Arduino15/packages/esp32/hardware/esp32/3.2.0/boards.txt)
- *     -- primary MCU        https://www.sparkfun.com/sparkfun-thing-plus-esp32-c6.html (SparkFun Thing Plus - ESP32-C6).
- *        -- micro SD card.  https://www.amazon.com/dp/B0BDYVC5TD (SanDisk 128GB ImageMate microSDXC UHS-1 - Up to 140MB/s).
- *     -- secondary MCU      https://www.sparkfun.com/sparkfun-qwiic-pocket-development-board-esp32-c6.html (Sparkfun Qwiic Pocket Development Board - ESP32-C6 - I2C address 0x36).
- *     -- GNSS               https://www.sparkfun.com/sparkfun-gps-rtk-sma-breakout-zed-f9p-qwiic.html (SparkFun GPS-RTK-SMA Breakout - ZED-F9P (Qwiic) - I2C address 0x42).
+ * --- Major components: rover. ---
+ *     -- FQBN               "Sparkfun ESP32-S3 Thing Plus" (~/Library/Arduino15/packages/esp32/hardware/esp32/3.3.10/boards.txt).
+ *     -- GR-MCU1 board      https://www.sparkfun.com/sparkfun-thing-plus-esp32-c6.html (SparkFun Thing Plus - ESP32-C6).
+ *        -- micro SD card   https://www.amazon.com/dp/B0BDYVC5TD (SanDisk 128GB ImageMate microSDXC UHS-1 - Up to 140MB/s).
+ *     -- GR-MCU2 board      https://www.sparkfun.com/sparkfun-qwiic-pocket-development-board-esp32-c6.html (Sparkfun Qwiic Pocket Development Board - ESP32-C6 - I2C address 0x36).
+ *     -- GNSS board         https://www.sparkfun.com/sparkfun-gps-rtk-sma-breakout-zed-f9p-qwiic.html (SparkFun GPS-RTK-SMA Breakout - ZED-F9P (Qwiic) - I2C address 0x42).
  *     -- HC-12 RF radio     https://www.amazon.com/dp/B01MYTE1XR (HiLetgo HC-12 433Mhz SI4438).
  *     -- laser pointer      https://www.petsmart.com/cat/toys/interactive-and-electronic/whisker-city-thrills-and-chills-laser-cat-toy-84577.html.
  * 
- * --- Major components - base. ---
- *     -- base station     https://www.sparkfun.com/sparkfun-rtk-evk.html (SparkFun RTK EVK).
- *     -- RTCM relay MCU   https://www.sparkfun.com/sparkfun-thing-plus-esp32-s3.html (SparkFun Thing Plus - ESP32-S3).
- *     -- HC-12 RF radio   https://www.amazon.com/dp/B01MYTE1XR (HiLetgo HC-12 433Mhz SI4438).
+ * --- Major components: base. ---
+ *     -- base station       https://www.sparkfun.com/sparkfun-rtk-evk.html (SparkFun RTK EVK).
+ *     -- RTCM relay MCU     https://www.sparkfun.com/sparkfun-thing-plus-esp32-s3.html (SparkFun Thing Plus - ESP32-S3).
+ *     -- HC-12 RF radio     https://www.amazon.com/dp/B01MYTE1XR (HiLetgo HC-12 433Mhz SI4438).
  *
  * --- Other components. ---
- *     -- Rover, GNSS antenna. --
- *        - GNSS antenna (L1/L2/L5, TNC-F)             https://www.sparkfun.com/gnss-multi-band-l1-l2-l5-surveying-antenna-tnc-spk6618h.html.
- *        - adapter (TNC-M to SMA-M)                   https://www.amazon.com/dp/B0BGPJP3J3.
- *        - adapter (SMA-M to SMA-F)                   https://www.amazon.com/dp/B00VHAZ0KW.
- *        - cable (SMA-F bulkhead to SMA-M, 6" RG316)  https://www.amazon.com/dp/B081BHHPHQ.
- *     -- Rover, RF radio. --
- *        - radio (433.4-473.0 MHz, 100mW, U.FL)       https://www.amazon.com/dp/B01MYTE1XR (HiLetgo HC-12 433Mhz SI4438).
- *        - antenna (UHF 400-960 MHz, BNC-M)           https://www.amazon.com/dp/B07R4PGZK3.
- *        - cable (BNC-F bulkhead to U.FL, 8" RG178)   https://www.amazon.com/dp/B098HX6NFH.
- *     -- Rover, Misc. -- 
- *        - I2C Qwiic cable kit                        https://www.amazon.com/dp/B08HQ1VSVL.
- *        - 26 AWG stranded wire                       https://www.amazon.com/dp/B089CQJHQC.
- *        - push button switch (12mm latching)         https://www.amazon.com/dp/B0CGTXMLKL.
- *        - push button switch (7mm momentary)         https://www.amazon.com/dp/B07RV1D98T.
- *        - power switch (15mm on/off latching toggle) https://www.amazon.com/dp/B09XMDXKTR.
- *        - LEDs (5mm)                                 https://www.amazon.com/dp/B0739RYXVC.
- *        - LED covers (5mm LED bulb socket)           https://www.amazon.com/dp/B07CQ6TH14.
- *        - battery (+5V 2.4A max, 8000 mAh)           https://www.walmart.com/ip/onn-8000mAh-Portable-Battery-Power-Bank-with-USB-A-to-C-Charging-Cable-LED-Indicator-Black/5266111773
- *        - enclosure (Pelican Micro Case 1040)        https://www.rei.com/product/778220/pelican-micro-case-1040-with-carabiner.
- *        - pistol grip handle                         https://www.amazon.com/dp/B01FUEXLGU.
- *        - tripod legs                                https://www.amazon.com/dp/B07GST1C2Z.
- *        - magnetic phone/tripod mount                https://www.amazon.com/dp/B0D21RP69C.
- *        - GNSS antenna thread adapter                https://www.sparkfun.com/antenna-thread-adapter-1-4in-to-5-8in.html
+ *     -- Rover GNSS antenna. --
+ *        - GNSS antenna (L1/L2/L5, TNC-F)              https://www.sparkfun.com/gnss-multi-band-l1-l2-l5-surveying-antenna-tnc-spk6618h.html.
+ *        - adapter (TNC-M to SMA-M)                    https://www.amazon.com/dp/B0BGPJP3J3.
+ *        - adapter (SMA-M to SMA-F)                    https://www.amazon.com/dp/B00VHAZ0KW.
+ *        - cable (SMA-F bulkhead to SMA-M, 6" RG316)   https://www.amazon.com/dp/B081BHHPHQ.
+ *     -- Rover RF radio. --
+ *        - radio (433.4-473.0 MHz, 100mW, U.FL)        https://www.amazon.com/dp/B01MYTE1XR (HiLetgo HC-12 433Mhz SI4438).
+ *        - antenna (UHF 400-960 MHz, BNC-M)            https://www.amazon.com/dp/B07R4PGZK3.
+ *        - cable (BNC-F bulkhead to U.FL, 8" RG178)    https://www.amazon.com/dp/B098HX6NFH.
+ *     -- Rover Misc. -- 
+ *        - I2C Qwiic cable kit                         https://www.amazon.com/dp/B08HQ1VSVL.
+ *        - 26 AWG stranded wire                        https://www.amazon.com/dp/B089CQJHQC.
+ *        - push button switch (12mm latching)          https://www.amazon.com/dp/B0CGTXMLKL.
+ *        - push button switch (7mm momentary)          https://www.amazon.com/dp/B07RV1D98T.
+ *        - power switch (15mm on/off latching toggle)  https://www.amazon.com/dp/B09XMDXKTR.
+ *        - LEDs (5mm)                                  https://www.amazon.com/dp/B0739RYXVC.
+ *        - LED covers (5mm LED bulb socket)            https://www.amazon.com/dp/B07CQ6TH14.
+ *        - battery (+5V 2.4A max, 8000 mAh)            https://www.walmart.com/ip/onn-8000mAh-Portable-Battery-Power-Bank-with-USB-A-to-C-Charging-Cable-LED-Indicator-Black/5266111773
+ *        - enclosure (Pelican Micro Case 1040)         https://www.rei.com/product/778220/pelican-micro-case-1040-with-carabiner.
+ *        - pistol grip handle                          https://www.amazon.com/dp/B01FUEXLGU.
+ *        - tripod legs                                 https://www.amazon.com/dp/B07GST1C2Z.
+ *        - magnetic phone/tripod mount                 https://www.amazon.com/dp/B0D21RP69C.
+ *        - GNSS antenna thread adapter                 https://www.sparkfun.com/antenna-thread-adapter-1-4in-to-5-8in.html
  *        - other: nuts, bolts, 1/4-10 bolt, washers, USB-A power cable, heat shrink tubing.
- *     -- Base, Misc. --
- *        - mini tripod                                https://www.amazon.com/dp/B0CQ6WTRW6.
- *        - laser pointer                              https://www.petsmart.com/cat/toys/interactive-and-electronic/whisker-city-thrills-and-chills-laser-cat-toy-84577.html.
- *        - battery/smartphone holder                  https://www.amazon.com/dp/B07S8TTH34
+ *     -- Base Misc. --
+ *        - mini tripod                                 https://www.amazon.com/dp/B0CQ6WTRW6.
+ *        - laser pointer                               https://www.petsmart.com/cat/toys/interactive-and-electronic/whisker-city-thrills-and-chills-laser-cat-toy-84577.html.
+ *        - battery/smartphone holder                   https://www.amazon.com/dp/B07S8TTH34
  *        - 3.5mm/ 0.14 in. pitch 10 pin pluggable PCB screw terminal block connector (female)  https://www.amazon.com/dp/B0BPHLZ8XN.
  *        - same as rover: battery, GNSS antenna/adapters/cable, HC-12 radio/cabl/antenna, LED/holders, primary MCU
  *        - other: nuts, 1/4" thread rod, 1.25" round bubble level.
@@ -142,6 +88,7 @@
  * --- Misc. references. ---
  *     -- EVK         https://docs.sparkfun.com/SparkFun_RTK_EVK/introduction/.ard
  *     -- HC-12       https://www.elecrow.com/download/HC-12.pdf.
+ *     -- KY-008      https://www.build-electronic-circuits.com/arduino-laser-module-ky-008/.
  *     -- PyGPSClient https://github.com/semuconsulting/PyGPSClient.
  *     -- SW Maps     https://aviyaantech.com/swmaps/.
  *     -- RTK         https://learn.sparkfun.com/tutorials/what-is-gps-rtk/all.
@@ -151,9 +98,8 @@
  *     -- Pin config  https://roboticsbackend.com/arduino-uno-pins-a-complete-practical-guide/.
  * 
  * --- Dev environment. ---
- *     -- IDE        VS Code & Arduino Maker Workshop 1.0.8 extension (uses Arduino CLI 1.4).
- *     -- GitHub     https://github.com/doug-foster/DougFoster_Ghost_Rover/.
- *     -- Platform   https://github.com/espressif/arduino-esp32/releases/tag/3.3.3 (Arduino Release v3.3.3 based on ESP-IDF v5.5.1+).
+ *     -- IDE         VS Code & Arduino Maker Workshop 1.1.5 extension (uses Arduino CLI 1.2.0).
+ *     -- Platform    https://github.com/espressif/arduino-esp32/releases/latest (Arduino Release v3.3.10 based on ESP-IDF v5.5.4).
  * 
  * --- Caveats. ---
  *     -- SoftwareSerial library is not supported on ESP32-S3 (does work on ESP32-C6).
@@ -163,32 +109,176 @@
  *     1. Add button lock functionality.
  *     2. Add stand-alone mode using NTRIP.
  *     3. Add "vector to coordinates" (navigate to a position) function.
- * @link https://www.build-electronic-circuits.com/arduino-laser-module-ky-008/.
+ */
+
+ /**
+ * ------------------------------------------------
+ * Code structure.
+ * ------------------------------------------------
+ * 
+ * @since 3.1.1 [2026-06-25-01:00pm] New.
+ *
+ *  --- Docs. ---
+ *  --- Include libraries. ---
+ *     -- Core.
+ *     -- Additional.
+ *  --- Global vars.---
+ *     -- Pin assignments.
+ *     -- LED.
+ *     -- Battery.
+ *     -- WiFi.
+ *     -- HTTP.
+ *     -- WebSocket.
+ *     -- GNSS.
+ *     -- Task handles.
+ *     -- Operation.
+ *     -- Preferences.
+ *     -- Oper status.
+ *     -- Declaration.
+ *     -- Test.
+ *  --- General functions. ---
+ *     -- wsKey()             - Replace [wsKey(WS_VERSION)] with ["0"], ["1"], etc.
+ *     -- statusLedOn()       - Turn on status LED.
+ *     -- prefUtility()       - Preference utility.
+ *     -- operDataToJsonDoc() - Load "operate" page data into JSON doc.
+ *  --- Setup functions. ---
+ *     -- showBuild()            - Display build & processor info. Status LED is xxx.
+ *     -- startSerial()          - Start serial interfaces.
+ *     -- initPins()             - Initialize pins & pin values.
+ *     -- startI2C()             - Start I2C wire interfaces.
+ *     -- startLiPo()            - Start LiPo I2C interface.
+ *     -- startWiFi()            - Start WiFi. Status LED is xxx.
+ *     -- startSD()              - Start & test microSD card reader.
+ *     -- startHttpServer()      - Start HTTP server.
+ *     -- startWebSocketServer() - Start WebSocket server.
+ *     -- startAndConfigGNSS()   - Start GNSS, config ZED settings.
+ *     -- startTasks()           - Start tasks.
+ *     -- preLoop()              - Prepare for loop().
+ *  --- Task functions. ---
+ *     -- taskLoopStatusLed() - Status LED for loop().
+ *  --- Event handlers. ---
+ *     -- onWiFiEvent()               - WiFi task - event handler.
+ *     -- onHttpFileUpload()          - HTTP server endpoint handler.
+ *     -- onWebSocketEvent()          - Event - WebSocket event handler.
+ *     -- onWebSocketMessage()        - Event - WebSocket message event handler.
+ *     -- DevUBLOXGNSS::processNMEA() - DevUBLOXGNSS task - SparkFun_u-blox_GNSS_v3 library: process NMEA bytes.
+ *  --- Loop functions. ---
+ *     -- checkZED()                - NMEA - Check ZED to trigger DevUBLOXGNSS::processNMEA().
+ *     -- relaySerial1toSerial2()   - RTCM - Relay from Serial1 (HC-12 radio) to Serial2 (ZED UART2).
+ *     -- rtcm3GetMessageType()     - RTCM - Return RTCM3 message type.
+ *     -- checkSerialUSB()          - Check serial USB for input.
+ *     -- debug()                   - Display debug.
+ *     -- checkGnssLockButton()     - Check GNSS lock button (upPosition or downPosition). // ToDo: implement.
+ *  --- Setup. ---
+ *  --- Loop. ---
+ */
+
+ /**
+ * ------------------------------------------------
+ * Code Operation.
+ * ------------------------------------------------
+ *
+ * @since 3.1.1 [2026-06-25-01:00pm] New.
+ *
+ * --- Boot. ---
+ *     Include libraries.
+ *     Define global vars.
+ *     Define general functions.
+ *     Define setup() functions.
+ *     Define task functions.
+ *     Define event handlers.
+ *     Define loop() functions.
+ * --- Run setup(). ---
+ *     showBuild()                   // Display build & processor info.
+ *     prefUtility(PREF_INIT)        // Check preferences.
+ *     startSerial()                 // Start serial interfaces.
+ *     initPins()                    // Initialize pin modes & pin values.
+ *     startI2C()                    // Start I2C wire interfaces.
+ *     startLiPo()                   // Start LiPo I2C interface.
+ *     startWiFi()                   // Start WiFi.
+ *     startSD()                     // Start & test microSD card reader.
+ *     startHttpServer()             // Start HTTP server.
+ *     startWebSocketServer()        // Start WebSocket server.
+ *     startAndConfigGNSS()          // Start GNSS, config ZED settings.
+ *     startTasks()                  // Start tasks.
+ *     preLoop()                     // Prepare for loop().
+ * --- Run loop(). ---    
+ *     checkZED()                    // NMEA - Check ZED to trigger DevUBLOXGNSS::processNMEA().
+ *     relaySerial1toSerial2()       // RTCM - Relay from Serial1 (HC-12 radio) to Serial2 (ZED UART2).
+ *     checkSerialUSB()              // Check serial USB for input.
+ *     // checkGnssLockButton()      // Check GNSS lock button.
+ *     ws.cleanupClients()           // HTTP WebSocket cleanup.
+ *     debug()                       // Display debug.
+ * --- Tasks. ---
+ *     taskLoopStatusLed()           // Status LED for loop(): set to blink or solid.
+ * --- Event handlers. ---
+ *     -- onWiFiEvent()              // WiFi task - event handler.
+ *        - if commandFlag[DEBUG_WIFI]), print WiFi status.
+ *     -- onHttpFileUpload()          // HTTP server endpoint handler.
+ *        - write file to SD, print upload status.
+ *     -- onWebSocketEvent()          // Event - WebSocket event handler.
+ *        - cases: WS_EVT_CONNECT, WS_EVT_DISCONNECT,WS_EVT_DATA,WS_EVT_PONG,WS_EVT_ERROR.
+ *        - print status, set LED color.
+ *        - if WS_EVT_DATA, call onWebSocketMessage().
+ *     -- onWebSocketMessage()        // Event - WebSocket message event handler.
+ *     -- DevUBLOXGNSS::processNMEA() // DevUBLOXGNSS task - SparkFun_u-blox_GNSS_v3 library: process NMEA bytes.
+ */
+
+ /**
+ * ------------------------------------------------
+ * Board LED status.
+ * ------------------------------------------------
+ *
+ * @since 3.1.1 [2026-06-25-01:00pm] New.
+ *
+ *   ws2812LedColor = RED, YELLOW, GREEN, BLUE, WHITE.
+ *   ws2812LedBlink = true, false.
+ * 
+ * --- GRMCU1 ----
+ *     -- setup(). --
+ *        - solid YELLOW: startup delay.
+ *        - solid  WHITE: setup() started & running ok.
+ *        - solid    RED: startWiFi() error,
+ *                        startSD() error,
+ *                        startAndConfigGNSS() error.
+ *     -- loop(). --  
+ *        - solid   BLUE: loop running ok with no websocket connection.
+ *        - solid  GREEN: loop running ok with onWebSocketEvent(WS_EVT_CONNECT) connection.
+ *        - blink  GREEN: relaySerial1toSerial2() RTCM in Serial1 out Serial2.
+ *        - solid    RED: DevUBLOXGNSS::processNMEA() GRMCU1 <--> GRMCU2 I2C (NMEAout) error.
+ * --- GRMCU1 ----
+ * 
+ * --- GNSS ----
+ *     -- https://learn.sparkfun.com/tutorials/gps-rtk2-hookup-guide#hardware-overview. --
+ *        - PWR:   (red) receiving 3.3V over USB or Qwiic bus.
+ *        - PPS:   (yellow) blinks each second when position lock has been achieved.
+ *        - RTK:   (yellow) solid on power up, blinks if RTCM data received, off if RTK fix obtained.
+ *        - FENCE: (blue) can be configured for geofencing.
  */
 
 /**
  * ------------------------------------------------
- *      ESP32 (Arduino framework) data types.
+ * ESP32 (Arduino framework) data types.
  * ------------------------------------------------
  *
  * @since 3.0.12 [2026-02-20-09:00am] New.
  * 
  * --- Unsigned integer. ---
- * uint8_t                      %u        8 bits = 1 byte,  0 to 255.
- * uint16_t/unsigned short      %u       16 bits = 2 bytes, 0 to 65,535.
- * uint32_t/unsigned long       %u,%lu   32 bits = 4 bytes, 0 to 4,294,967,295.
- * size_t (size,length,count)   %zu      32 bits = 4 bytes, 0 to 4,294,967,295.
- * uint64_t/unsigned long long  %llu     64 bits = 8 bytes, 0 to 18,446,744,073,709,551,615.
+ * uint8_t                      %u         8 bits = 1 byte,  0 to 255.
+ * uint16_t/unsigned short      %u        16 bits = 2 bytes, 0 to 65,535.
+ * uint32_t/unsigned long       %u,%lu    32 bits = 4 bytes, 0 to 4,294,967,295.
+ * size_t (size,length,count)   %zu       32 bits = 4 bytes, 0 to 4,294,967,295.
+ * uint64_t/unsigned long long  %llu      64 bits = 8 bytes, 0 to 18,446,744,073,709,551,615.
  *
  * --- Signed integer. ---
- * int8_t                       %d        8 bits = 1 byte,            -128 to 127.
- * int16_t/short                %d       16 bits = 2 bytes,        -32,768 to 32,767.
- * int32_t/int/long             %d,%ld   32 bits = 4 bytes, -2,147,483,648 to 2,147,483,647.
- * int64_t/long long            %lld     64 bits = 8 bytes,      -9.22e+18 to 9.22e+18.
+ * int8_t                       %d         8 bits = 1 byte,            -128 to 127.
+ * int16_t/short                %d        16 bits = 2 bytes,        -32,768 to 32,767.
+ * int32_t/int/long             %d,%ld    32 bits = 4 bytes, -2,147,483,648 to 2,147,483,647.
+ * int64_t/long long            %lld      64 bits = 8 bytes,      -9.22e+18 to 9.22e+18.
  *
  * --- Signed decimal/floating point. ---
- * float                        %f       32 bits = 4 bytes,   6-7 sig. digits (hardware),  -3.40e+38 to 3.40e+38).
- * double/long double           %f,%lf   64 bits = 8 bytes, 15-17 sig. digits (software), -1.79e+308 to 1.79e+308).
+ * float                        %f        32 bits = 4 bytes,   6-7 sig. digits (hardware),  -3.40e+38 to 3.40e+38).
+ * double/long double           %f,%lf    64 bits = 8 bytes, 15-17 sig. digits (software), -1.79e+308 to 1.79e+308).
  *
  * --- Character/text. ---
  * char (signed)                %c         8 bit = 1 byte,  -128 to 127.
@@ -204,113 +294,113 @@
 
 /**
  * ------------------------------------------------
- *      WebSocket exchange protocol and data.
+ * WebSocket exchange protocol and data.
  * ------------------------------------------------
  *
  * @since 3.0.12 [2026-02-20-09:00am] New.
  *
  *  --- Exchange protocol for all pages. ---
- *  -- Hello. --
- *  browser --> [{"page":"menu/nmea/files/config/operate"}].
- *  browser <-- {"0":"3.0.12 - Feb 28 2026 @ 09:40:15","1":"meter","2":"radio","3":"on","4":100,"5":2,"6":"ssid","7":"pass","35":10}
- *  -- Echo. --
- *  browser --> [{"echo":"hello/etc"}].
- *  browser <-- {"echo":"hello/etc"}.
+ *      -- Hello. --
+ *         browser --> [{"page":"menu/nmea/files/config/operate"}].
+ *         browser <-- {"0":"3.0.12 - Feb 28 2026 @ 09:40:15","1":"meter","2":"radio","3":"on","4":100,"5":2,"6":"ssid","7":"pass","35":10}
+ *      -- Echo. --
+ *         browser --> [{"echo":"hello/etc"}].
+ *         browser <-- {"echo":"hello/etc"}.
  *
  *  --- Exchange protocol for menu.html page. ---
- *  -- Hello. --
- *  browser --> [{"page":"menu"}].
- *  browser <-- {"0":"3.0.12 - Feb 28 2026 @ 09:40:15","1":"meter","2":"radio","3":"on","4":100,"5":2,"6":"ssid","7":"pass","35":10}
- *  -- Restart. --
- *  browser --> [{"mcu":"restart"}].
- *  browser <-- No reply.
+ *      -- Hello. --
+ *         browser --> [{"page":"menu"}].
+ *         browser <-- {"0":"3.0.12 - Feb 28 2026 @ 09:40:15","1":"meter","2":"radio","3":"on","4":100,"5":2,"6":"ssid","7":"pass","35":10}
+ *      -- Restart. --
+ *         browser --> [{"mcu":"restart"}].
+ *         browser <-- No reply.
  *
  *  --- Exchange protocol for nema.html page. ---
- *  -- Hello. --
- *  browser --> [{"page":"nmea"}].
- *  browser <-- {"0":"3.0.12 - Feb 28 2026 @ 09:40:15","1":"meter","2":"radio","3":"on","4":100,"5":2,"6":"ssid","7":"pass","35":10}
- *  -- NMEA sentences. --
- *  browser <-- {"nmea":"$GLGSV,1,1,01,77,06,333,10,3*4F\r\n"}.
+ *      -- Hello. --
+ *         browser --> [{"page":"nmea"}].
+ *         browser <-- {"0":"3.0.12 - Feb 28 2026 @ 09:40:15","1":"meter","2":"radio","3":"on","4":100,"5":2,"6":"ssid","7":"pass","35":10}
+ *      -- NMEA sentences. --
+ *        browser <-- {"nmea":"$GLGSV,1,1,01,77,06,333,10,3*4F\r\n"}.
  *
  * --- Exchange protocol for files.html page. ---
- *  -- Hello. --
- *  browser --> [{"page":"files"}].
- *  browser <-- {"page":"files", "0":"3.0.12 - Feb 19 2026 @ 12:46:28","1":"meter","2":"radio","3":"on","4":"50","5":"2","6":"xxxx","7":"xxxx"}
- *  -- List files. --
- *  browser --> [{"listFiles":""}].
- *  browser <-- {"listFiles":"/index.html,/config.css,/config.html,/config.js,/upload-image-icon.png,/files.css,/files.html,
- *                /files.js,/global.css,/global.js,/menu.css,/menu.html,/menu.js,/operate.css,/operate.js,/junk.txt,/operate.html,"}.
- *  -- Delete files. --
- *  browser --> [{"deleteFile":"filename"}].
- *  browser <-- {"deleteFile":"fileDeleted/fileNOTdeleted"}.
+ *     -- Hello. --
+ *        browser --> [{"page":"files"}].
+ *        browser <-- {"page":"files", "0":"3.0.12 - Feb 19 2026 @ 12:46:28","1":"meter","2":"radio","3":"on","4":"50","5":"2","6":"xxxx","7":"xxxx"}
+ *     -- List files. --
+ *        browser --> [{"listFiles":""}].
+ *        browser <-- {"listFiles":"/index.html,/config.css,/config.html,/config.js,/upload-image-icon.png,/files.css,/files.html,
+ *                     /files.js,/global.css,/global.js,/menu.css,/menu.html,/menu.js,/operate.css,/operate.js,/junk.txt,/operate.html,"}.
+ *     -- Delete files. --
+ *        browser --> [{"deleteFile":"filename"}].
+ *        browser <-- {"deleteFile":"fileDeleted/fileNOTdeleted"}.
  *
  * --- Exchange protocol for config.html page. ---
- *  -- Hello. --
- *  browser --> [{"page":"config"}].
- *  browser <-- {"0":"3.0.12 - Feb 28 2026 @ 09:40:15","1":"meter","2":"radio","3":"on","4":100,"5":2,"6":"ssid","7":"pass","35":10}
- *  -- Set preferences. --
- *  browser --> [{"config":"set"},{"1":"meter","2":"radio","3":"on","4":"50","5":"2","6":"xxxx","7":"xxxx"}]
- *      prefUtility(prefAction) which uses:
- *          0 - jsonDocToClient["ver"]           --> jsonDocToClient[wsKey(WS_VERSION)].
- *          1 - jsonDocToClient["prfUnt"]        --> jsonDocToClient[wsKey(WS_PREF_UNIT)].
- *          2 - jsonDocToClient["prfRtcIn"]      --> jsonDocToClient[wsKey(WS_PREF_RTCM_IN)].
- *          3 - jsonDocToClient["prfNmeOut"]     --> jsonDocToClient[wsKey(WS_PREF_NMEA_OUT)].
- *          4 - jsonDocToClient["prfGnsMsrInt"]  --> jsonDocToClient[wsKey(WS_PREF_GNSS_MESASURE_INTERVAL)].
- *          5 - jsonDocToClient["prfGnsNavRat"]  --> jsonDocToClient[wsKey(wWS_PREF_GNSS_NAV_RATE)].
- *          6 - jsonDocToClient["prfHotSsi"]     --> jsonDocToClient[wsKey(WS_PREF_HOT_SPOT_SSID)].
- *          7 - jsonDocToClient["prfHotPas"]     --> jsonDocToClient[wsKey(WS_PREF_HOT_SPOT_PASS)].
- *  <-- {"config":"Preference values updated."}
- *  -- Reset preferences. --
- *  browser --> [{"config":"reset"}].
- *  browser <-- browser {"config":"message"}     message="Preferences reset to defaults."
+ *     -- Hello. --
+ *        browser --> [{"page":"config"}].
+ *        browser <-- {"0":"3.0.12 - Feb 28 2026 @ 09:40:15","1":"meter","2":"radio","3":"on","4":100,"5":2,"6":"ssid","7":"pass","35":10}
+ *     -- Set preferences. --
+ *        browser --> [{"config":"set"},{"1":"meter","2":"radio","3":"on","4":"50","5":"2","6":"xxxx","7":"xxxx"}]
+ *        prefUtility(prefAction) which uses:
+ *            0 - jsonDocToClient["ver"]           --> jsonDocToClient[wsKey(WS_VERSION)].
+ *            1 - jsonDocToClient["prfUnt"]        --> jsonDocToClient[wsKey(WS_PREF_UNIT)].
+ *            2 - jsonDocToClient["prfRtcIn"]      --> jsonDocToClient[wsKey(WS_PREF_RTCM_IN)].
+ *            3 - jsonDocToClient["prfNmeOut"]     --> jsonDocToClient[wsKey(WS_PREF_NMEA_OUT)].
+ *            4 - jsonDocToClient["prfGnsMsrInt"]  --> jsonDocToClient[wsKey(WS_PREF_GNSS_MESASURE_INTERVAL)].
+ *            5 - jsonDocToClient["prfGnsNavRat"]  --> jsonDocToClient[wsKey(wWS_PREF_GNSS_NAV_RATE)].
+ *            6 - jsonDocToClient["prfHotSsi"]     --> jsonDocToClient[wsKey(WS_PREF_HOT_SPOT_SSID)].
+ *            7 - jsonDocToClient["prfHotPas"]     --> jsonDocToClient[wsKey(WS_PREF_HOT_SPOT_PASS)].
+ *        browser <-- {"config":"Preference values updated."}
+ *     -- Reset preferences. --
+ *        browser --> [{"config":"reset"}].
+ *        browser <-- browser {"config":"message"}     message="Preferences reset to defaults."
  *
  * --- Exchange protocol for operate.html page. ---
- *  -- Hello. --
- *  browser --> [{"page":"operate"}].
- *  browser <-- {"0":"3.0.12 - Feb 28 2026 @ 09:40:15","1":"meter","2":"radio","3":"on","4":100,"5":2,"6":"ssid","7":"pass","35":10}
- *  -- GNSS & status values. --
- *  browser <-- {"8":1,"9":10,"10":"-40.68","11":"-4.62","12":"35.44418163","13":"-76.92332881","14":"8.464","15":"10.229","16":"d","17":"u","18":"101.30",
- *               "19":"2.5","20":"4h 29m 52s","30":526389,"31":160768,"23":77545,"24":77545,"25":129240,"26":216211,"27":25848,"28":0,"29":0,"32":"r",
- *               "33":"192.168.23.1","34":"172.20.10.2"}
- *      checkZed() calls operDataToJsonDoc() which uses:
- *           1 - jsonDocToClient["prfUnt"]        --> jsonDocToClient[wsKey(WS_PREF_UNIT)].
- *           2 - jsonDocToClient["prfRtcIn"]      --> jsonDocToClient[wsKey(WS_PREF_RTCM_IN)].
- *           3 - jsonDocToClient["prfNmeOut"]     --> jsonDocToClient[wsKey(WS_PREF_NMEA_OUT)].
- *           4 - jsonDocToClient["prfGnsMsrInt"]  --> jsonDocToClient[wsKey(WS_PREF_GNSS_MESASURE_INTERVAL)].
- *           5 - jsonDocToClient["prfGnsNavRat"]  --> jsonDocToClient[wsKey(WS_PREF_GNSS_NAV_RATE)].
- *           6 - jsonDocToClient["prfHotSsi"]     --> jsonDocToClient[wsKey(WS_PREF_HOT_SPOT_SSID)].
- *           7 - jsonDocToClient["prfHotPas"]     --> jsonDocToClient[wsKey(WS_PREF_HOT_SPOT_PASS)].
- *           8 - jsonDocToClient["fix"]           --> jsonDocToClient[wsKey(WS_GNSS_FIX)].
- *           9 - jsonDocToClient["siv"]           --> jsonDocToClient[wsKey(WS_GNSS_SAT_IN_VIEW)].
- *          10 - jsonDocToClient["hgt-elip"]      --> jsonDocToClient[wsKey(WS_GNSS_HEIGHT_ELLIPSOID)].
- *          11 - jsonDocToClient["hgt-orth"]      --> jsonDocToClient[wsKey(WS_GNSS_HEIGHT_ORTHOMETRIC)].
- *          12 - jsonDocToClient["lat"]           --> jsonDocToClient[wsKey(WS_GNSS_LATITUDE].
- *          13 - jsonDocToClient["lon"]           --> jsonDocToClient[wsKey(WS_GNSS_LONGITUDE)].
- *          14 - jsonDocToClient["hac"]           --> jsonDocToClient[wsKey(WS_GNSS_HORIZONTAL_ACCURACY)].
- *          15 - jsonDocToClient["vac"]           --> jsonDocToClient[wsKey(WS_GNSS_VERTICAL_ACCURACY)].
- *          16 - jsonDocToClient["rtcm"]          --> jsonDocToClient[wsKey(WS_ROVER_RTCM_UP_DOWN)].
- *          17 - jsonDocToClient["bt"]            --> jsonDocToClient[wsKey(WS_ROVER_BT_NMEA_UP_DOWN)].
- *          18 - jsonDocToClient["bat"]           --> jsonDocToClient[wsKey(WS_ROVER_BATTERY_SOC)].
- *          19 - jsonDocToClient["batc"]          --> jsonDocToClient[wsKey(WS_ROVER_BATTERY_CHANGE_RATE)].
- *          20 - jsonDocToClient["up-tm"]         --> jsonDocToClient[wsKey(WS_ROVER_UP_TIME)].
- *          21 - jsonDocToClient["rtcm-cnt-all"]  --> jsonDocToClient[wsKey(WS_RTCM_IN_COUNT_ALL)].
- *          22 - jsonDocToClient["rtcm-rate"]     --> jsonDocToClient[wsKey(WS_RTCM_IN_RATE)].
- *          23 - jsonDocToClient["nmea-cnt-gga"]  --> jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_GGA)].
- *          24 - jsonDocToClient["nmea-cnt-rmc"]  --> jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_RMC)].
- *          25 - jsonDocToClient["nmea-cnt-gsa"]  --> jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_GSA].
- *          26 - jsonDocToClient["nmea-cnt-gsv"]  --> jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_GSV)].
- *          27 - jsonDocToClient["nmea-cnt-gst"]  --> jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_GST)].
- *          28 - jsonDocToClient["nmea-cnt-txt"]  --> jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_TXT)].
- *          29 - jsonDocToClient["nmea-cnt-othr"] --> jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_OTHR)].
- *          30 - jsonDocToClient["nmea-cnt-all"]  --> jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_ALL)].
- *          31 - jsonDocToClient["nmea-rate"]     --> jsonDocToClient[wsKey(WS_NMEA_OUT_RATE)].
- *          32 - jsonDocToClient["mode"]          --> jsonDocToClient[wsKey(WS_OPERATIONAL_MODE)].
- *          33 - jsonDocToClient["l-ip"]          --> jsonDocToClient[wsKey(WWS_WIFI_LOCAL_NETWORK_IP)].
- *          34 - jsonDocToClient["h-ip"]          --> jsonDocToClient[wsKey(WS_WIFI_HOT_SPOT_IP)].
- *          35 - jsonDocToClient["socketNum"]     --> jsonDocToClient[wsKey(WS_SOCKET_NUM)].
- *  -- Lock/unlock buttons. --
- * browser --> [{"laser"/height/position:"lock/unlock"}].
- * browser <-- {"laser"/height/position:"locked/unlocked"}. jsonDocToClient[key] = echo value + 'ed'
+ *     -- Hello. --
+ *        browser --> [{"page":"operate"}].
+ *        browser <-- {"0":"3.0.12 - Feb 28 2026 @ 09:40:15","1":"meter","2":"radio","3":"on","4":100,"5":2,"6":"ssid","7":"pass","35":10}
+ *     -- GNSS & status values. --
+ *        browser <-- {"8":1,"9":10,"10":"-40.68","11":"-4.62","12":"35.44418163","13":"-76.92332881","14":"8.464","15":"10.229","16":"d","17":"u","18":"101.30",
+ *                     "19":"2.5","20":"4h 29m 52s","30":526389,"31":160768,"23":77545,"24":77545,"25":129240,"26":216211,"27":25848,"28":0,"29":0,"32":"r",
+ *                     "33":"192.168.23.1","34":"172.20.10.2"}
+ *        checkZed() calls operDataToJsonDoc() which uses:
+ *             1 - jsonDocToClient["prfUnt"]        --> jsonDocToClient[wsKey(WS_PREF_UNIT)].
+ *             2 - jsonDocToClient["prfRtcIn"]      --> jsonDocToClient[wsKey(WS_PREF_RTCM_IN)].
+ *             3 - jsonDocToClient["prfNmeOut"]     --> jsonDocToClient[wsKey(WS_PREF_NMEA_OUT)].
+ *             4 - jsonDocToClient["prfGnsMsrInt"]  --> jsonDocToClient[wsKey(WS_PREF_GNSS_MESASURE_INTERVAL)].
+ *             5 - jsonDocToClient["prfGnsNavRat"]  --> jsonDocToClient[wsKey(WS_PREF_GNSS_NAV_RATE)].
+ *             6 - jsonDocToClient["prfHotSsi"]     --> jsonDocToClient[wsKey(WS_PREF_HOT_SPOT_SSID)].
+ *             7 - jsonDocToClient["prfHotPas"]     --> jsonDocToClient[wsKey(WS_PREF_HOT_SPOT_PASS)].
+ *             8 - jsonDocToClient["fix"]           --> jsonDocToClient[wsKey(WS_GNSS_FIX)].
+ *             9 - jsonDocToClient["siv"]           --> jsonDocToClient[wsKey(WS_GNSS_SAT_IN_VIEW)].
+ *            10 - jsonDocToClient["hgt-elip"]      --> jsonDocToClient[wsKey(WS_GNSS_HEIGHT_ELLIPSOID)].
+ *            11 - jsonDocToClient["hgt-orth"]      --> jsonDocToClient[wsKey(WS_GNSS_HEIGHT_ORTHOMETRIC)].
+ *            12 - jsonDocToClient["lat"]           --> jsonDocToClient[wsKey(WS_GNSS_LATITUDE].
+ *            13 - jsonDocToClient["lon"]           --> jsonDocToClient[wsKey(WS_GNSS_LONGITUDE)].
+ *            14 - jsonDocToClient["hac"]           --> jsonDocToClient[wsKey(WS_GNSS_HORIZONTAL_ACCURACY)].
+ *            15 - jsonDocToClient["vac"]           --> jsonDocToClient[wsKey(WS_GNSS_VERTICAL_ACCURACY)].
+ *            16 - jsonDocToClient["rtcm"]          --> jsonDocToClient[wsKey(WS_ROVER_RTCM_UP_DOWN)].
+ *            17 - jsonDocToClient["bt"]            --> jsonDocToClient[wsKey(WS_ROVER_BT_NMEA_UP_DOWN)].
+ *            18 - jsonDocToClient["bat"]           --> jsonDocToClient[wsKey(WS_ROVER_BATTERY_SOC)].
+ *            19 - jsonDocToClient["batc"]          --> jsonDocToClient[wsKey(WS_ROVER_BATTERY_CHANGE_RATE)].
+ *            20 - jsonDocToClient["up-tm"]         --> jsonDocToClient[wsKey(WS_ROVER_UP_TIME)].
+ *            21 - jsonDocToClient["rtcm-cnt-all"]  --> jsonDocToClient[wsKey(WS_RTCM_IN_COUNT_ALL)].
+ *            22 - jsonDocToClient["rtcm-rate"]     --> jsonDocToClient[wsKey(WS_RTCM_IN_RATE)].
+ *            23 - jsonDocToClient["nmea-cnt-gga"]  --> jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_GGA)].
+ *            24 - jsonDocToClient["nmea-cnt-rmc"]  --> jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_RMC)].
+ *            25 - jsonDocToClient["nmea-cnt-gsa"]  --> jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_GSA].
+ *            26 - jsonDocToClient["nmea-cnt-gsv"]  --> jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_GSV)].
+ *            27 - jsonDocToClient["nmea-cnt-gst"]  --> jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_GST)].
+ *            28 - jsonDocToClient["nmea-cnt-txt"]  --> jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_TXT)].
+ *            29 - jsonDocToClient["nmea-cnt-othr"] --> jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_OTHR)].
+ *            30 - jsonDocToClient["nmea-cnt-all"]  --> jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_ALL)].
+ *            31 - jsonDocToClient["nmea-rate"]     --> jsonDocToClient[wsKey(WS_NMEA_OUT_RATE)].
+ *            32 - jsonDocToClient["mode"]          --> jsonDocToClient[wsKey(WS_OPERATIONAL_MODE)].
+ *            33 - jsonDocToClient["l-ip"]          --> jsonDocToClient[wsKey(WWS_WIFI_LOCAL_NETWORK_IP)].
+ *            34 - jsonDocToClient["h-ip"]          --> jsonDocToClient[wsKey(WS_WIFI_HOT_SPOT_IP)].
+ *            35 - jsonDocToClient["socketNum"]     --> jsonDocToClient[wsKey(WS_SOCKET_NUM)].
+*     -- Lock/unlock buttons. --
+ *       browser --> [{"laser"/height/position:"lock/unlock"}].
+ *       browser <-- {"laser"/height/position:"locked/unlocked"}. jsonDocToClient[key] = echo value + 'ed'
  */
 
 /**
@@ -321,6 +411,10 @@
  * @since 3.0.9   [2025-12-01-05:15pm].
  * @since 3.0.11  [2026-01-08-10:30am] Browser initiated updates.
  * @since 3.0.11  [2026-01-26-04:15pm] Add preferences library.
+ * @since 3.1.1   [2026-06-25-02:00pm] Updated library <AsyncTCP.h>                from 3.4.9  to 3.4.10.
+ * @since 3.1.1   [2026-06-25-02:00pm] Updated library <ESPAsyncWebServer.h>       from 3.9.3  to 3.11.1.
+ * @since 3.1.1   [2026-06-25-02:00pm] Updated library <ArduinoJson.h>             from 7.4.2  to 7.4.3.
+ * @since 3.1.1   [2026-06-25-02:00pm] Updated library <SparkFun_u-blox_GNSS_v3.h> from 3.1.13 to 3.1.14.
  * @link  Arduino https://docs.arduino.cc/libraries/.
  * @link  ESP32   https://docs.espressif.com/projects/arduino-esp32/en/latest/libraries.html.
  */
@@ -339,9 +433,9 @@
 #include <Preferences.h>                                   // https://github.com/espressif/arduino-esp32/tree/master/libraries/Preferences/.
 
 // --- Additional. ---                  
-#include <AsyncTCP.h>                                      // https://github.com/ESP32Async/AsyncTCP (3.4.9).
+#include <AsyncTCP.h>                                      // https://github.com/ESP32Async/AsyncTCP (3.4.10).
 #include <ESPAsyncWebServer.h>                             // https://github.com/ESP32Async/ESPAsyncWebServer (3.8.1).
-#include <ArduinoJson.h>                                   // https://github.com/bblanchon/ArduinoJson (7.4.2).
+#include <ArduinoJson.h>                                   // https://github.com/bblanchon/ArduinoJson (7.4.3).
 #include <SparkFun_MAX1704x_Fuel_Gauge_Arduino_Library.h>  // https://github.com/sparkfun/SparkFun_MAX1704x_Fuel_Gauge_Arduino_Library (1.0.4).
 #include <SparkFun_u-blox_GNSS_v3.h>                       // https://github.com/sparkfun/SparkFun_u-blox_GNSS_v3 (3.1.13).
 
@@ -354,7 +448,8 @@
  * @since 3.0.11 [2026-01-08-10:30am] Browser initiated updates.
  * @since 3.0.12 [2026-02-01-09:30am] Add preferences.
  * @since 3.0.12 [2026-02-14-06:15pm] Remove prfRqsPvtInt.
- * @since  3.0.12 [2026-02-28-02:15pm] Add WS_SOCKET_NUM.
+ * @since 3.0.12 [2026-02-28-02:15pm] Add WS_SOCKET_NUM.
+ * @since 3.1.0  [2026-03-20-11:45am] Add pole height preference.
  */
 
 // -- Pin assignments. --
@@ -365,12 +460,12 @@ const uint8_t LSR_TRIGGER = 15;         // KY-008 trigger pin {yellow wire}.
 bool  ws2812LedBlink     = false;
 const uint8_t LED_BRIGHT = 50;          // 0-255. taskLoopStatusLed()
 enum  ws2812_LED_COLOR {                // WS2812 RGB STAT LED.
-    OFF,                                // 0.
-    RED,                                // 1. Solid red indicates an error.
-    YELLOW,                             // 2. Not used.
-    GREEN,                              // 3. Solid color displayed when in loop and web client connected. Blinks if RTCM is received, solid red if RTCMin fails.
-    BLUE,                               // 4. Solid color displayed when loop() is entered.
-    WHITE                               // 5. Solid color displayed during setup() if no errors.
+    OFF,
+    RED,
+    YELLOW,
+    GREEN,
+    BLUE,
+    WHITE
 } ws2812LedColor;
 
 // --- Battery. ---
@@ -428,7 +523,8 @@ enum wsKeyID {                              // Readable index for WwebSocket key
     WS_OPERATIONAL_MODE,                    // 32 - jsonDocToClient["mode"]          --> jsonDocToClient[wsKey(WS_OPERATIONAL_MODE)].
     WS_WIFI_LOCAL_NETWORK_IP,               // 33 - jsonDocToClient["l-ip"]          --> jsonDocToClient[wsKey(WS_WIFI_LOCAL_NETWORK_IP)].
     WS_WIFI_HOT_SPOT_IP,                    // 34 - jsonDocToClient["h-ip"]          --> jsonDocToClient[wsKey(WS_WIFI_HOT_SPOT_IP)].
-    WS_SOCKET_NUM                           // 35 - jsonDocToClient["socketNum"]     --> jsonDocToClient[wsKey(WS_SOCKET_NUM)].
+    WS_SOCKET_NUM,                          // 35 - jsonDocToClient["socketNum"]     --> jsonDocToClient[wsKey(WS_SOCKET_NUM)].
+    WS_POLE_HEIGHT                          // 36 - new                              --> jsonDocToClient[wsKey(WS_POLE_HEIGHT)].
 };
 const char* const WS_KEY_NUMS[] = {
     "0",                                    // WS_VERSION, jsonDocToClient[wsKey(WS_VERSION)] converts to jsonDocToClient["0"].
@@ -466,7 +562,8 @@ const char* const WS_KEY_NUMS[] = {
     "32",                                   // WS_OPERATIONAL_MODE.
     "33",                                   // WS_WIFI_LOCAL_NETWORK_IP.
     "34",                                   // WS_WIFI_HOT_SPOT_IP.
-    "35"                                    // WS_SOCKET_NUM.
+    "35",                                   // WS_SOCKET_NUM.
+    "36"                                    // WS_POLE_HEIGHT.
 };
 
 // --- GNSS. ---
@@ -541,8 +638,9 @@ char        prfRtcIn[6];        // Control RTCM in: off/radio/ntrip.
 char        prfNmeOut[4];       // Control NMEA out: off/on.
 char        prfHotSsi[20];      // WiFi hotspot client: network SSID.
 char        prfHotPas[30];      // WiFi hotspot client: password.
-uint16_t    prfGnsMsrInt;       // ZED: MEASURE every Y (e.g. 100) ms.
 uint8_t     prfGnsNavRat;       // ZED: OUTPUT every X (e.g. 5) MEASURE intervals every (e.g. 5*100=500) ms.
+uint16_t    prfGnsMsrInt;       // ZED: MEASURE every Y (e.g. 100) ms.
+int16_t     prfPolHgt;          // Mounting pole height.
 Preferences roverPrefs;         // Rover's NVS preferences namespace.
 enum        prefAction {        // Readable index for preference actions.
     PREF_INIT,                  // 0.
@@ -586,8 +684,8 @@ int64_t nmeaSentenceLength = 0;
  * Replace [wsKey(WS_VERSION)] with ["0"], ["1"], etc.
  * ------------------------------------------------
  *
- * Example, given:  jsonDocToClient[wsKey(WS_VERSION)] = someValue;.
- *          Yields: jsonDocToClient["0"].
+ * Example, given:  jsonDocToClient[wsKey(WS_VERSION)] = someValue;
+ *          yields: jsonDocToClient["0"].
  *
  * @param  int id Key ID #.
  * @return char* const Key ID #.
@@ -643,6 +741,7 @@ void statusLedOn() {
  * @since  3.0.12 [2026-02-18-06:00pm] Add buildString.
  * @since  3.0.12 [2026-02-23-01:00pm] Shorten RTCM & NMEA status.
  * @since  3.0.12 [2026-02-28-02:45pm] Fix bugs: prfRtcIn, jsonDocToClient.clear().
+ * @since  3.1.0  [2026-03-20-11:45am] Add pole height preference.
  * @see    Global vars: Preference defaults, setup().
  * @link   https://docs.espressif.com/projects/arduino-esp32/en/latest/tutorials/preferences.html.
  * @link   https://github.com/espressif/arduino-esp32/tree/master/libraries/Preferences/.
@@ -658,11 +757,12 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
     const char      DEF_PRF_HOT_PASS[]  = "pass";   // WiFi hotspot client: password.                       Matching global var: char     prfHotPas[30].
     const uint8_t   DEF_PRF_GNS_NAV_RAT = 2;        // ZED rate (times/interval): OUTPUT a new solution.    Matching global var: uint8_t  prfGnsNavRat.
     const uint16_t  DEF_PRF_GNS_MSR_INT = 100;      // ZED interval (ms): CREATE a new solution.            Matching global var: uint16_t prfGnsMsrInt.
-    const uint16_t  NUM_PREFS           = 8;        // Number of preferences being used.
+    const uint16_t  DEF_PRF_POL_HGT     = 0;        // Instrument pole height (mm).                         Matching global var: int16_t  prfPolHgt.
+    const uint16_t  NUM_PREFS           = 9;        // Number of preferences being used (includes buildString).
 
     // --- Other. ---
     bool hasKey = false;
-    JsonObject JSONdata = jsonDocFromClient[1].as<JsonObject>();     // Second array element is JSON data
+    JsonObject JSONdata = jsonDocFromClient[1].as<JsonObject>();            // Second array element is JSON data
 
     // --- Which action? ---
     switch (action) {
@@ -695,6 +795,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             roverPrefs.getString("prfHotPas",    prfHotPas, sizeof(prfHotPas));
             prfGnsNavRat = roverPrefs.getUChar("prfGnsNavRat");
             prfGnsMsrInt = roverPrefs.getUShort("prfGnsMsrInt");
+            prfPolHgt    = roverPrefs.getShort("prfPolHgt");
             roverPrefs.end();                                                   // Close NAMESPACE object.
 
             // -- Wrap up. --
@@ -728,6 +829,10 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             strcpy(prfHotPas, JSONdata[wsKey(WS_PREF_HOT_SPOT_PASS)]);
             roverPrefs.putString("prfHotPas", prfHotPas);                               // Store preference as "prfHotPas" (sent/rcvd as "7").
 
+            prfPolHgt = (int16_t) atoi(JSONdata[wsKey(WS_POLE_HEIGHT)]);                // KV values are stored in NVS as int, but set to C-string in onWebSocketMessage() for code clarity.
+            roverPrefs.putUChar("prfPolHgt", prfPolHgt);                                // Store preference as "prfPolHgt" (sent/rcvd as "165").
+
+            // ToDo: delete this section of code? [2024-06-25]
             // if (strcmp(key, wsKey(WS_PREF_UNIT)) == 0) {                            // Preference sent as "1".
                 
             //     strcpy(prfUnt, JSONdata["0"]);                                      // Update global var.
@@ -768,31 +873,34 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
         case PREF_RESET:
 
             // -- Set each KV pair to default values. --
-            strcpy(prfUnt,    DEF_PRF_UNT);                                     // Set global vars to defaults.
+            strcpy(prfUnt,    DEF_PRF_UNT);                             // Set global vars to defaults.
             strcpy(prfRtcIn,  DEF_PRF_RTC_IN);
             strcpy(prfNmeOut, DEF_PRF_NME_OUT);
             strcpy(prfHotSsi, DEF_PRF_HOT_SSI);
             strcpy(prfHotPas, DEF_PRF_HOT_PASS);
             prfGnsNavRat = DEF_PRF_GNS_NAV_RAT;
             prfGnsMsrInt = DEF_PRF_GNS_MSR_INT;
-            roverPrefs.begin(NAMESPACE, RW_MODE);                           // Open NAMESPACE object for read/write. 
-            roverPrefs.putString("prfUnt",       prfUnt);                   // If key doesn't exist, create it. Set value to global var (aka default).
+            prfPolHgt    = DEF_PRF_POL_HGT;
+            roverPrefs.begin(NAMESPACE, RW_MODE);                       // Open NAMESPACE object for read/write. 
+            roverPrefs.putString("prfUnt",       prfUnt);               // If key doesn't exist, create it. Set value to global var (aka default).
             roverPrefs.putString("prfRtcIn",     prfRtcIn);
             roverPrefs.putString("prfNmeOut",    prfNmeOut);
             roverPrefs.putString("prfHotSsi",    prfHotSsi);
             roverPrefs.putString("prfHotPas",    prfHotPas);
             roverPrefs.putUChar("prfGnsNavRat",  prfGnsNavRat);
-            roverPrefs.putUShort("prfGnsMsrInt", prfGnsMsrInt);            roverPrefs.end();                                               // Close NAMESPACE object.
+            roverPrefs.putUShort("prfGnsMsrInt", prfGnsMsrInt);
+            roverPrefs.putShort("prfPolHgt",     prfPolHgt);
+            roverPrefs.end();                                           // Close NAMESPACE object.
 
             // -- Wrap up. --
             Serial.println("Preferences reset.");
-            if(inLoop) {                                                    // Rerun dependent functions if in loop.
-                startAndConfigGNSS();                                       // Uses prfGnsNavRat, prfGnsMsrInt.
+            if(inLoop) {                                                // Rerun dependent functions if in loop.
+                startAndConfigGNSS();                                   // Uses prfGnsNavRat, prfGnsMsrInt.
             }
             break;
 
         case PREF_PRINT:
-            roverPrefs.begin(NAMESPACE, RO_MODE);                           // Open NAMESPACE object for read.
+            roverPrefs.begin(NAMESPACE, RO_MODE);                       // Open NAMESPACE object for read.
             Serial.println("--- Default, Global var, NVS pref. ---");
             Serial.printf( "prfUnt       \"%s\", \"%s\", \"%s\"\n", DEF_PRF_UNT,         prfUnt,       roverPrefs.getString("prfUnt"));
             Serial.printf( "prfRtcIn     \"%s\", \"%s\", \"%s\"\n", DEF_PRF_RTC_IN,      prfRtcIn,     roverPrefs.getString("prfRtcIn"));
@@ -801,25 +909,27 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             Serial.printf( "prfHotPas    \"%s\", \"%s\", \"%s\"\n", DEF_PRF_HOT_PASS,    prfHotPas,    roverPrefs.getString("prfHotPas"));
             Serial.printf( "prfGnsNavRat %u, %u, %u\n",             DEF_PRF_GNS_NAV_RAT, prfGnsNavRat, roverPrefs.getUChar("prfGnsNavRat"));
             Serial.printf( "prfGnsMsrInt %u, %u, %u\n",             DEF_PRF_GNS_MSR_INT, prfGnsMsrInt, roverPrefs.getUShort("prfGnsMsrInt"));
-            roverPrefs.end();                                               // Close NAMESPACE object.
+            Serial.printf( "prfPolHgt    %u, %u, %u\n",             DEF_PRF_POL_HGT,     prfPolHgt,    roverPrefs.getShort("prfPolHgt"));
+            roverPrefs.end();                                           // Close NAMESPACE object.
             break;
 
         case PREF_TO_JSON:
         // --------------------------------------------
         //  browser --> {"page":"menu/nmea/files/config/operate"}.
-        //  browser <-- {"0":"3.0.12 - Feb 19 2026 @ 12:46:28","1":"meter","2":"radio","3":"on","4":"50","5":"2","6":"xxx","7":"xxxx"}.
+        //  browser <-- {"0":"3.0.12 - Feb 19 2026 @ 12:46:28","1":"meter","2":"radio","3":"on","4":"50","5":"2","6":"xxx","7":"xxxx", "8":"165"}.
         //  Value of each global var preference will always match value stored in NVS.
         // --------------------------------------------
             jsonDocToClient.clear();
-            jsonDocToClient[wsKey(WS_VERSION)]                     = buildString;   // 0.
-            jsonDocToClient[wsKey(WS_PREF_UNIT)]                   = prfUnt;        // 1.
-            jsonDocToClient[wsKey(WS_PREF_RTCM_IN)]                = prfRtcIn;      // 2.
-            jsonDocToClient[wsKey(WS_PREF_NMEA_OUT)]               = prfNmeOut;     // 3.
-            jsonDocToClient[wsKey(WS_PREF_GNSS_MESASURE_INTERVAL)] = prfGnsMsrInt;  // 4.
-            jsonDocToClient[wsKey(WS_PREF_GNSS_NAV_RATE)]          = prfGnsNavRat;  // 5.
-            jsonDocToClient[wsKey(WS_PREF_HOT_SPOT_SSID)]          = prfHotSsi;     // 6.
-            jsonDocToClient[wsKey(WS_PREF_HOT_SPOT_PASS)]          = prfHotPas;     // 7.
+            jsonDocToClient[wsKey(WS_VERSION)]                     = buildString;   //  0.
+            jsonDocToClient[wsKey(WS_PREF_UNIT)]                   = prfUnt;        //  1.
+            jsonDocToClient[wsKey(WS_PREF_RTCM_IN)]                = prfRtcIn;      //  2.
+            jsonDocToClient[wsKey(WS_PREF_NMEA_OUT)]               = prfNmeOut;     //  3.
+            jsonDocToClient[wsKey(WS_PREF_GNSS_MESASURE_INTERVAL)] = prfGnsMsrInt;  //  4.
+            jsonDocToClient[wsKey(WS_PREF_GNSS_NAV_RATE)]          = prfGnsNavRat;  //  5.
+            jsonDocToClient[wsKey(WS_PREF_HOT_SPOT_SSID)]          = prfHotSsi;     //  6.
+            jsonDocToClient[wsKey(WS_PREF_HOT_SPOT_PASS)]          = prfHotPas;     //  7.
             jsonDocToClient[wsKey(WS_SOCKET_NUM)]                  = clientId;      // 35.
+            jsonDocToClient[wsKey(WS_POLE_HEIGHT)]                 = prfPolHgt;     // 36.
     }
 }
 
@@ -990,29 +1100,36 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
  * @return void  No output is returned.
  * @since  3.0.10 [2025-12-30-02:00pm].
  * @since  3.0.10 [2026-01-07-09:45am] Local vars.
+ * @since  3.1.1  [2026-06-25-01:00pm] Updated version, added startup delay, transition LED YELLOW->WHITE.
  * @see    Global vars: Version, setup().
  * @link   https://github.com/pycom/pycom-esp-idf.
  */
 void showBuild() {
 
     // --- Local vars. ---
-    const uint8_t MAJOR_VERSION = 3;
-    const uint8_t MINOR_VERSION = 0;
-    const uint8_t PATCH_VERSION = 12;
-    const char    NAME[]        = "Ghost Rover 3";
-    const uint32_t SERIAL_USB_SPEED = 115200;   // Serial USB speed.
-          esp_chip_info_t chip_info;
+    const uint8_t   MAJOR_VERSION = 3;
+    const uint8_t   MINOR_VERSION = 1;
+    const uint8_t   PATCH_VERSION = 1;
+    const char      NAME[]        = "Ghost Rover 3";
+    const uint32_t  SERIAL_USB_SPEED = 115200;   // Serial USB speed.
+    const uint64_t  START_DELAY = 4000000;       // 4 second startup delay.
+    esp_chip_info_t chip_info;
 
     // --- Run. ---
     startTime = esp_timer_get_time();
-    ws2812LedColor = WHITE;
+    ws2812LedColor = YELLOW;
     ws2812LedBlink = false;
     statusLedOn();
     Serial.begin(SERIAL_USB_SPEED);
     serialState[0] = 'u';   // Serial USB is up [u] [S0] [S1] [S2].
     esp_chip_info(&chip_info);
     sprintf(buildString, "%u.%u.%u - %s @ %s", MAJOR_VERSION, MINOR_VERSION, PATCH_VERSION, __DATE__, __TIME__);
-    Serial.printf("\n%s\n%s\n", NAME, buildString);
+    while ((esp_timer_get_time() - startTime) < START_DELAY) {
+        vTaskDelay(1);  // busy-wait; yield to RTOS if needed
+    }
+    ws2812LedColor = WHITE;
+    Serial.print("\033[2J");   // Clear screen.
+    Serial.printf("%s\n%s\n", NAME, buildString);
     Serial.printf("Using %s, Rev %d, %d core(s), ID (MAC) %012llX.\n", ESP.getChipModel(), chip_info.revision, chip_info.cores, ESP.getEfuseMac());
     Serial.println("setup() started.");
     Serial.printf("Serial (USB) started @ %u bps.\n", SERIAL_USB_SPEED);
@@ -1192,7 +1309,7 @@ void startWiFi() {
     WiFi.softAPsetHostname(AP_NAME);                                // Set hostname.
     WiFi.onEvent(onWiFiEvent);                                      // Add WiFiEvent() as event handler.
     IPAddress ip = WiFi.softAPIP();                                 // Start WiFi & check status (get IP).
-    Serial.printf("WiFi AP \"%s\" started @ %d.%d.%d.%d.\n", AP_SSID, ip[0], ip[1], ip[2], ip[3]);
+    Serial.printf("WiFi AP mode \"%s\" started @ %d.%d.%d.%d.\n", AP_SSID, ip[0], ip[1], ip[2], ip[3]);
 
     // --- Cellular hotspot client. ---
 
@@ -1226,7 +1343,7 @@ void startWiFi() {
             Serial.printf(", max trys exceeded, not connected.\n", prfHotSsi);
         }
     } else {
-        Serial.println("Internet WiFi STA not started (required only for RCTM in via NTRIP).");
+        Serial.println("(use WiFi STA mode for RCTM in via NTRIP).");
     }
 }
 
@@ -1602,7 +1719,7 @@ void onWiFiEvent(WiFiEvent_t event) {
 
 /**
  * ------------------------------------------------
- *      httpServer endpoint "/upload".
+ *      HTTP server endpoint "/upload".
  * ------------------------------------------------
  *
  * Upload a file to the SD card.
@@ -2117,6 +2234,7 @@ void checkZED() {
  * @since  3.0.11 [2026-01-14-09:00am] Global serialChar to local inputChar.
  * @since  3.0.11 [2026-01-15-12:45pm] RTCM_TIMEOUT changed from ms to us.
  * @since  3.0.12 [2026-02-01-12:35pm] Check prfRtcIn preference.
+ * @since  3.1.1  [2026-06-25-10:30pm] Refactor.
  * @see    Global vars: Serial, startSerialInterfaces(), loop().
  * @link   https://github.com/sparkfun/SparkFun_u-blox_GNSS_v3/blob/main/examples/ZED-F9P/Example3_StartRTCMBase/Example3_StartRTCMBase.ino.
  * @link   https://www.use-snip.com/kb/knowledge-base/an-rtcm-message-cheat-sheet/.
@@ -2132,7 +2250,6 @@ void relaySerial1toSerial2() {
     
     // --- Local vars. ---
     const  uint16_t RTCM_TIMEOUT      = 3000000;            // Time (us) not to exceed for RTCM input received (3 sec).
-    static uint8_t  preamble          =       0;
     static uint16_t byteCount         =       0;
     static int64_t  lastRTCMtime      =       0;            // Last time (us) when RTCM input received.
     static char     rtcmSentence[300] =  {'\0'};            // RTCM3 sentence buffer.
@@ -2141,7 +2258,7 @@ void relaySerial1toSerial2() {
     // --- Check for Radio down. Set RTCMin state. ---
     if ((esp_timer_get_time()-lastRTCMtime) > RTCM_TIMEOUT) {       // RTCM received within RTCM_TIMEOUT?
         RTCMin = false;
-        ws2812LedColor = RED;
+        ws2812LedColor = GREEN;
         ws2812LedBlink = false;
     }
 
@@ -2149,29 +2266,26 @@ void relaySerial1toSerial2() {
     if (Serial1.available() > 0) {                                  // HC-12 data to read?
         char inputChar = Serial1.read();                            // Read a character from Serial1 (HC-12) @ SERIAL1_SPEED.
         Serial2.write(inputChar);                                   // Write a character to Serial2 (ZED UART2) @ SERIAL2_SPEED.
-        // Serial.printf("[%x]",inputChar);
-        if (inputChar == 0xd3) {                                    // Look for preamble (beginning of RTCM3 sentence).
-            preamble = (preamble == 0) ? 1 : 2;                     // First (1) or new (2) preamble?
-        }
-        if (preamble == 1) {                                        // First preamble.
-            rtcmSentence[byteCount] = inputChar;                    // Add byte to sentence buffer.
-            byteCount++;                                            // Increment byte counter.
-             ws2812LedColor = GREEN;
-             ws2812LedBlink = true;
-        } else if (preamble == 2) {                                 // New Preamble.
-            if (commandFlag[DEBUG_RTCM]) {                          // Debug.
+        rtcmSentence[byteCount] = inputChar;
+        RTCMin = true;
+        ws2812LedColor = GREEN;
+        ws2812LedBlink = true;
+        if (commandFlag[DEBUG_RTCM]) {                          // Debug.
+            if (inputChar == 0xd3) {
                 msg_type = rtcm3GetMessageType(rtcmSentence);       // Parse message type.
                 uint16_t RTCMinterval = ((esp_timer_get_time()-lastRTCMtime)/1000);
-                Serial.printf("\nRTCM3 %ld (%u ms): %i bytes.\n", msg_type, RTCMinterval, byteCount);
-                for (size_t i = 0; i < byteCount; i++) {
-                    Serial.printf("%02x ", rtcmSentence[i]);
-                }
-                Serial.println();
+                // for (size_t i = 0; i < byteCount; i++) {
+                //     Serial.printf("[%02x] ", rtcmSentence[i]);
+                // }
+                Serial.printf("\nRTCM3 %ld (%u ms): %i bytes.\n\nd3 ", msg_type, RTCMinterval, byteCount);
+                lastRTCMtime = esp_timer_get_time();                    // Used to check for timeout.
+                memset(rtcmSentence, '\0', sizeof(rtcmSentence));       // Clear the RTCM3 sentence buffer.
+                rtcmSentence[0] = 0xd3;
+                byteCount = 1;
+            } else {
+                Serial.printf("%02x ", inputChar);
+                byteCount++;
             }
-            byteCount = 0;
-            preamble  = 0;
-            memset(rtcmSentence, '\0', sizeof(rtcmSentence));       // Clear the RTCM3 sentence buffer.
-            lastRTCMtime = esp_timer_get_time();                    // Used to check for timeout.
         }
     }
 }
@@ -2287,6 +2401,7 @@ void checkSerialUSB() {
  * @since  3.0.11 [2026-01-12-10:00pm] Added checkWire1.
  * @since  3.0.11 [2026-01-15-10:45am] Moved THROTTLE_DEBUG from global to local var.
  * @since  3.0.11 [2026-01-22-02:00pm] Add DEBUG_TEMP.
+ * @since  3.1.1  [2026-06-25-04:00pm] Change DEBUG_SER output.
  * @see    checkSerialUSB().
  */
 void debug() {
@@ -2383,7 +2498,7 @@ void debug() {
     if (commandFlag[DEBUG_SER]) {
         // - Serial state (d,u). -
         Serial.printf(
-            "USB %c  Serial0 (unused) %c serial1 (&rarr; HC12) %c  serial2 (ZED UART2 &rarr;) %c\n",
+            "Serial USB %c  Serial0 (not used) %c serial1 (RTCMin -> HC12) %c  serial2 (RTCMout -> ZED UART2) %c\n",
             serialState[0],        // Serial USB.
             serialState[1],        // Serial0.
             serialState[2],        // Serial1.
@@ -2422,13 +2537,9 @@ void debug() {
         Serial.print("Wire 1 is ");
         if (status != 0) {
             Serial.printf("down. Error = %i. \n", status);
-            ws2812LedColor = RED;
-            ws2812LedBlink = false;
             i2cUp = false;                                      // Slave is down.
             startI2C();                                         // Restart Wire1.
         } else {                                                // 0 = success (slave ACKed).
-            ws2812LedColor = WHITE;
-            ws2812LedBlink = false;
             i2cUp = true;                                       // Slave is up, successful write.
             Serial.println("up.");
         }
@@ -2520,10 +2631,10 @@ void setup() {
  */
 
 void loop() {
-    checkZED();                         // NMEA - Check ZED to trigger DevUBLOXGNSS::processNMEA().
-    relaySerial1toSerial2();            // RTCM - Relay from Serial1 (HC-12 radio) to Serial2 (ZED UART2).
-    checkSerialUSB();                   // Check serial USB for input.
-    // checkGnssLockButton();           // Check GNSS lock button. // ToDo: implement.
-    ws.cleanupClients();                // HTTP WebSocket cleanup.
-    debug();                            // Display debug.
+    checkZED();                 // NMEA - Check ZED to trigger DevUBLOXGNSS::processNMEA().
+    relaySerial1toSerial2();    // RTCM - Relay from Serial1 (HC-12 radio) to Serial2 (ZED UART2).
+    checkSerialUSB();           // Check serial USB for input.
+    // checkGnssLockButton();      // Check GNSS lock button.  // ToDo: Implement.
+    ws.cleanupClients();        // HTTP WebSocket cleanup.
+    debug();                    // Display debug.
 }

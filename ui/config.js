@@ -16,6 +16,8 @@
  * @since  3.0.12 [2026-02-25-05:45pm] Websocket send - preserve KV pair order by changing JSON data to array.
  * @since  3.0.12 [2026-02-26-10:30am] Check for missing preference.
  * @since  3.1.0  [2026-03-02-05:00pm] Stable 3.0 version.
+ * @since  3.1.0  [2026-03-20-11:45am] Update var names, add pole height.
+ * @since  3.1.1  [2026-06-25-02:00pm] Regroup: upload to SD card.
  * @link   http://dougfoster.me.
 */
 
@@ -24,12 +26,13 @@
  *                                Global vars.
  * ============================================================================
  *
- * @since 3.0.12 [2026-01-31-01:30pm] New.
- * @since 3.0.12 [2026-02-01-02:00pm] Shortened names.
- * @since 3.0.12 [2026-02-06-10:45pm] Add reset.
- * @since 3.0.12 [2026-02-07-11:00am] Add clearMessageField().
- * @since 3.0.12 [2026-02-21-03:30pm] Remove GET_PREFS.
+ * @since 3.0.12  [2026-01-31-01:30pm] New.
+ * @since 3.0.12  [2026-02-01-02:00pm] Shortened names.
+ * @since 3.0.12  [2026-02-06-10:45pm] Add reset.
+ * @since 3.0.12  [2026-02-07-11:00am] Add clearMessageField().
+ * @since 3.0.12  [2026-02-21-03:30pm] Remove GET_PREFS.
  * @since  3.0.12 [2026-02-25-05:45pm] Websocket send - preserve KV pair order by changing JSON data to array.
+ * @since  3.1.0  [2026-03-20-12:00pm] Pole heights.
  */
 
 const gnssMeasureInterval = document.querySelector('#config #gnss-measure-interval');
@@ -42,6 +45,17 @@ const resetConfigBtn      = document.querySelector('#config #reset-config-btn');
 const messageForm         = document.querySelector('#config #message-form');
 const formConfig          = document.querySelector('form#config');
 const jsConsoleMessages   = document.querySelector('#js-console-messages input');
+const ghostRoverHeight    = document.querySelector('#config #ghostrover-height');
+const poleSelect          = document.querySelector('#config #pole-select');
+const poleSelectGrip      = document.querySelector('#config #pole-select #grip');
+const poleSelectXYZ0      = document.querySelector('#config #pole-select #xyzPole-0');
+const poleSelectXYZ1      = document.querySelector('#config #pole-select #xyzPole-1');
+const poleSelectXYZ2      = document.querySelector('#config #pole-select #xyzPole-2');
+const poleSelectXYZ3      = document.querySelector('#config #pole-select #xyzPole-3');
+const poleHeightPreset    = document.querySelector('#config #pole-height-preset');
+const poleHeight          = document.querySelector('#config #pole-height');
+const instrumentHeight    = document.querySelector('#config #instrument-height');
+const heightUnitsVal      = document.querySelector('#config #height-units');
 const THIS_PAGE           = '[{"page":"config"}]';
 const RESET_PREFS         = '[{"config":"reset"}]';
         
@@ -54,9 +68,9 @@ const RESET_PREFS         = '[{"config":"reset"}]';
  * @since 3.0.12 [2026-02-07-07:30am] Add THIS_PAGE.
  * @see   update()            - Update server.
  * @see   clearMessageField() - Clear message field.
- * @see   prefsMessage()      - Clear message field.
  * @see   uiToPrefs()         - Get UI values, return as JSON formatted string.
  * @see   prefsMessage()      - Parse WebSocket message, update UI elements.
+ * @see   setHeights()        - Set & compute instrument height values.
  */
 
 /**
@@ -67,7 +81,7 @@ const RESET_PREFS         = '[{"config":"reset"}]';
  * @return void  No output is returned.
  * @since  3.0.12 [2026-01-31-03:30pm] New.
  * @since  3.0.12 [2026-02-21-03:30pm] Remove GET_PREFS.
- * @see    openedWebSocket() in global.js. Update() is different for every page.js.
+ * @see    webSocketOpened() in global.js. Update() is different for every page.js.
  */
 function update() {
     websocket.send(THIS_PAGE);  // Send THIS_PAGE message.
@@ -96,19 +110,21 @@ function clearMessageField() {
  * @since  3.0.12 [2026-02-01-02:00pm] Shortened names.
  * @since  3.0.12 [2026-02-22-04:30pm] Change JSON keys from string to alpha integer.
  * @since  3.0.12 [2026-02-25-05:45pm] Websocket send - preserve KV pair order by changing JSON data to array.
+ * @since  3.1.0  [2026-03-20-12:15pm] Pole heights.
  * @see    Global vars in global.js.
  */
 function uiToPrefs() {
     return JSON.stringify( [
-        {'config' : 'set'},
-        {'1'      : document.querySelector('input[name="switch-unit"]:checked')?.value,     // 1. prfUnt.
-        '2'       : document.querySelector('input[name="switch-rtcm-in"]:checked')?.value,   // 2. prfRtcIn.
-        '3'       : document.querySelector('input[name="switch-nmea-out"]:checked')?.value,  // 3. prfNmeOut.
-        '4'       : gnssMeasureInterval.value,                                               // 4. prfGnsMsrInt
-        '5'       : gnssNavRate.value,                                                       // 5. prfGnsNavRat.
-        '6'       : hotspotSsid.value,                                                       // 6. prfHotSsi
-        '7'       : hotspotPassword.value                                                    // 7. prfHotPas
-    }] );
+        {'config' : 'set'}, 
+        { '1'     : document.querySelector('input[name="switch-unit"]:checked')?.value,      //  1. prfUnt.
+          '2'     : document.querySelector('input[name="switch-rtcm-in"]:checked')?.value,   //  2. prfRtcIn.
+          '3'     : document.querySelector('input[name="switch-nmea-out"]:checked')?.value,  //  3. prfNmeOut.
+          '4'     : gnssMeasureInterval.value,                                               //  4. prfGnsMsrInt
+          '5'     : gnssNavRate.value,                                                       //  5. prfGnsNavRat.
+          '6'     : hotspotSsid.value,                                                       //  6. prfHotSsi.
+          '7'     : hotspotPassword.value,                                                   //  7. prfHotPas.
+         '36'     : poleSelect.value                                                         // 36. prfPolHght.
+    }] )
 }
 
 /**
@@ -121,7 +137,7 @@ function uiToPrefs() {
  * @since  3.0.12 [2026-02-01-02:00pm] Shortened names.
  * @since  3.0.12 [2026-02-22-04:30pm] Change JSON keys from string to alpha integer.
  * @since  3.0.12 [2026-02-26-10:30am] Check for missing preference.
- * @see    messageRcvWebSocket() in global.js.
+ * @see    webSocketRcvMessage() in global.js.
  */
 function prefsMessage(key, value) {
     if ("" === value) {
@@ -132,6 +148,9 @@ function prefsMessage(key, value) {
         case wsKey.WS_PREF_UNIT:                    // 1. prfUnt.
             prfUnt = value;
             document.querySelector('input[name="switch-unit"][value="' + value + '"]').checked = true;
+            if ('feet' === prfUnt) {
+                heightUnits = 'in';
+            };
             break;
         case wsKey.WS_PREF_RTCM_IN:                 // 2. prfRtcIn.
             prfRtcIn = value;
@@ -159,9 +178,84 @@ function prefsMessage(key, value) {
             prfHotPas = value;
             hotspotPassword.value = value;
             break;
+        case wsKey.WS_POLE_HEIGHT:                  // 36. prfPolHght.
+            prfPolHght = value;
+            heightPole = value;
+            poleSelect.value = value;
+            break;
         case 'config':                              // browser <-- {"config":"some message"}
             messageForm.textContent = value;        // 'Config saved. Rover updated/reset.'
     }
+}
+
+/**
+ * Set & compute instrument height values.
+ *
+ * const heightUnitsVal      = document.querySelector('#config #height-units');
+ * const ghostRoverHeight    = document.querySelector('#config #ghostrover-height');
+ * const poleSelect          = document.querySelector('#config #pole-select');
+ * const poleSelectGrip      = document.querySelector('#config #pole-select #grip');
+ * const poleSelectXYZ0      = document.querySelector('#config #pole-select #xyzPole-0');
+ * const poleSelectXYZ1      = document.querySelector('#config #pole-select #xyzPole-1');
+ * const poleSelectXYZ2      = document.querySelector('#config #pole-select #xyzPole-2');
+ * const poleSelectXYZ3      = document.querySelector('#config #pole-select #xyzPole-3');
+ * const poleHeightPreset    = document.querySelector('#config #pole-height-preset');
+ * const poleHeight          = document.querySelector('#config #pole-height');
+ * const instrumentHeight    = document.querySelector('#config #instrument-height');
+ * const jsConsoleMessages   = document.querySelector('#js-console-messages input');
+ *
+ * @param  string action Action to take.
+ * @return void No output is returned.
+ * @since  3.1.0 [2026-03-08] New.
+ * @since  3.1.0 [2026-03-19-11:00am] Update var names.
+ * @since  3.1.0 [2026-03-20-12:45pm] Pole heights.
+ * @since  3.1.0 [2026-03-21-10:45pm] Refactor.
+ * @see    global.js.
+ */
+function setHeights(action) {
+
+    switch (action) {
+        case 'init':
+            heightUnitsVal.textContent   = heightUnits;
+            ghostRoverHeight.textContent = HEIGHT_ROVER;
+            poleSelectGrip.value         = HEIGHT_GRIP_TRIPOD;
+            poleSelectXYZ0.value         = HEIGHT_XYZPOLE_0;
+            poleSelectXYZ1.value         = HEIGHT_XYZPOLE_1;
+            poleSelectXYZ2.value         = HEIGHT_XYZPOLE_2;
+            poleSelectXYZ3.value         = HEIGHT_XYZPOLE_3;
+            // heightPole = NVS height from WebSocket.
+
+            // if heightPole = 0,
+            // then poleHeightPreset & poleHeight & heightPole = 0.
+
+            // if NVS height from WebSocket matches one of the poleSelect... values, 
+            // then poleSelect.value & poleHeightPreset & poleHeight = heightPole.
+            // else poleSelect.value = 0, set poleHeightPreset & poleHeight = heightPole. 
+            if ('0' === poleSelect.value) {                 // Default "custom" pole height value.
+                poleHeightPreset.textContent = '0';
+                poleHeight.value = '0';
+                heightPole = 0;
+            }
+            break;
+        case 'change':
+            if ('0' === poleSelect.value) {                 // "Custom" pole height option.
+                poleHeightPreset.classList.add('hide');
+                poleHeight.classList.remove('hide');
+            } else {
+                poleHeightPreset.classList.remove('hide');
+                poleHeight.classList.add('hide');           // "Standard" pole height option.
+            }
+            heightPole = parseFloat(poleSelect.value);
+            poleHeightPreset.textContent = heightPole.toLocaleString();
+            poleHeight.value             = heightPole.toLocaleString();
+            break;
+        case 'compute':
+            heightPole = parseFloat(poleHeight.value);
+            poleHeight.value = heightPole.toLocaleString();
+            break;
+    }
+    instrumentHeight.textContent = (HEIGHT_ROVER + heightPole).toLocaleString();
+    messageForm.textContent = 'Instrument height calculated.';
 }
 
 /**
@@ -180,11 +274,14 @@ function prefsMessage(key, value) {
  * @return void  No output is returned.
  * @since  3.0.12 [2026-01-31-01:30pm] New.
  * @since  3.0.12 [2026-02-07-11:00am] Add clearMessageField().
- * @see    initWebSocket() in global.js.
+ * @since  3.1.0  [2026-03-08-12:30pm] Add setHeights().
+ * @since  3.1.0  [2026-03-20-11:15am] Update var names.
+ * @see    global.js: Global vars & webSocketInit().
  */
  document.addEventListener('DOMContentLoaded', () => {
-    initWebSocket();
+    webSocketInit();
     clearMessageField();
+    setHeights('init');
 
     // --- Console debug. ---
     console.log('Show console messages is "' + sessionStorage.getItem("displayJsConsoleMessages") + '".');
@@ -261,6 +358,15 @@ jsConsoleMessages.addEventListener('change', () => {
     }
     console.log('Show console messages is "' + sessionStorage.getItem("displayJsConsoleMessages") + '".');
 });
+
+poleSelect.addEventListener('change', () => {
+    setHeights('change');
+});
+
+poleHeight.addEventListener('blur', () => {
+    setHeights('compute');
+});
+
 
 /**
  * ============================================================================

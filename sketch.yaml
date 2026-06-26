@@ -1,5 +1,5 @@
 profiles:
-  ESP32-S3-mobile:
+  ESP32-S3:
     fqbn: esp32:esp32:sparkfun_esp32s3_thing_plus:UploadSpeed=460800,USBMode=default,CDCOnBoot=cdc,MSCOnBoot=default,DFUOnBoot=default,UploadMode=default,CPUFreq=240,FlashMode=qio,PartitionScheme=no_fs,DebugLevel=none,PSRAM=enabled,LoopCore=1,EventsCore=1,EraseFlash=none,JTAGAdapter=builtin,ZigbeeMode=default
     platforms:
       - platform: esp32:esp32 (3.3.3)
@@ -12,31 +12,11 @@ profiles:
       stop_bits: "1"
     port: /dev/cu.usbmodem21101
     libraries:
-      - Async TCP (3.4.9)
-      - ESP Async WebServer (3.9.2)
+      - Async TCP (3.4.10)
+      - ESP Async WebServer (3.11.1)
       - SparkFun MAX1704x Fuel Gauge Arduino Library (1.0.4)
-      - SparkFun u-blox GNSS v3 (3.1.13)
-      - ArduinoJson (7.4.2)
+      - SparkFun u-blox GNSS v3 (3.1.14)
+      - ArduinoJson (7.4.3)
       - Sqlite3Esp32 (2.5.0)
     notes: Next version of https://github.com/doug-foster/DougFoster_Ghost_Rover/.
-  ESP32-S3:
-    fqbn: esp32:esp32:sparkfun_esp32s3_thing_plus:UploadSpeed=460800,USBMode=default,CDCOnBoot=cdc,MSCOnBoot=default,DFUOnBoot=default,UploadMode=default,CPUFreq=240,FlashMode=qio,PartitionScheme=no_fs,DebugLevel=none,PSRAM=enabled,LoopCore=1,EventsCore=1,EraseFlash=none,JTAGAdapter=builtin,ZigbeeMode=default
-    platforms:
-      - platform: esp32:esp32 (3.3.3)
-    programmer: ""
-    port_config:
-      baudrate: "115200"
-      lineEnding: "\r\n"
-      bits: "8"
-      parity: none
-      stop_bits: "1"
-    port: /dev/cu.usbmodem2141101
-    libraries:
-      - Async TCP (3.4.9)
-      - ESP Async WebServer (3.9.2)
-      - SparkFun MAX1704x Fuel Gauge Arduino Library (1.0.4)
-      - SparkFun u-blox GNSS v3 (3.1.13)
-      - ArduinoJson (7.4.2)
-      - Sqlite3Esp32 (2.5.0)
-    notes: Next version of https://github.com/doug-foster/DougFoster_Ghost_Rover/.
-default_profile: ESP32-S3-mobile
+default_profile: ESP32-S3

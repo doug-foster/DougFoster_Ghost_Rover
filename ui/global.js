@@ -11,11 +11,13 @@
  * @since  3.0.11 [2026-01-22-11:00am] Websocket tweaks.
  * @since  3.0.12 [2026-01-27-06:15pm] Changed wsEndpoint from static to dynamic.
  * @since  3.0.12 [2026-01-28-02:30pm] Cleanup.
- * @since  3.0.12 [2026-02-15-03:30pm] Moved reconnect from closedWebSocket().
+ * @since  3.0.12 [2026-02-15-03:30pm] Moved reconnect from webSocketClosed().
  * @since  3.0.12 [2026-02-17-10:00am] Change location to position.
  * @since  3.0.12 [2026-02-19-04:00pm] Removed leaving message.
  * @since  3.0.12 [2026-02-28-02:15pm] Add WS_SOCKET_NUM.
  * @since  3.1.0  [2026-03-02-05:00pm] Stable 3.0 version.
+ * @since  3.1.0  [2026-03-20-11:15am] Update var names.
+ * @since  3.1.1  [2026-06-25-02:00pm] Regroup: upload to SD card.
  * @link   http://dougfoster.me.
  * 
  * Websocket messages: See DougFoster_GhostRover.ino for exchange protocol.
@@ -29,7 +31,9 @@
  * @since  3.0.8 [2025-11-21-09:00am].
  * @since  3.0.12 [2026-02-09-01:45pm].
  * @since  3.0.12 [2026-02-28-02:15pm] Add WS_SOCKET_NUM.
- * @see    operateMessage() in operate.js
+ * @since  3.1.0  [2026-03-20-11:15am] Update var names.
+ * @see    operateMessage() in operate.js.
+ * @see    setHeights() in config.js.
  */
 
 // --- Test. ---
@@ -51,7 +55,7 @@ let batterySoc;
 // --- General. ---
 const newPage                 = document.querySelectorAll('a.new-page');
 const RECONNECT_INTERVAL      = 2000;    // Server reconnect interval.
-let wsNumBytesThisMessage     = 0;       // # of bytes in this WebSocket message. @see messageRcvWebSocket(). 
+let wsNumBytesThisMessage     = 0;       // # of bytes in this WebSocket message. @see webSocketRcvMessage(). 
 
 // --- Header. ---
 const ROVER_NAME              = 'GhostRover';
@@ -98,7 +102,8 @@ const wsKey = Object.freeze({       // wsKey.WS_VERSION
     WS_OPERATIONAL_MODE:            '32',
     WS_WIFI_LOCAL_NETWORK_IP:       '33',
     WS_WIFI_HOT_SPOT_IP:            '34',
-    WS_SOCKET_NUM:                  '35'
+    WS_SOCKET_NUM:                  '35',
+    WS_POLE_HEIGHT:                 '36'
 });
 
 // --- Preferences. ---
@@ -109,6 +114,26 @@ let prfGnsMsrInt = 0;
 let prfGnsNavRat = 0
 let prfHotSsi    = 0;
 let prfHotPas    = 0;
+let prfPolHght   = 0;
+
+// --- SFESPK6618H antenna phase center offsets. ---
+// https://community.sparkfun.com/t/spk6618h-antenna-north-marker/68211/5
+// Frequency  North Offset (mm)  East Offset (mm) Up Offset (mm)
+// L1 (GPS)	    +0.47	      -1.26	     48.02
+// L2 (GPS)	    +2.73	      -1.87	     35.91
+// L5 (GPS)	    +3.16	      -2.02	     36.91
+// Since North & East offsets are so small, ignore them.
+const HEIGHT_APC_TO_ARP      =   48;    // Antenna phase center to Antenna Reference Position height (mm).
+const HEIGHT_ARP_TO_QR_PLATE =   66;    // Antenna Reference Position to bottom of FALCAM F38 Quick Release plate height (mm).
+const HEIGHT_QR_RECEIVER     =    8;    // FALCAM F38 Quick Release receiver height (mm).
+const HEIGHT_GRIP_TRIPOD     =  165;    // Gun grip + washer + Zeadio tripod (mm).
+const HEIGHT_XYZPOLE_0       =  689;    // SingularXYZ pole - no extensions out (mm).
+const HEIGHT_XYZPOLE_1       = 1075;    // SingularXYZ pole - top 1 extension out (mm).
+const HEIGHT_XYZPOLE_2       = 1472;    // SingularXYZ pole - top 1 & 2 extensions out (mm).
+const HEIGHT_XYZPOLE_3       = 1819;    // SingularXYZ pole - all 3 extensions out (mm).
+const HEIGHT_ROVER           = HEIGHT_APC_TO_ARP + HEIGHT_ARP_TO_QR_PLATE + HEIGHT_QR_RECEIVER;  // 48 + 66 + 8 = 122.
+let heightUnits              = 'mm';
+let heightPole               =    0;    // mm.
 
 /**
  * ============================================================================
@@ -116,35 +141,45 @@ let prfHotPas    = 0;
  * ============================================================================
  *
  * @since  3.0.3 [2025-10-16-01:45pm].
+ * @since  3.1.0 [2026-03-20-11:15am] Update var names.
+ * @see   webSocketInit()       - WebSocket: init.
+ * @see   webSocketOpened()     - WebSocket: opened.
+ * @see   webSocketClosed()     - WebSocket: closed.
+ * @see   webSocketError()      - WebSocket: error.
+ * @see   webSocketStop()       - WebSocket: stopped.
+ * @see   webSocketRcvMessage() - WebSocket: message from server, what to do?
+ * 
  */
 
 /**
  * ------------------------------------------------
- *      Init WebSocket.
+ *      WebSocket: init.
  * ------------------------------------------------
  *
  * @return void  No output is returned.
  * @since  3.0.3 [2025-10-13-02:15pm].
+ * @since  3.1.0 [2026-03-20-11:15am] Update var names.
  */
-function initWebSocket() {
+function webSocketInit() {
     console.log('Opening new WebSocket ...');
     websocket           = new WebSocket(wsEndpoint);
-    websocket.onopen    = openedWebSocket;
-    websocket.onclose   = closedWebSocket;
-    websocket.onerror   = errorWebsocket;
-    websocket.onmessage = messageRcvWebSocket;
+    websocket.onopen    = webSocketOpened;
+    websocket.onclose   = webSocketClosed;
+    websocket.onerror   = webSocketError;
+    websocket.onmessage = webSocketRcvMessage;
 }
 
 /**
  * ------------------------------------------------
- *      WebSocket - opened.
+ *      WebSocket: opened.
  * ------------------------------------------------
  *
  * @return void  No output is returned.
  * @since. 3.0.7  [2025-11-15-12:30pm].
  * @since. 3.0.10 [2026-01-07-05:30pm] Removed ready handshake.
+ * @since  3.1.0  [2026-03-20-11:15am] Update var names.
  */
-function openedWebSocket(event) {
+function webSocketOpened(event) {
 
     // --- UI indicator that a WebSocket is now open. ---
     console.log('WebSocket opened to ' + wsEndpoint + '.');
@@ -155,15 +190,16 @@ function openedWebSocket(event) {
 
 /**
  * ------------------------------------------------
- *      WebSocket - closed.
+ *      WebSocket: closed.
  * ------------------------------------------------
  *
  * @return void  No output is returned.
  * @since  3.0.3  [2025-10-15-01:15pm] New.
  * @since  3.0.11 [2026-01-22-10:15am] Add reconnect.
  * @since  3.0.12 [2026-02-15-03:30pm] Moved reconnect to DOMContentLoaded event listener.
+ * @since  3.1.0  [2026-03-20-11:15am] Update var names.
  */
-function closedWebSocket(event) {
+function webSocketClosed(event) {
     console.log('WebSocket closed.');
     headerH1.textContent = 'No server';
     headerH1.classList.add('red');
@@ -171,20 +207,21 @@ function closedWebSocket(event) {
 
 /**
  * ------------------------------------------------
- *      WebSocket - error.
+ *      WebSocket: error.
  * ------------------------------------------------
  *
  * @return void  No output is returned.
  * @since  3.0.3 [2025-10-15-01:15pm].
+ * @since  3.1.0  [2026-03-20-11:15am] Update var names.
  */
-function errorWebsocket() {
+function webSocketError() {
     if (!headerH1.classList.contains('red')) {
         headerH1.classList.add('red');
     }
 }
 /**
  * ------------------------------------------------
- *      WebSocket - stopped.
+ *      WebSocket: stopped.
  * ------------------------------------------------
  * 
  * A new websocket is opened each time a page is loaded: and closed each time a page is left.
@@ -194,8 +231,9 @@ function errorWebsocket() {
  * @since  3.0.11 [2026-01-21-09:00am] Check websocket.readyState.
  * @since  3.0.12 [2026-01-31-03:15pm] Refactored.
  * @since  3.0.12 [2026-02-19-04:00pm] Removed leaving message.
+ * @since  3.1.0  [2026-03-20-11:15am] Update var names.
  */
-async function stopWebSocket(event) {
+async function webSocketStop(event) {
     let waitToClose = new Promise(function(resolve) {           // Link to new page was prevented.
         if ((websocket) && (1 == websocket.readyState)) {
             websocket.close();                                  // Close socket.
@@ -209,7 +247,7 @@ async function stopWebSocket(event) {
 
 /**
  * ------------------------------------------------
- *      WebSocket - message from server, what to do?
+ *      WebSocket: message from server, what to do?
  * ------------------------------------------------
  *
  * @return void  No output is returned.
@@ -218,10 +256,11 @@ async function stopWebSocket(event) {
  * @since  3.0.12 [2026-01-28-09:00pm] Add numWsMessages.
  * @since  3.0.12 [2026-01-30-05:00pm] Add prefsMessage().
  * @since  3.0.12 [2026-02-07-12:30pm] Add nmeaMessage().
+ * @since  3.1.0  [2026-03-20-11:15am] Update var names.
  * @see    operateMessage() in operate.js.
  * @see    filesMessage() in files.js.
  */
-function messageRcvWebSocket(event) {
+function webSocketRcvMessage(event) {
 
     // --- Process message. ---
     var myObj = JSON.parse(event.data);
@@ -271,6 +310,12 @@ function messageRcvWebSocket(event) {
                 case wsKey.WS_PREF_HOT_SPOT_PASS:
                     prfHotPas = value;
                     break;
+                case wsKey.WS_SOCKET_NUM:
+                    prfHotPas = value;
+                    break;
+                case wsKey.WS_POLE_HEIGHT:
+                    prfPolHght = value;
+                    break;
             }
 
             // -- Route each message to its page. --
@@ -302,9 +347,8 @@ function messageRcvWebSocket(event) {
  *
  * @return void   No output is returned.
  * @since  3.0.3  [2025-10-22-01:30pm].
- * @since  3.0.12 [2026-02-15-03:30pm] Moved reconnect from closedWebSocket().
+ * @since  3.0.12 [2026-02-15-03:30pm] Moved reconnect from webSocketClosed().
  */
-
 
  document.addEventListener('DOMContentLoaded', () => {
 
@@ -313,14 +357,14 @@ function messageRcvWebSocket(event) {
         page.addEventListener('click', (event) => {
             event.preventDefault();
             event.stopPropagation();
-            stopWebSocket(event);
+            webSocketStop(event);
         });
     });
 
      // --- Attempt to reconnect every RECONNECT_INTERVAL if no WebSocket connection. ---
     setInterval(() => {
         if (headerH1.classList.contains('red')) {
-            window.location.reload();       // Restart connection.
+            // window.location.reload();       // Restart connection.  // ToDo: temp for test
         }
     }, RECONNECT_INTERVAL);
 

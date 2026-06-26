@@ -10,6 +10,10 @@
  * @since  3.0.11 [2026-01-28-12:00pm] UI tweaks.
  * @since  3.0.12 [2026-02-08-08:30pm] Tweaks.
  * @since  3.1.0  [2026-03-02-05:00pm] Stable 3.0 version.
+ * @since  3.1.0  [2026-03-07-04:45pm] Instrument height.
+ * @since  3.1.0  [2026-03-18-06:00pm] Run time options.
+ * @since  3.1.0  [2026-03-20-12:00pm] Pole heights.
+ * @since  3.1.1  [2026-06-25-02:00pm] Regroup: upload to SD card.
  * @link   http://dougfoster.me.
 
 
@@ -19,32 +23,32 @@
 // -------------------------------------
 */
 
-/* --- Form. --- */
+/* --- Form --- */
 form#config * {
     font-size: 16px !important;
 }
 
-/* --- Switches. --- */
- #config {
+/* -- Form: switches. -- */
+#config {
     padding: 10px;
- }
-.config-grid-buttons {
+}
+#config .config-grid-buttons {
     display: grid;
     grid-template-rows: 1fr;
     grid-template-columns: 1fr 2fr;
 }
-.grid-item {
+#config .grid-item {
     display: flex;
     align-items: center;
     justify-content: left;
     margin: 6px 0;
     font-size: 17px;
 }
-.switch-field {
+#config .switch-field {
     display: flex;
     overflow: hidden;
 }
-.switch-field input {
+#config .switch-field input {
     position: absolute !important;
     clip: rect(0, 0, 0, 0);
     height: 1px;
@@ -52,7 +56,7 @@ form#config * {
     overflow: hidden;
     border: 0;
 }
-.switch-field label {
+#config .switch-field label {
     padding: 8px 16px;
     margin-right: -1px;
     background-color: var(--gray-4);
@@ -61,65 +65,69 @@ form#config * {
     border: 1px solid var(--gray-2);
     transition: all 0.1s ease-in-out;
 }
-.switch-field label:hover {
+#config .switch-field label:hover {
     cursor: pointer;
 }
-.switch-field input:checked + label {
+#config .switch-field input:checked + label {
     background-color: var(--green-2);
     box-shadow: none;
 }
-.switch-field label:first-of-type {
+#config .switch-field label:first-of-type {
     border-radius: var(--std-border-radius) 0 0 var(--std-border-radius);
 }
-.switch-field label:last-of-type {
+#config .switch-field label:last-of-type {
     border-radius: 0 var(--std-border-radius) var(--std-border-radius) 0;
 }
-/* --- Fields. --- */
-.config-grid-fields {
+/* -- Form: fields. -- */
+#config .config-grid-fields {
     display: grid;
     grid-template-columns: minmax(0, 3.5fr) minmax(0, 2fr);
     gap: 10px;
     margin-top: 10px;
 }
-#message-output-interval {
+#config #message-output-interval {
     grid-column: 1 / -1;
     width: 100%;
     box-sizing: border-box;
 }
-.config-grid-fields label {
+#config .config-grid-fields label {
     padding: 5px 5px 5px 0;
 }
-.config-grid-fields input {
+#config .config-grid-fields input {
     padding: 5px;
     border: 1px solid var(--gray-2);
     border-radius: 3px;
     font-size: 1rem;
 }
-/* --- Other. --- */
-#update-config-btn,
-#reset-config-btn {
+#config .config-grid-fields.field-group {
+    padding: 10px;
+    background-color: aliceblue;
+}
+
+/* --- Form: other. --- */
+#config #update-config-btn,
+#config #reset-config-btn {
     margin: 20px 0;
     width: 160px !important;
 }
-#update-config-btn.std-button,
-#reset-config-btn.std-button {
+#config #update-config-btn.std-button,
+#config #reset-config-btn.std-button {
     max-width: unset;
 }
-#reset-config-btn {
+#config #reset-config-btn {
     background-color: red;
     border-color: red;
 }
-#message-form,
-#message-output-interval {
+#config #message-form,
+#config #message-output-interval {
     margin: 10px auto;
     padding: 10px;
     background-color: var(--gray-4);
     font-family: 'Courier New', Courier, monospace;
 }
 
-/* Custom Checkbox - https://www.w3schools.com/howto/tryit.asp?filename=tryhow_css_custom_checkbox */
-
-/* The container */
+/* -- Checkbox - https://www.w3schools.com/howto/tryit.asp?filename=tryhow_css_custom_checkbox. -- */
+/* - Checkbox: container. - */
 .container {
   display: block;
   position: relative;
@@ -132,14 +140,12 @@ form#config * {
   -ms-user-select: none;
   user-select: none;
 }
-
 .container span:first-of-type {
     padding: 4px 0 5px 5px;
     font-size: 1rem;;
     display: block;
 }
-
-/* Hide the browser's default checkbox */
+/* - Checkbox: hide the browser's default checkbox. - */
 .container input {
   position: absolute;
   opacity: 0;
@@ -147,9 +153,8 @@ form#config * {
   height: 0;
   width: 0;
 }
-
-/* Create a custom checkbox */
-.checkmark {
+/* - Checkbox: custom checkbox. - */
+.container .checkmark {
   position: absolute;
   top: 0;
   left: 0;
@@ -159,26 +164,11 @@ form#config * {
   border-radius: 3px;
   border: 1px solid var(--gray-1);
 }
-
-/* When the checkbox is checked, add a blue background */
-.container input:checked ~ .checkmark {
-  background-color: black;
-}
-
-/* Create the checkmark/indicator (hidden when not checked) */
-.checkmark:after {
+/* - Checkbox: checkmark indicator. - */
+.container .checkmark:after {
   content: "";
   position: absolute;
   display: none;
-}
-
-/* Show the checkmark when checked */
-.container input:checked ~ .checkmark:after {
-  display: block;
-}
-
-/* Style the checkmark/indicator */
-.container .checkmark:after {
   left: 9px;
   top: 5px;
   width: 5px;
@@ -188,4 +178,55 @@ form#config * {
   -webkit-transform: rotate(45deg);
   -ms-transform: rotate(45deg);
   transform: rotate(45deg);
+}
+/* - Checkbox: If checked, background = blue. - */
+.container input:checked ~ .checkmark {
+  background-color: black;
+}
+/* - Checkbox: show the checkmark when checked. - */
+.container input:checked ~ .checkmark:after {
+  display: block;
+}
+
+/* -- Form: instrument height. -- */
+#instrument-heights .vcenter {
+    display: grid;
+    align-items: center;
+}
+#instrument-heights select {
+    padding: 3px;
+}
+#instrument-heights #ghostrover-height,
+#instrument-heights #pole-height,
+#instrument-heights option,
+#instrument-heights input {
+    text-align: right;
+}
+#instrument-heights #ghostrover-height,
+#instrument-heights #pole-height {
+    padding-right: 6px;
+}
+#instrument-heights #pole-select {
+    width: 170px;
+}
+#instrument-heights #pole-select option {
+    text-align: left;
+}
+#instrument-heights #instrument-height,
+#instrument-heights #pole-height-preset {
+    padding-right: 5px;
+    text-align: right;
+}
+
+/* --- Runtime options. --- */
+#runtime-options {
+    padding: 10px;
+}
+
+#pole-height-preset {
+    display: block !important;
+    border:1px dashed red;
+}
+#pole-height {
+    display: block !important;
 }

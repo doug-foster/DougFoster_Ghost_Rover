@@ -12,6 +12,10 @@
  * @since  3.0.12 [2026-02-08-06:30pm] Removed prfRqsPvtInt.
  * @since  3.0.12 [2026-02-21-12:00am] Add unit & build to header.
  * @since  3.1.0  [2026-03-02-05:00pm] Stable 3.0 version.
+ * @since  3.1.0  [2026-03-07-04:45pm] Instrument height.
+ * @since  3.1.0  [2026-03-18-06:00pm] Run time options.
+ * @since  3.1.0  [2026-03-20-12:00pm] Pole heights.
+ * @since  3.1.1  [2026-06-25-02:00pm] Regroup: upload to SD card.
  * @link   http://dougfoster.me.
 -->
 
@@ -62,42 +66,61 @@
                         <label for="nmea-on">On</label>
                     </div>
                 </div>
-                <div class="config-grid-fields">
-                    <!-- gnss.setMeasurementRate(100); -->
-                    <label for="gnss-measure-interval">GNSS measure every (ms) *</label>
-                    <select id="gnss-measure-interval">
-                        <option value="1000">1000 (1 Hz)</option>
-                        <option value="900">900</option>
-                        <option value="800">800</option>
-                        <option value="700">700</option>
-                        <option value="600">600</option>
-                        <option value="500">500 (2 Hz)</option>
-                        <option value="400">400</option>
-                        <option value="300">300</option>
-                        <option value="200">200 (5 Hz)</option>
-                        <option value="100">100 (10 Hz)</option>
-                        <option value="50">50 (20 Hz)</option>
+                <div class="config-grid-fields field-group">
+                        <!-- gnss.setMeasurementRate(100); -->
+                        <label for="gnss-measure-interval">GNSS measure every (ms) *</label>
+                        <select id="gnss-measure-interval">
+                            <option value="1000">1000 (1 Hz)</option>
+                            <option value="900">900</option>
+                            <option value="800">800</option>
+                            <option value="700">700</option>
+                            <option value="600">600</option>
+                            <option value="500">500 (2 Hz)</option>
+                            <option value="400">400</option>
+                            <option value="300">300</option>
+                            <option value="200">200 (5 Hz)</option>
+                            <option value="100">100 (10 Hz)</option>
+                            <option value="50">50 (20 Hz)</option>
+                        </select>
+                         <!-- gnss.setNavigationRate(1); -->
+                        <label for="gnss-nav-rate">Navigation rate *</label>
+                        <select id="gnss-nav-rate">
+                            <option value="1">1 Hz</option>
+                            <option value="2">2 Hz</option>
+                            <option value="3">3 Hz</option> 
+                            <option value="4">4 Hz</option>
+                            <option value="5">5 Hz</option>
+                            <option value="6">6 Hz</option>
+                            <option value="7">7 Hz</option>
+                            <option value="8">8 Hz</option>
+                            <option value="9">9 Hz</option>
+                            <option value="10">10 Hz</option>
+                        </select>
+                        <div id="message-output-interval">* Output PVT every <span id="output-interval"></span> ms.</div>
+                    </div>
+                    <div class="config-grid-fields field-group">
+                        <label for="hotspot-ssid">Hotspot SSID</label>
+                        <input type="text" id="hotspot-ssid" />
+                        <label for="hotspot-password">Hotspot password</label>
+                        <input type="text" id="hotspot-password"/>
+                    </div>
+                </div>
+                <div id="instrument-heights" class="config-grid-fields field-group" >
+                    <div>GhostRover (<span id="height-units">--</span>)</div>
+                    <div id="ghostrover-height"></div>
+                    <select id="pole-select">
+                        <option id="manual" value=0>Manual</option>
+                        <option id="grip" value=0>Hand grip</option>
+                        <option id="xyzPole-0" value=0>XYZ pole no extn</option>
+                        <option id="xyzPole-1" value=0>XYZ pole 1 extn </option>
+                        <option id="xyzPole-2" value=0>XYZ pole 1,2 extn</option>
+                        <option id="xyzPole-3" value=0>XYZ pole 1-3 extn</option>
                     </select>
-                <!-- gnss.setNavigationRate(1); -->
-                    <label for="gnss-nav-rate">Navigation rate *</label>
-                    <select id="gnss-nav-rate">
-                        <option value="1">1 Hz</option>
-                        <option value="2">2 Hz</option>
-                        <option value="3">3 Hz</option> 
-                        <option value="4">4 Hz</option>
-                        <option value="5">5 Hz</option>
-                        <option value="6">6 Hz</option>
-                        <option value="7">7 Hz</option>
-                        <option value="8">8 Hz</option>
-                        <option value="9">9 Hz</option>
-                        <option value="10">10 Hz</option>
-                    </select>
-                    <div id="message-output-interval">* Output PVT every <span id="output-interval"></span> ms.</div>
-
-                    <label for="hotspot-ssid">Hotspot SSID</label>
-                    <input type="text" id="hotspot-ssid" />
-                    <label for="hotspot-password">Hotspot password</label>
-                    <input type="text" id="hotspot-password"/>
+                    <div id="pole-height-preset"></div>
+                    <input id="pole-height" type="text"/>
+                    <!-- <div id="pole-height-preset" class="hide"></div> -->
+                    <div class="vcenter">Instrument height</div>
+                    <div id="instrument-height"></div>
                 </div>
                 <div id="update-config-btn" class="std-button">
                     <span class="label">Apply new values</span>
@@ -108,9 +131,11 @@
                 <div id="message-form">&nbsp;</div>  
             </section>
         </form>
-        <label id="js-console-messages" class="container"><span>Display WebSocket global JS console messages.</span>
-            <input type="checkbox">
-            <span class="checkmark"></span>
-        </label>
+        <div id="runtime-options">
+            <label id="js-console-messages" class="container"><span>Display WebSocket global console messages.</span>
+                <input type="checkbox">
+                <span class="checkmark"></span>
+            </label>
+        </div>
     </body>
 </html>

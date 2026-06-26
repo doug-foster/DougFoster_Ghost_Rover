@@ -19,6 +19,8 @@
  * @since  3.0.12 [2026-02-27-06:45pm] Add WebSocket #.
  * @since  3.0.12 [2026-02-28-02:15pm] Add WS_SOCKET_NUM.
  * @since  3.1.0  [2026-03-02-05:00pm] Stable 3.0 version.
+ * @since  3.1.0  [2026-03-20-11:15am] Update var names.
+ * @since  3.1.1  [2026-06-25-02:00pm] Regroup: upload to SD card.
  * @link   http://dougfoster.me.
 */
 
@@ -154,7 +156,7 @@ let convert = 1; // Conversion for default prfUnt = 'meter';
  * @since  3.0.11 [2026-01-21-10:00am] Changed "update" to "?".
  * @since  3.0.12 [2026-01-31-03:30pm] Used UPDATE.
  * @since  3.0.12 [2026-02-07-07:30am] Add THIS_PAGE.
- * @see    openedWebSocket() in global.js.
+ * @see    webSocketOpened() in global.js.
  */
 function update() {
 
@@ -212,7 +214,7 @@ function fix(state) {
     // -- Display values. --
     statusWsMessageCountId.innerHTML    = (wsMessageCountTotal++).toLocaleString();
     statusWsMessageIntervalId.innerHTML = (wsWindowInterval).toFixed(1);
-    statusWsMessageLengthId.innerHTML   = wsNumBytesThisMessage;  // @see messageRcvWebSocket() in global.js.
+    statusWsMessageLengthId.innerHTML   = wsNumBytesThisMessage;  // @see webSocketRcvMessage() in global.js.
     statusWsMessageRateId.innerHTML     = ((wsNumBytesThisMessage * 8) / (wsWindowInterval/1000) / 1024).toFixed(2);  // kbps.
 
     // -- Reset counters. --
@@ -562,7 +564,7 @@ function statusItem(which, value = null) {
  * @since  3.0.12 [2026-02-18-11:00pm] Shorten RTCM & NMEA status.
  * @since  3.0.12 [2026-02-25-09:45pm] Refactor, move into statusItem().
  * @since  3.0.12 [2026-02-28-02:15pm] Add WS_SOCKET_NUM.
- * @see    messageRcvWebSocket() in global.js.
+ * @see    webSocketRcvMessage() in global.js.
  */
 function operateMessage(key, value) {
 
@@ -711,6 +713,7 @@ function flashRtcm() {
  * @since  3.0.10 [2026-01-07-02:00pm] Add update.
  * @since  3.0.11 [2026-01-20-07:00pm] Change altitude to height.
  * @since  3.0.12 [2026-02-08-05:00pm] Add uptime timer.
+ * @since  3.1.0  [2026-03-20-11:15am] Update var names.
  * @see global.js.
  */
 
@@ -718,7 +721,7 @@ function flashRtcm() {
  document.addEventListener('DOMContentLoaded', () => {
 
     // --- Start WebSocket. ---
-    initWebSocket();
+    webSocketInit();
 
     // --- Uptime timer. ---
     startTime = Date.now();

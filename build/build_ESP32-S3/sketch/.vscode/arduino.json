@@ -11,7 +11,7 @@
   "compile_profile": "ESP32-S3",
   "monitorPortSettings": {
     "settings": {
-      "port": "/dev/tty.usbmodem2141401",
+      "port": "/dev/tty.usbmodem21101",
       "baudRate": 115200,
       "lineEnding": "\r\n",
       "dataBits": 8,

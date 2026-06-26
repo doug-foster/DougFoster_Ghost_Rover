@@ -1,6 +1,6 @@
 /Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/build/build_ESP32-S3/libraries/ESP\ Async\ WebServer/WebAuthentication.cpp.o: \
- /Users/dougfoster/Library/Arduino15/internal/ESP_Async_WebServer_3.9.2_58d2b346d0a0afeb/ESP\ Async\ WebServer/src/WebAuthentication.cpp \
- /Users/dougfoster/Library/Arduino15/internal/ESP_Async_WebServer_3.9.2_58d2b346d0a0afeb/ESP\ Async\ WebServer/src/WebAuthentication.h \
+ /Users/dougfoster/Library/Arduino15/internal/ESP_Async_WebServer_3.11.1_0fe8183a6224be3c/ESP\ Async\ WebServer/src/WebAuthentication.cpp \
+ /Users/dougfoster/Library/Arduino15/internal/ESP_Async_WebServer_3.11.1_0fe8183a6224be3c/ESP\ Async\ WebServer/src/WebAuthentication.h \
  /Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/cores/esp32/Arduino.h \
  /Users/dougfoster/Library/Arduino15/internal/esp32_esp32-arduino-libs_idf-release_v5.5-f1a1df9b-v3_a6193c21d0/esp32s3/include/newlib/platform_include/stdio.h \
  /Users/dougfoster/Library/Arduino15/internal/esp32_esp32-arduino-libs_idf-release_v5.5-f1a1df9b-v3_a6193c21d0/esp32s3/qio_qspi/include/sdkconfig.h \
@@ -170,7 +170,7 @@
  /Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/cores/esp32/freertos_stats.h \
  /Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/cores/esp32/io_pin_remap.h \
  /Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/cores/esp32/Arduino.h \
- /Users/dougfoster/Library/Arduino15/internal/ESP_Async_WebServer_3.9.2_58d2b346d0a0afeb/ESP\ Async\ WebServer/src/AsyncWebServerLogging.h \
+ /Users/dougfoster/Library/Arduino15/internal/ESP_Async_WebServer_3.11.1_0fe8183a6224be3c/ESP\ Async\ WebServer/src/AsyncWebServerLogging.h \
  /Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/cores/esp32/esp32-hal-log.h \
  /Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/cores/esp32/libb64/cencode.h \
  /Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/cores/esp32/MD5Builder.h \
@@ -178,4 +178,4 @@
  /Users/dougfoster/Library/Arduino15/internal/esp32_esp32-arduino-libs_idf-release_v5.5-f1a1df9b-v3_a6193c21d0/esp32s3/include/esp_rom/include/esp_rom_md5.h \
  /Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/cores/esp32/HashBuilder.h \
  /Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/cores/esp32/HEXBuilder.h \
- /Users/dougfoster/Library/Arduino15/internal/ESP_Async_WebServer_3.9.2_58d2b346d0a0afeb/ESP\ Async\ WebServer/src/./literals.h
+ /Users/dougfoster/Library/Arduino15/internal/ESP_Async_WebServer_3.11.1_0fe8183a6224be3c/ESP\ Async\ WebServer/src/./literals.h
