@@ -12,6 +12,7 @@
  * @since  3.0.11 [2026-01-28-03:30pm] UI tweaks & cleanup.
  * @since  3.1.0  [2026-03-02-05:00pm] Stable 3.0 version.
  * @since  3.1.1  [2026-06-25-02:00pm] Regroup: upload to SD card.
+ * @since  3.1.1  [2026-06-26-09:30pm] .hide {display: none !important;}.
  * @link   http://dougfoster.me.
 */
 
@@ -48,7 +49,7 @@ a {
     text-decoration: none;
 }
 .hide {
-    display: none;
+    display: none !important;
 }
 
 /**

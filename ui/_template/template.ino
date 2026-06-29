@@ -90,7 +90,7 @@
  *     other()                      // Description.
  * --- Event handlers. ---
  *     -- Other()                   // Description.
- *        - Description.
+ *        - Comments.
  */
 
 /**
@@ -111,32 +111,32 @@
  * @since 3.0.12 [2026-02-20-09:00am] New.
  * 
  * --- Unsigned integer. ---
- * uint8_t                      %u         8 bits = 1 byte,  0 to 255.
- * uint16_t/unsigned short      %u        16 bits = 2 bytes, 0 to 65,535.
- * uint32_t/unsigned long       %u,%lu    32 bits = 4 bytes, 0 to 4,294,967,295.
- * size_t (size,length,count)   %zu       32 bits = 4 bytes, 0 to 4,294,967,295.
- * uint64_t/unsigned long long  %llu      64 bits = 8 bytes, 0 to 18,446,744,073,709,551,615.
+ *     uint8_t                      %u         8 bits = 1 byte,  0 to 255.
+ *     uint16_t/unsigned short      %u        16 bits = 2 bytes, 0 to 65,535.
+ *     uint32_t/unsigned long       %u,%lu    32 bits = 4 bytes, 0 to 4,294,967,295.
+ *     size_t (size,length,count)   %zu       32 bits = 4 bytes, 0 to 4,294,967,295.
+ *     uint64_t/unsigned long long  %llu      64 bits = 8 bytes, 0 to 18,446,744,073,709,551,615.
  *
  * --- Signed integer. ---
- * int8_t                       %d         8 bits = 1 byte,            -128 to 127.
- * int16_t/short                %d        16 bits = 2 bytes,        -32,768 to 32,767.
- * int32_t/int/long             %d,%ld    32 bits = 4 bytes, -2,147,483,648 to 2,147,483,647.
- * int64_t/long long            %lld      64 bits = 8 bytes,      -9.22e+18 to 9.22e+18.
+ *     int8_t                       %d         8 bits = 1 byte,            -128 to 127.
+ *     int16_t/short                %d        16 bits = 2 bytes,        -32,768 to 32,767.
+ *     int32_t/int/long             %d,%ld    32 bits = 4 bytes, -2,147,483,648 to 2,147,483,647.
+ *     int64_t/long long            %lld      64 bits = 8 bytes,      -9.22e+18 to 9.22e+18.
  *
  * --- Signed decimal/floating point. ---
- * float                        %f        32 bits = 4 bytes,   6-7 sig. digits (hardware),  -3.40e+38 to 3.40e+38).
- * double/long double           %f,%lf    64 bits = 8 bytes, 15-17 sig. digits (software), -1.79e+308 to 1.79e+308).
+ *     float                        %f        32 bits = 4 bytes,   6-7 sig. digits (hardware),  -3.40e+38 to 3.40e+38).
+ *     double/long double           %f,%lf    64 bits = 8 bytes, 15-17 sig. digits (software), -1.79e+308 to 1.79e+308).
  *
  * --- Character/text. ---
- * char (signed)                %c         8 bit = 1 byte,  -128 to 127.
- * unsigned char                %c         8 bit = 1 byte,     0 to 255.
+ *     char (signed)                %c         8 bit = 1 byte,  -128 to 127.
+ *     unsigned char                %c         8 bit = 1 byte,     0 to 255.
  *
  * --- Other. ---
- *  bool                        %d (0/1)   8 bit = 1 byte,  true or false.
- *  bool                        %s (text)  8 bit = 1 byte,  true or false.
- *  void                        n/a.
- *  array                       n/a.
- *  string                      %s
+ *     bool                        %d (0/1)   8 bit = 1 byte,  true or false.
+ *     bool                        %s (text)  8 bit = 1 byte,  true or false.
+ *     void                        n/a.
+ *     array                       n/a.
+ *     string                      %s
  */
 
 /**

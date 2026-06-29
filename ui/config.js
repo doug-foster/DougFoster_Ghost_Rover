@@ -18,6 +18,8 @@
  * @since  3.1.0  [2026-03-02-05:00pm] Stable 3.0 version.
  * @since  3.1.0  [2026-03-20-11:45am] Update var names, add pole height.
  * @since  3.1.1  [2026-06-25-02:00pm] Regroup: upload to SD card.
+ * @since  3.0.12 [2026-02-28-09:00pm] WS_PREF_GNSS_MESASURE_INTERVAL -> WS_PREF_GNSS_MEASURE_INTERVAL.
+ * @since  3.1.1 [2026-06-29-03:45pm] Refactor.
  * @link   http://dougfoster.me.
 */
 
@@ -47,6 +49,7 @@ const formConfig          = document.querySelector('form#config');
 const jsConsoleMessages   = document.querySelector('#js-console-messages input');
 const ghostRoverHeight    = document.querySelector('#config #ghostrover-height');
 const poleSelect          = document.querySelector('#config #pole-select');
+const poleSelectOptions   = document.querySelectorAll('#config #pole-select option');
 const poleSelectGrip      = document.querySelector('#config #pole-select #grip');
 const poleSelectXYZ0      = document.querySelector('#config #pole-select #xyzPole-0');
 const poleSelectXYZ1      = document.querySelector('#config #pole-select #xyzPole-1');
@@ -123,7 +126,7 @@ function uiToPrefs() {
           '5'     : gnssNavRate.value,                                                       //  5. prfGnsNavRat.
           '6'     : hotspotSsid.value,                                                       //  6. prfHotSsi.
           '7'     : hotspotPassword.value,                                                   //  7. prfHotPas.
-         '36'     : poleSelect.value                                                         // 36. prfPolHght.
+         '36'     : instrumentHeight.textContent.replace(',', '')                            // 36. prfInstrHght.
     }] )
 }
 
@@ -137,6 +140,7 @@ function uiToPrefs() {
  * @since  3.0.12 [2026-02-01-02:00pm] Shortened names.
  * @since  3.0.12 [2026-02-22-04:30pm] Change JSON keys from string to alpha integer.
  * @since  3.0.12 [2026-02-26-10:30am] Check for missing preference.
+ * @since  3.0.12 [2026-02-28-09:00pm] WS_PREF_GNSS_MESASURE_INTERVAL -> WS_PREF_GNSS_MEASURE_INTERVAL.
  * @see    webSocketRcvMessage() in global.js.
  */
 function prefsMessage(key, value) {
@@ -145,43 +149,42 @@ function prefsMessage(key, value) {
         resetConfigBtn.click();
     }
     switch (key) {     
-        case wsKey.WS_PREF_UNIT:                    // 1. prfUnt.
+        case wsKey.WS_PREF_UNIT:                            // 1. prfUnt.
             prfUnt = value;
             document.querySelector('input[name="switch-unit"][value="' + value + '"]').checked = true;
             if ('feet' === prfUnt) {
                 heightUnits = 'in';
             };
             break;
-        case wsKey.WS_PREF_RTCM_IN:                 // 2. prfRtcIn.
+        case wsKey.WS_PREF_RTCM_IN:                         // 2. prfRtcIn.
             prfRtcIn = value;
             document.querySelector('input[name="switch-rtcm-in"][value="' + value + '"]').checked = true;
             break;
-        case wsKey.WS_PREF_NMEA_OUT:                // 3. prfNmeOut.
+        case wsKey.WS_PREF_NMEA_OUT:                        // 3. prfNmeOut.
             prfNmeOut = value;
             document.querySelector('input[name="switch-nmea-out"][value="' + value + '"]').checked = true;
             break;
-        case wsKey.WS_PREF_GNSS_MESASURE_INTERVAL:  // 4. prfGnsMsrInt.
+        case wsKey.WS_PREF_GNSS_MEASURE_INTERVAL:           // 4. prfGnsMsrInt.
             prfGnsMsrInt = value;
             gnssMeasureInterval.value = value;
             outputInterval.textContent = gnssMeasureInterval.value * gnssNavRate.value ;
             break;
-        case wsKey.WS_PREF_GNSS_NAV_RATE:           // 5. prfGnsNavRat.
+        case wsKey.WS_PREF_GNSS_NAV_RATE:                   // 5. prfGnsNavRat.
             prfGnsNavRat = value;
             gnssNavRate.value = value;
             outputInterval.textContent = gnssMeasureInterval.value * gnssNavRate.value ;
             break;
-        case wsKey.WS_PREF_HOT_SPOT_SSID:           // 6. prfHotSsi.
+        case wsKey.WS_PREF_HOT_SPOT_SSID:                   // 6. prfHotSsi.
             prfHotSsi = value;
             hotspotSsid.value = value;
             break;
-        case wsKey.WS_PREF_HOT_SPOT_PASS:           // 7. prfHotPas.
+        case wsKey.WS_PREF_HOT_SPOT_PASS:                   // 7. prfHotPas.
             prfHotPas = value;
             hotspotPassword.value = value;
             break;
-        case wsKey.WS_POLE_HEIGHT:                  // 36. prfPolHght.
-            prfPolHght = value;
-            heightPole = value;
-            poleSelect.value = value;
+        case wsKey.WS_INSTRUMENT_HEIGHT:                    // 36. prfInstrHght.
+            prfInstrHght = value;
+            setHeights('init');
             break;
         case 'config':                              // browser <-- {"config":"some message"}
             messageForm.textContent = value;        // 'Config saved. Rover updated/reset.'
@@ -210,9 +213,12 @@ function prefsMessage(key, value) {
  * @since  3.1.0 [2026-03-19-11:00am] Update var names.
  * @since  3.1.0 [2026-03-20-12:45pm] Pole heights.
  * @since  3.1.0 [2026-03-21-10:45pm] Refactor.
+ * @since  3.1.1 [2026-06-29-03:45pm] Refactor.
  * @see    global.js.
  */
 function setHeights(action) {
+
+    let usedStdPoleHeight = false;
 
     switch (action) {
         case 'init':
@@ -223,38 +229,42 @@ function setHeights(action) {
             poleSelectXYZ1.value         = HEIGHT_XYZPOLE_1;
             poleSelectXYZ2.value         = HEIGHT_XYZPOLE_2;
             poleSelectXYZ3.value         = HEIGHT_XYZPOLE_3;
-            // heightPole = NVS height from WebSocket.
-
-            // if heightPole = 0,
-            // then poleHeightPreset & poleHeight & heightPole = 0.
-
-            // if NVS height from WebSocket matches one of the poleSelect... values, 
-            // then poleSelect.value & poleHeightPreset & poleHeight = heightPole.
-            // else poleSelect.value = 0, set poleHeightPreset & poleHeight = heightPole. 
-            if ('0' === poleSelect.value) {                 // Default "custom" pole height value.
-                poleHeightPreset.textContent = '0';
-                poleHeight.value = '0';
-                heightPole = 0;
+            instrumentHeight.textContent = prfInstrHght.toLocaleString();                           // NVS preference from WebSocket.
+            poleSelectOptions.forEach((option) => {                                                 // Loop all select options.
+                if ((parseInt(option.value) + HEIGHT_ROVER) == prfInstrHght) {
+                    if (0 !== parseInt(option.value)) {
+                        poleSelect.value = parseInt(option.value);                                  // Set select value to option used.
+                        poleHeightPreset.textContent = parseInt(option.value).toLocaleString();     // Display the selected option value.
+                        usedStdPoleHeight = true;                                                   // Set the flag for select option was/wasn't used.
+                    }
+                }
+            });
+            if(!usedStdPoleHeight) {                                                                // A select option was NOT used (non-standard - aka "custom" pole height).
+                poleHeightPreset.classList.add('hide');                                             // Value for the selected pole option - do not display.
+                poleHeight.value = (prfInstrHght - HEIGHT_ROVER).toLocaleString();                  // Calculate and display the "custom" pole height.
+                // ".toLocaleString()" will display numbers > 999 with a comma: e.g. 1,483 instead of 1483.
+            } else {                                                                                // A select option WAS used (standard pole height).
+                poleHeightPreset.classList.remove('hide');
+                poleHeight.classList.add('hide');
             }
             break;
         case 'change':
-            if ('0' === poleSelect.value) {                 // "Custom" pole height option.
+            if ('0' === poleSelect.value) {                                                         // "Custom" pole height option.
                 poleHeightPreset.classList.add('hide');
                 poleHeight.classList.remove('hide');
             } else {
                 poleHeightPreset.classList.remove('hide');
-                poleHeight.classList.add('hide');           // "Standard" pole height option.
+                poleHeight.classList.add('hide');                                                   // "Standard" pole height option.
             }
             heightPole = parseFloat(poleSelect.value);
-            poleHeightPreset.textContent = heightPole.toLocaleString();
-            poleHeight.value             = heightPole.toLocaleString();
+            poleHeightPreset.textContent = heightPole.toLocaleString();  
+            poleHeight.value             = heightPole;
+            instrumentHeight.textContent = (parseFloat(poleHeight.value.replace(',', '')) + parseFloat(HEIGHT_ROVER)).toLocaleString();
             break;
         case 'compute':
-            heightPole = parseFloat(poleHeight.value);
-            poleHeight.value = heightPole.toLocaleString();
+            instrumentHeight.textContent = (parseFloat(poleHeight.value.replace(',', '')) + parseFloat(HEIGHT_ROVER)).toLocaleString();  // Calculate a new instrument height.
             break;
     }
-    instrumentHeight.textContent = (HEIGHT_ROVER + heightPole).toLocaleString();
     messageForm.textContent = 'Instrument height calculated.';
 }
 
@@ -281,7 +291,6 @@ function setHeights(action) {
  document.addEventListener('DOMContentLoaded', () => {
     webSocketInit();
     clearMessageField();
-    setHeights('init');
 
     // --- Console debug. ---
     console.log('Show console messages is "' + sessionStorage.getItem("displayJsConsoleMessages") + '".');
@@ -335,6 +344,7 @@ resetConfigBtn.addEventListener('click', () => {
             websocket.send(RESET_PREFS);  // Send "reset" preferences message to rover.
             console.log('browser --> ' + RESET_PREFS);
             clearMessageField();
+            setHeights('change');
         } else {
             messageForm.textContent = 'Reset cancelled.';
             clearMessageField();
@@ -383,4 +393,6 @@ poleHeight.addEventListener('blur', () => {
  *
  * @since  3.0.12 [2026-01-31-01:30pm].
  */
+
+// Display a simple summary value for how often output happens. 
 outputInterval.textContent = gnssMeasureInterval.value * gnssNavRate.value ;

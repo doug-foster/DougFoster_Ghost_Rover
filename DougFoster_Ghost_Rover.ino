@@ -121,55 +121,55 @@
  *
  *  --- Docs. ---
  *  --- Include libraries. ---
- *     -- Core.
- *     -- Additional.
+ *      -- Core.
+ *      -- Additional.
  *  --- Global vars.---
- *     -- Pin assignments.
- *     -- LED.
- *     -- Battery.
- *     -- WiFi.
- *     -- HTTP.
- *     -- WebSocket.
- *     -- GNSS.
- *     -- Task handles.
- *     -- Operation.
- *     -- Preferences.
- *     -- Oper status.
- *     -- Declaration.
- *     -- Test.
+ *      -- Pin assignments.
+ *      -- LED.
+ *      -- Battery.
+ *      -- WiFi.
+ *      -- HTTP.
+ *      -- WebSocket.
+ *      -- GNSS.
+ *      -- Task handles.
+ *      -- Operation.
+ *      -- Preferences.
+ *      -- Oper status.
+ *      -- Declaration.
+ *      -- Test.
  *  --- General functions. ---
- *     -- wsKey()             - Replace [wsKey(WS_VERSION)] with ["0"], ["1"], etc.
- *     -- statusLedOn()       - Turn on status LED.
- *     -- prefUtility()       - Preference utility.
- *     -- operDataToJsonDoc() - Load "operate" page data into JSON doc.
+ *      -- wsKey()                     - Replace [wsKey(WS_PREF_UNIT)] with ["1"], etc.
+ *      -- statusLedOn()               - Turn on status LED.
+ *      -- prefUtility()               - Preference utility.
+ *      -- operDataToJsonDoc()         - Load "operate" page data into JSON doc.
  *  --- Setup functions. ---
- *     -- showBuild()            - Display build & processor info. Status LED is xxx.
- *     -- startSerial()          - Start serial interfaces.
- *     -- initPins()             - Initialize pins & pin values.
- *     -- startI2C()             - Start I2C wire interfaces.
- *     -- startLiPo()            - Start LiPo I2C interface.
- *     -- startWiFi()            - Start WiFi. Status LED is xxx.
- *     -- startSD()              - Start & test microSD card reader.
- *     -- startHttpServer()      - Start HTTP server.
- *     -- startWebSocketServer() - Start WebSocket server.
- *     -- startAndConfigGNSS()   - Start GNSS, config ZED settings.
- *     -- startTasks()           - Start tasks.
- *     -- preLoop()              - Prepare for loop().
+ *      -- showBuild()                 - Display build & processor info. Status LED is xxx.
+ *      -- startSerial()               - Start serial interfaces.
+ *      -- initPins()                  - Initialize pins & pin values.
+ *      -- startI2C()                  - Start I2C wire interfaces.
+ *      -- startLiPo()                 - Start LiPo I2C interface.
+ *      -- startWiFi()                 - Start WiFi. Status LED is xxx.
+ *      -- startSD()                   - Start & test microSD card reader.
+ *      -- startHttpServer()           - Start HTTP server.
+ *      -- startWebSocketServer()      - Start WebSocket server.
+ *      -- startAndConfigGNSS()        - Start GNSS, config ZED settings.
+ *      -- startTasks()                - Start tasks.
+ *      -- preLoop()                   - Prepare for loop().
  *  --- Task functions. ---
- *     -- taskLoopStatusLed() - Status LED for loop().
+ *      -- taskLoopStatusLed() - Status LED for loop().
  *  --- Event handlers. ---
- *     -- onWiFiEvent()               - WiFi task - event handler.
- *     -- onHttpFileUpload()          - HTTP server endpoint handler.
- *     -- onWebSocketEvent()          - Event - WebSocket event handler.
- *     -- onWebSocketMessage()        - Event - WebSocket message event handler.
- *     -- DevUBLOXGNSS::processNMEA() - DevUBLOXGNSS task - SparkFun_u-blox_GNSS_v3 library: process NMEA bytes.
+ *      -- onWiFiEvent()               - WiFi task - event handler.
+ *      -- onHttpFileUpload()          - HTTP server endpoint handler.
+ *      -- onWebSocketEvent()          - Event - WebSocket event handler.
+ *      -- onWebSocketMessage()        - Event - WebSocket message event handler.
+ *      -- DevUBLOXGNSS::processNMEA() - DevUBLOXGNSS task - SparkFun_u-blox_GNSS_v3 library: process NMEA bytes.
  *  --- Loop functions. ---
- *     -- checkZED()                - NMEA - Check ZED to trigger DevUBLOXGNSS::processNMEA().
- *     -- relaySerial1toSerial2()   - RTCM - Relay from Serial1 (HC-12 radio) to Serial2 (ZED UART2).
- *     -- rtcm3GetMessageType()     - RTCM - Return RTCM3 message type.
- *     -- checkSerialUSB()          - Check serial USB for input.
- *     -- debug()                   - Display debug.
- *     -- checkGnssLockButton()     - Check GNSS lock button (upPosition or downPosition). // ToDo: implement.
+ *      -- checkZED()                  - NMEA - Check ZED to trigger DevUBLOXGNSS::processNMEA().
+ *      -- relaySerial1toSerial2()     - RTCM - Relay from Serial1 (HC-12 radio) to Serial2 (ZED UART2).
+ *      -- rtcm3GetMessageType()       - RTCM - Return RTCM3 message type.
+ *      -- checkSerialUSB()            - Check serial USB for input.
+ *      -- debug()                     - Display debug.
+ *      -- checkGnssLockButton()       - Check GNSS lock button (upPosition or downPosition). // ToDo: implement.
  *  --- Setup. ---
  *  --- Loop. ---
  */
@@ -191,7 +191,7 @@
  *     Define loop() functions.
  * --- Run setup(). ---
  *     showBuild()                   // Display build & processor info.
- *     prefUtility(PREF_INIT)        // Check preferences.
+ *     prefUtility(PREF_INIT)        // Get preferences.
  *     startSerial()                 // Start serial interfaces.
  *     initPins()                    // Initialize pin modes & pin values.
  *     startI2C()                    // Start I2C wire interfaces.
@@ -265,32 +265,32 @@
  * @since 3.0.12 [2026-02-20-09:00am] New.
  * 
  * --- Unsigned integer. ---
- * uint8_t                      %u         8 bits = 1 byte,  0 to 255.
- * uint16_t/unsigned short      %u        16 bits = 2 bytes, 0 to 65,535.
- * uint32_t/unsigned long       %u,%lu    32 bits = 4 bytes, 0 to 4,294,967,295.
- * size_t (size,length,count)   %zu       32 bits = 4 bytes, 0 to 4,294,967,295.
- * uint64_t/unsigned long long  %llu      64 bits = 8 bytes, 0 to 18,446,744,073,709,551,615.
+ *     uint8_t                      %u         8 bits = 1 byte,  0 to 255.
+ *     uint16_t/unsigned short      %u        16 bits = 2 bytes, 0 to 65,535.
+ *     uint32_t/unsigned long       %u,%lu    32 bits = 4 bytes, 0 to 4,294,967,295.
+ *     size_t (size,length,count)   %zu       32 bits = 4 bytes, 0 to 4,294,967,295.
+ *     uint64_t/unsigned long long  %llu      64 bits = 8 bytes, 0 to 18,446,744,073,709,551,615.
  *
  * --- Signed integer. ---
- * int8_t                       %d         8 bits = 1 byte,            -128 to 127.
- * int16_t/short                %d        16 bits = 2 bytes,        -32,768 to 32,767.
- * int32_t/int/long             %d,%ld    32 bits = 4 bytes, -2,147,483,648 to 2,147,483,647.
- * int64_t/long long            %lld      64 bits = 8 bytes,      -9.22e+18 to 9.22e+18.
+ *     int8_t                       %d         8 bits = 1 byte,            -128 to 127.
+ *     int16_t/short                %d        16 bits = 2 bytes,        -32,768 to 32,767.
+ *     int32_t/int/long             %d,%ld    32 bits = 4 bytes, -2,147,483,648 to 2,147,483,647.
+ *     int64_t/long long            %lld      64 bits = 8 bytes,      -9.22e+18 to 9.22e+18.
  *
  * --- Signed decimal/floating point. ---
- * float                        %f        32 bits = 4 bytes,   6-7 sig. digits (hardware),  -3.40e+38 to 3.40e+38).
- * double/long double           %f,%lf    64 bits = 8 bytes, 15-17 sig. digits (software), -1.79e+308 to 1.79e+308).
+ *     float                        %f        32 bits = 4 bytes,   6-7 sig. digits (hardware),  -3.40e+38 to 3.40e+38).
+ *     double/long double           %f,%lf    64 bits = 8 bytes, 15-17 sig. digits (software), -1.79e+308 to 1.79e+308).
  *
  * --- Character/text. ---
- * char (signed)                %c         8 bit = 1 byte,  -128 to 127.
- * unsigned char                %c         8 bit = 1 byte,     0 to 255.
+ *     char (signed)                %c         8 bit = 1 byte,  -128 to 127.
+ *     unsigned char                %c         8 bit = 1 byte,     0 to 255.
  *
  * --- Other. ---
- *  bool                        %d (0/1)   8 bit = 1 byte,  true or false.
- *  bool                        %s (text)  8 bit = 1 byte,  true or false.
- *  void                        n/a.
- *  array                       n/a.
- *  string                      %s
+ *     bool                        %d (0/1)   8 bit = 1 byte,  true or false.
+ *     bool                        %s (text)  8 bit = 1 byte,  true or false.
+ *     void                        n/a.
+ *     array                       n/a.
+ *     string                      %s
  */
 
 /**
@@ -338,18 +338,10 @@
  * --- Exchange protocol for config.html page. ---
  *     -- Hello. --
  *        browser --> [{"page":"config"}].
- *        browser <-- {"0":"3.0.12 - Feb 28 2026 @ 09:40:15","1":"meter","2":"radio","3":"on","4":100,"5":2,"6":"ssid","7":"pass","35":10}
+ *        browser <-- {"0":"3.0.12 - Feb 28 2026 @ 09:40:15","1":"meter","2":"radio","3":"on","4":100,"5":2,"6":"ssid","7":"pass","35":10,"36":0}
  *     -- Set preferences. --
- *        browser --> [{"config":"set"},{"1":"meter","2":"radio","3":"on","4":"50","5":"2","6":"xxxx","7":"xxxx"}]
- *        prefUtility(prefAction) which uses:
- *            0 - jsonDocToClient["ver"]           --> jsonDocToClient[wsKey(WS_VERSION)].
- *            1 - jsonDocToClient["prfUnt"]        --> jsonDocToClient[wsKey(WS_PREF_UNIT)].
- *            2 - jsonDocToClient["prfRtcIn"]      --> jsonDocToClient[wsKey(WS_PREF_RTCM_IN)].
- *            3 - jsonDocToClient["prfNmeOut"]     --> jsonDocToClient[wsKey(WS_PREF_NMEA_OUT)].
- *            4 - jsonDocToClient["prfGnsMsrInt"]  --> jsonDocToClient[wsKey(WS_PREF_GNSS_MESASURE_INTERVAL)].
- *            5 - jsonDocToClient["prfGnsNavRat"]  --> jsonDocToClient[wsKey(wWS_PREF_GNSS_NAV_RATE)].
- *            6 - jsonDocToClient["prfHotSsi"]     --> jsonDocToClient[wsKey(WS_PREF_HOT_SPOT_SSID)].
- *            7 - jsonDocToClient["prfHotPas"]     --> jsonDocToClient[wsKey(WS_PREF_HOT_SPOT_PASS)].
+ *        browser --> [{"config":"set"},{"1":"meter","2":"radio","3":"on","4":"50","5":"2","6":"xxxx","7":"xxxx", "8":"0"}]
+ *        prefUtility(PREF_READ, PREF_SAVE, PREF_PRINT, PREF_RESET).
  *        browser <-- {"config":"Preference values updated."}
  *     -- Reset preferences. --
  *        browser --> [{"config":"reset"}].
@@ -362,46 +354,12 @@
  *     -- GNSS & status values. --
  *        browser <-- {"8":1,"9":10,"10":"-40.68","11":"-4.62","12":"35.44418163","13":"-76.92332881","14":"8.464","15":"10.229","16":"d","17":"u","18":"101.30",
  *                     "19":"2.5","20":"4h 29m 52s","30":526389,"31":160768,"23":77545,"24":77545,"25":129240,"26":216211,"27":25848,"28":0,"29":0,"32":"r",
- *                     "33":"192.168.23.1","34":"172.20.10.2"}
- *        checkZed() calls operDataToJsonDoc() which uses:
- *             1 - jsonDocToClient["prfUnt"]        --> jsonDocToClient[wsKey(WS_PREF_UNIT)].
- *             2 - jsonDocToClient["prfRtcIn"]      --> jsonDocToClient[wsKey(WS_PREF_RTCM_IN)].
- *             3 - jsonDocToClient["prfNmeOut"]     --> jsonDocToClient[wsKey(WS_PREF_NMEA_OUT)].
- *             4 - jsonDocToClient["prfGnsMsrInt"]  --> jsonDocToClient[wsKey(WS_PREF_GNSS_MESASURE_INTERVAL)].
- *             5 - jsonDocToClient["prfGnsNavRat"]  --> jsonDocToClient[wsKey(WS_PREF_GNSS_NAV_RATE)].
- *             6 - jsonDocToClient["prfHotSsi"]     --> jsonDocToClient[wsKey(WS_PREF_HOT_SPOT_SSID)].
- *             7 - jsonDocToClient["prfHotPas"]     --> jsonDocToClient[wsKey(WS_PREF_HOT_SPOT_PASS)].
- *             8 - jsonDocToClient["fix"]           --> jsonDocToClient[wsKey(WS_GNSS_FIX)].
- *             9 - jsonDocToClient["siv"]           --> jsonDocToClient[wsKey(WS_GNSS_SAT_IN_VIEW)].
- *            10 - jsonDocToClient["hgt-elip"]      --> jsonDocToClient[wsKey(WS_GNSS_HEIGHT_ELLIPSOID)].
- *            11 - jsonDocToClient["hgt-orth"]      --> jsonDocToClient[wsKey(WS_GNSS_HEIGHT_ORTHOMETRIC)].
- *            12 - jsonDocToClient["lat"]           --> jsonDocToClient[wsKey(WS_GNSS_LATITUDE].
- *            13 - jsonDocToClient["lon"]           --> jsonDocToClient[wsKey(WS_GNSS_LONGITUDE)].
- *            14 - jsonDocToClient["hac"]           --> jsonDocToClient[wsKey(WS_GNSS_HORIZONTAL_ACCURACY)].
- *            15 - jsonDocToClient["vac"]           --> jsonDocToClient[wsKey(WS_GNSS_VERTICAL_ACCURACY)].
- *            16 - jsonDocToClient["rtcm"]          --> jsonDocToClient[wsKey(WS_ROVER_RTCM_UP_DOWN)].
- *            17 - jsonDocToClient["bt"]            --> jsonDocToClient[wsKey(WS_ROVER_BT_NMEA_UP_DOWN)].
- *            18 - jsonDocToClient["bat"]           --> jsonDocToClient[wsKey(WS_ROVER_BATTERY_SOC)].
- *            19 - jsonDocToClient["batc"]          --> jsonDocToClient[wsKey(WS_ROVER_BATTERY_CHANGE_RATE)].
- *            20 - jsonDocToClient["up-tm"]         --> jsonDocToClient[wsKey(WS_ROVER_UP_TIME)].
- *            21 - jsonDocToClient["rtcm-cnt-all"]  --> jsonDocToClient[wsKey(WS_RTCM_IN_COUNT_ALL)].
- *            22 - jsonDocToClient["rtcm-rate"]     --> jsonDocToClient[wsKey(WS_RTCM_IN_RATE)].
- *            23 - jsonDocToClient["nmea-cnt-gga"]  --> jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_GGA)].
- *            24 - jsonDocToClient["nmea-cnt-rmc"]  --> jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_RMC)].
- *            25 - jsonDocToClient["nmea-cnt-gsa"]  --> jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_GSA].
- *            26 - jsonDocToClient["nmea-cnt-gsv"]  --> jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_GSV)].
- *            27 - jsonDocToClient["nmea-cnt-gst"]  --> jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_GST)].
- *            28 - jsonDocToClient["nmea-cnt-txt"]  --> jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_TXT)].
- *            29 - jsonDocToClient["nmea-cnt-othr"] --> jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_OTHR)].
- *            30 - jsonDocToClient["nmea-cnt-all"]  --> jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_ALL)].
- *            31 - jsonDocToClient["nmea-rate"]     --> jsonDocToClient[wsKey(WS_NMEA_OUT_RATE)].
- *            32 - jsonDocToClient["mode"]          --> jsonDocToClient[wsKey(WS_OPERATIONAL_MODE)].
- *            33 - jsonDocToClient["l-ip"]          --> jsonDocToClient[wsKey(WWS_WIFI_LOCAL_NETWORK_IP)].
- *            34 - jsonDocToClient["h-ip"]          --> jsonDocToClient[wsKey(WS_WIFI_HOT_SPOT_IP)].
- *            35 - jsonDocToClient["socketNum"]     --> jsonDocToClient[wsKey(WS_SOCKET_NUM)].
-*     -- Lock/unlock buttons. --
- *       browser --> [{"laser"/height/position:"lock/unlock"}].
- *       browser <-- {"laser"/height/position:"locked/unlocked"}. jsonDocToClient[key] = echo value + 'ed'
+ *                     "33":"192.168.23.1","34":"172.20.10.2","35":30,"36":0}}
+ *        checkZed() calls operDataToJsonDoc() which uses jsonDocToClient[wsKey(WS_GNSS_FIX)] ... to generate numeric webSocket keys with values.
+ *
+ *     -- Lock/unlock buttons. --
+ *        browser --> [{"laser"/height/position:"lock/unlock"}].
+ *        browser <-- {"laser"/height/position:"locked/unlocked"}. jsonDocToClient[key] = echo value + 'ed'
  */
 
 /**
@@ -487,84 +445,85 @@ char         JSONbuffer[768];               // @see onWebSocketMessage() & DevUB
 size_t       jsonPairNum;                   // Track number of JSON KV pairs.
 JsonDocument jsonDocToClient;               // JSON document sent to client.
 JsonDocument jsonDocFromClient;             // JSON document received from client.
-enum wsKeyID {                              // Readable index for WwebSocket keys. @see Global vars. - WebSockets in global.js.
-                                            //             Was,                                  is now.
-    WS_VERSION,                             //  0 - jsonDocToClient["ver"]           --> jsonDocToClient[wsKey(WS_VERSION)].
-    WS_PREF_UNIT,                           //  1 - jsonDocToClient["prfUnt"]        --> jsonDocToClient[wsKey(WS_PREF_UNIT)].
-    WS_PREF_RTCM_IN,                        //  2 - jsonDocToClient["prfRtcIn"]      --> jsonDocToClient[wsKey(WS_PREF_RTCM_IN)].
-    WS_PREF_NMEA_OUT,                       //  3 - jsonDocToClient["prfNmeOut"]     --> jsonDocToClient[wsKey(WS_PREF_NMEA_OUT)].
-    WS_PREF_GNSS_MESASURE_INTERVAL,         //  4 - jsonDocToClient["prfGnsMsrInt"]  --> jsonDocToClient[wsKey(WS_PREF_GNSS_MESASURE_INTERVAL)].
-    WS_PREF_GNSS_NAV_RATE,                  //  5 - jsonDocToClient["prfGnsNavRat"]  --> jsonDocToClient[wsKey(WS_PREF_GNSS_NAV_RATE)].
-    WS_PREF_HOT_SPOT_SSID,                  //  6 - jsonDocToClient["prfHotSsi"]     --> jsonDocToClient[wsKey(WS_PREF_HOT_SPOT_SSID)].
-    WS_PREF_HOT_SPOT_PASS,                  //  7 - jsonDocToClient["prfHotPas"]     --> jsonDocToClient[wsKey(WS_PREF_HOT_SPOT_PASS)].
-    WS_GNSS_FIX,                            //  8 - jsonDocToClient["fix"]           --> jsonDocToClient[wsKey(WS_GNSS_FIX)].
-    WS_GNSS_SAT_IN_VIEW,                    //  9 - jsonDocToClient["siv"]           --> jsonDocToClient[wsKey(WS_GNSS_SAT_IN_VIEW)].
-    WS_GNSS_HEIGHT_ELLIPSOID,               // 10 - jsonDocToClient["hgt-elip"]      --> jsonDocToClient[wsKey(WS_GNSS_HEIGHT_ELLIPSOID)].
-    WS_GNSS_HEIGHT_ORTHOMETRIC,             // 11 - jsonDocToClient["hgt-orth"]      --> jsonDocToClient[wsKey(WS_GNSS_HEIGHT_ORTHOMETRIC)].
-    WS_GNSS_LATITUDE,                       // 12 - jsonDocToClient["lat"]           --> jsonDocToClient[wsKey(WS_GNSS_LATITUDE)].
-    WS_GNSS_LONGITUDE,                      // 13 - jsonDocToClient["lon"]           --> jsonDocToClient[wsKey(WS_GNSS_LONGITUDE)].
-    WS_GNSS_HORIZONTAL_ACCURACY,            // 14 - jsonDocToClient["hac"]           --> jsonDocToClient[wsKey(WS_GNSS_HORIZONTAL_ACCURACY)].
-    WS_GNSS_VERTICAL_ACCURACY,              // 15 - jsonDocToClient["vac"]           --> jsonDocToClient[wsKey(WS_GNSS_VERTICAL_ACCURACY)].
-    WS_ROVER_RTCM_UP_DOWN,                  // 16 - jsonDocToClient["rtcm"]          --> jsonDocToClient[wsKey(WS_ROVER_RTCM_UP_DOWN)].
-    WS_ROVER_BT_NMEA_UP_DOWN,               // 17 - jsonDocToClient["bt"]            --> jsonDocToClient[wsKey(WS_ROVER_BT_NMEA_UP_DOWN)].
-    WS_ROVER_BATTERY_SOC,                   // 18 - jsonDocToClient["bat"]           --> jsonDocToClient[wsKey(WS_ROVER_BATTERY_SOC)].
-    WS_ROVER_BATTERY_CHANGE_RATE,           // 19 - jsonDocToClient["batc"]          --> jsonDocToClient[wsKey(WS_ROVER_BATTERY_CHANGE_RATE)].
-    WS_ROVER_UP_TIME,                       // 20 - jsonDocToClient["up-tm"]         --> jsonDocToClient[wsKey(WS_ROVER_UP_TIME)].
-    WS_RTCM_IN_COUNT_ALL,                   // 21 - jsonDocToClient["rtcm-cnt-all"]  --> jsonDocToClient[wsKey(WS_RTCM_IN_COUNT_ALL)].
-    WS_RTCM_IN_RATE,                        // 22 - jsonDocToClient["rtcm-rate"]     --> jsonDocToClient[wsKey(WS_RTCM_IN_RATE)].
-    WS_NMEA_OUT_COUNT_GGA,                  // 23 - jsonDocToClient["nmea-cnt-gga"]  --> jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_GGA)].
-    WS_NMEA_OUT_COUNT_RMC,                  // 24 - jsonDocToClient["nmea-cnt-rmc"]  --> jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_RMC)].
-    WS_NMEA_OUT_COUNT_GSA,                  // 25 - jsonDocToClient["nmea-cnt-gsa"]  --> jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_GSA)].
-    WS_NMEA_OUT_COUNT_GSV,                  // 26 - jsonDocToClient["nmea-cnt-gsv"]  --> jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_GSV)].
-    WS_NMEA_OUT_COUNT_GST,                  // 27 - jsonDocToClient["nmea-cnt-gst"]  --> jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_GST)].
-    WS_NMEA_OUT_COUNT_TXT,                  // 28 - jsonDocToClient["nmea-cnt-txt"]  --> jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_TXT)].
-    WS_NMEA_OUT_COUNT_OTHR,                 // 29 - jsonDocToClient["nmea-cnt-othr"] --> jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_OTHR)].
-    WS_NMEA_OUT_COUNT_ALL,                  // 30 - jsonDocToClient["nmea-cnt-all"]  --> jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_ALL)].
-    WS_NMEA_OUT_RATE,                       // 31 - jsonDocToClient["nmea-rate"]     --> jsonDocToClient[wsKey(WS_NMEA_OUT_RATE)].
-    WS_OPERATIONAL_MODE,                    // 32 - jsonDocToClient["mode"]          --> jsonDocToClient[wsKey(WS_OPERATIONAL_MODE)].
-    WS_WIFI_LOCAL_NETWORK_IP,               // 33 - jsonDocToClient["l-ip"]          --> jsonDocToClient[wsKey(WS_WIFI_LOCAL_NETWORK_IP)].
-    WS_WIFI_HOT_SPOT_IP,                    // 34 - jsonDocToClient["h-ip"]          --> jsonDocToClient[wsKey(WS_WIFI_HOT_SPOT_IP)].
-    WS_SOCKET_NUM,                          // 35 - jsonDocToClient["socketNum"]     --> jsonDocToClient[wsKey(WS_SOCKET_NUM)].
-    WS_POLE_HEIGHT                          // 36 - new                              --> jsonDocToClient[wsKey(WS_POLE_HEIGHT)].
+enum wsKeyID {                              // Readable index for WebSocket keys. @see Global vars. - WebSockets in global.js.
+                                            // 
+                                            //      Alpha type key was:             Numeric type key is now:
+    WS_VERSION,                             // 0 - Was an NVS preference, now created as "buildString" in showBuild().
+    WS_PREF_UNIT,                           // jsonDocToClient["prfUnt"]         1 - jsonDocToClient[wsKey(WS_PREF_UNIT)].
+    WS_PREF_RTCM_IN,                        // jsonDocToClient["prfRtcIn"]       2 - jsonDocToClient[wsKey(WS_PREF_RTCM_IN)].
+    WS_PREF_NMEA_OUT,                       // jsonDocToClient["prfNmeOut"]      3 - jsonDocToClient[wsKey(WS_PREF_NMEA_OUT)].
+    WS_PREF_GNSS_MESASURE_INTERVAL,         // jsonDocToClient["prfGnsMsrInt"]   4 - jsonDocToClient[wsKey(WS_PREF_GNSS_MESASURE_INTERVAL)].
+    WS_PREF_GNSS_NAV_RATE,                  // jsonDocToClient["prfGnsNavRat"]   5 - jsonDocToClient[wsKey(WS_PREF_GNSS_NAV_RATE)].
+    WS_PREF_HOT_SPOT_SSID,                  // jsonDocToClient["prfHotSsi"]      6 - jsonDocToClient[wsKey(WS_PREF_HOT_SPOT_SSID)].
+    WS_PREF_HOT_SPOT_PASS,                  // jsonDocToClient["prfHotPas"]      7 - jsonDocToClient[wsKey(WS_PREF_HOT_SPOT_PASS)].
+    WS_GNSS_FIX,                            // jsonDocToClient["fix"]            8 - jsonDocToClient[wsKey(WS_GNSS_FIX)].
+    WS_GNSS_SAT_IN_VIEW,                    // jsonDocToClient["siv"]            9 - jsonDocToClient[wsKey(WS_GNSS_SAT_IN_VIEW)].
+    WS_GNSS_HEIGHT_ELLIPSOID,               // jsonDocToClient["hgt-elip"]      10 -jsonDocToClient[wsKey(WS_GNSS_HEIGHT_ELLIPSOID)].
+    WS_GNSS_HEIGHT_ORTHOMETRIC,             // jsonDocToClient["hgt-orth"]      11 - jsonDocToClient[wsKey(WS_GNSS_HEIGHT_ORTHOMETRIC)].
+    WS_GNSS_LATITUDE,                       // jsonDocToClient["lat"]           12 - jsonDocToClient[wsKey(WS_GNSS_LATITUDE)].
+    WS_GNSS_LONGITUDE,                      // jsonDocToClient["lon"]           13 - jsonDocToClient[wsKey(WS_GNSS_LONGITUDE)].
+    WS_GNSS_HORIZONTAL_ACCURACY,            // jsonDocToClient["hac"]           14 - jsonDocToClient[wsKey(WS_GNSS_HORIZONTAL_ACCURACY)].
+    WS_GNSS_VERTICAL_ACCURACY,              // jsonDocToClient["vac"]           15 - jsonDocToClient[wsKey(WS_GNSS_VERTICAL_ACCURACY)].
+    WS_ROVER_RTCM_UP_DOWN,                  // jsonDocToClient["rtcm"]          16 - jsonDocToClient[wsKey(WS_ROVER_RTCM_UP_DOWN)].
+    WS_ROVER_BT_NMEA_UP_DOWN,               // jsonDocToClient["bt"]            17 - jsonDocToClient[wsKey(WS_ROVER_BT_NMEA_UP_DOWN)].
+    WS_ROVER_BATTERY_SOC,                   // jsonDocToClient["bat"]           18 - jsonDocToClient[wsKey(WS_ROVER_BATTERY_SOC)].
+    WS_ROVER_BATTERY_CHANGE_RATE,           // jsonDocToClient["batc"]          19 - jsonDocToClient[wsKey(WS_ROVER_BATTERY_CHANGE_RATE)].
+    WS_ROVER_UP_TIME,                       // jsonDocToClient["up-tm"]         20 - jsonDocToClient[wsKey(WS_ROVER_UP_TIME)].
+    WS_RTCM_IN_COUNT_ALL,                   // jsonDocToClient["rtcm-cnt-all"]  21 - jsonDocToClient[wsKey(WS_RTCM_IN_COUNT_ALL)].
+    WS_RTCM_IN_RATE,                        // jsonDocToClient["rtcm-rate"]     22 - jsonDocToClient[wsKey(WS_RTCM_IN_RATE)].
+    WS_NMEA_OUT_COUNT_GGA,                  // jsonDocToClient["nmea-cnt-gga"]  23 - jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_GGA)].
+    WS_NMEA_OUT_COUNT_RMC,                  // jsonDocToClient["nmea-cnt-rmc"]  24 - jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_RMC)].
+    WS_NMEA_OUT_COUNT_GSA,                  // jsonDocToClient["nmea-cnt-gsa"]  25 - jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_GSA)].
+    WS_NMEA_OUT_COUNT_GSV,                  // jsonDocToClient["nmea-cnt-gsv"]  26 - jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_GSV)].
+    WS_NMEA_OUT_COUNT_GST,                  // jsonDocToClient["nmea-cnt-gst"]  27 - jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_GST)].
+    WS_NMEA_OUT_COUNT_TXT,                  // jsonDocToClient["nmea-cnt-txt"]  28 - jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_TXT)].
+    WS_NMEA_OUT_COUNT_OTHR,                 // jsonDocToClient["nmea-cnt-othr"] 29 - jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_OTHR)].
+    WS_NMEA_OUT_COUNT_ALL,                  // jsonDocToClient["nmea-cnt-all"]  30 - jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_ALL)].
+    WS_NMEA_OUT_RATE,                       // jsonDocToClient["nmea-rate"]     31 - jsonDocToClient[wsKey(WS_NMEA_OUT_RATE)].
+    WS_OPERATIONAL_MODE,                    // jsonDocToClient["mode"]          32 - jsonDocToClient[wsKey(WS_OPERATIONAL_MODE)].
+    WS_WIFI_LOCAL_NETWORK_IP,               // jsonDocToClient["l-ip"]          33 - jsonDocToClient[wsKey(WS_WIFI_LOCAL_NETWORK_IP)].
+    WS_WIFI_HOT_SPOT_IP,                    // jsonDocToClient["h-ip"]          34 - jsonDocToClient[wsKey(WS_WIFI_HOT_SPOT_IP)].
+    WS_SOCKET_NUM,                          // jsonDocToClient["socketNum"]     35 - jsonDocToClient[wsKey(WS_SOCKET_NUM)].
+    WS_INSTRUMENT_HEIGHT                    // new                              36 - jsonDocToClient[wsKey(WS_INSTRUMENT_HEIGHT)].
 };
-const char* const WS_KEY_NUMS[] = {
-    "0",                                    // WS_VERSION, jsonDocToClient[wsKey(WS_VERSION)] converts to jsonDocToClient["0"].
-    "1",                                    // WS_PREF_UNIT.
-    "2",                                    // WS_PREF_RTCM_IN.
-    "3",                                    // WS_PREF_NMEA_OUT.
-    "4",                                    // WS_PREF_GNSS_MESASURE_INTERVAL.
-    "5",                                    // WS_PREF_GNSS_NAV_RATE.
-    "6",                                    // WS_PREF_HOT_SPOT_SSID.
-    "7",                                    // WS_PREF_HOT_SPOT_PASS.
-    "8",                                    // WS_GNSS_FIX.
-    "9",                                    // WS_GNSS_SAT_IN_VIEW.
-    "10",                                   // WS_GNSS_HEIGHT_ELLIPSOID.
-    "11",                                   // WS_GNSS_HEIGHT_ORTHOMETRIC.
-    "12",                                   // WS_GNSS_LATITUDE.
-    "13",                                   // WS_GNSS_LONGITUDE.
-    "14",                                   // WS_GNSS_HORIZONTAL_ACCURACY.
-    "15",                                   // WS_GNSS_VERTICAL_ACCURACY.
-    "16",                                   // WS_ROVER_RTCM_UP_DOWN.
-    "17",                                   // WS_ROVER_BT_NMEA_UP_DOWN.
-    "18",                                   // WS_ROVER_BATTERY_SOC.
-    "19",                                   // WS_ROVER_BATTERY_CHANGE_RATE.
-    "20",                                   // WS_ROVER_UP_TIME.
-    "21",                                   // WS_RTCM_IN_COUNT_ALL.
-    "22",                                   // WS_RTCM_IN_RATE.
-    "23",                                   // WS_NMEA_OUT_COUNT_GGA.
-    "24",                                   // WS_NMEA_OUT_COUNT_RMC.
-    "25",                                   // WS_NMEA_OUT_COUNT_GSA.
-    "26",                                   // WS_NMEA_OUT_COUNT_GSV.
-    "27",                                   // WS_NMEA_OUT_COUNT_GST.
-    "28",                                   // WS_NMEA_OUT_COUNT_TXT.
-    "29",                                   // WS_NMEA_OUT_COUNT_OTHR.
-    "30",                                   // WS_NMEA_OUT_COUNT_ALL.
-    "31",                                   // WS_NMEA_OUT_RATE.
-    "32",                                   // WS_OPERATIONAL_MODE.
-    "33",                                   // WS_WIFI_LOCAL_NETWORK_IP.
-    "34",                                   // WS_WIFI_HOT_SPOT_IP.
-    "35",                                   // WS_SOCKET_NUM.
-    "36"                                    // WS_POLE_HEIGHT.
+const char* const WS_KEY_NUMS[] = {         // see enum wsKeyID{} above for corresponding alpha.    
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "10",
+    "11",
+    "12",
+    "13",
+    "14",
+    "15",
+    "16",
+    "17",
+    "18",
+    "19",
+    "20",
+    "21",
+    "22",
+    "23",
+    "24",
+    "25",
+    "26",
+    "27",
+    "28",
+    "29",
+    "30",
+    "31",
+    "32",
+    "33",
+    "34",
+    "35",
+    "36"
 };
 
 // --- GNSS. ---
@@ -641,7 +600,7 @@ char        prfHotSsi[20];      // WiFi hotspot client: network SSID.
 char        prfHotPas[30];      // WiFi hotspot client: password.
 uint8_t     prfGnsNavRat;       // ZED: OUTPUT every X (e.g. 5) MEASURE intervals every (e.g. 5*100=500) ms.
 uint16_t    prfGnsMsrInt;       // ZED: MEASURE every Y (e.g. 100) ms.
-int16_t     prfPolHgt;          // Mounting pole height.
+int16_t     prfInstrHgt;        // Instrument height (includes rover height + pole height).
 Preferences roverPrefs;         // Rover's NVS preferences namespace.
 enum        prefAction {        // Readable index for preference actions.
     PREF_INIT,                  // 0.
@@ -674,7 +633,7 @@ int64_t nmeaSentenceLength = 0;
  * =========================================================================
  *
  * @since 3.0.12 [2026-02-06-04:00pm] New.
- * @see   wsKey()             - Replace [wsKey(WS_VERSION)] with ["0"], ["1"], etc.
+ * @see   wsKey()             - Replace [wsKey(WS_PREF_UNIT)] with ["1"], etc.
  * @see   statusLedOn()       - Turn on status LED.
  * @see   prefUtility()       - Preference utility.
  * @see   operDataToJsonDoc() - Load "operate" page data into JSON doc.
@@ -682,10 +641,10 @@ int64_t nmeaSentenceLength = 0;
 
 /**
  * -------------------------------------------------------------------------
- *  Replace [wsKey(WS_VERSION)] with ["0"], ["1"], etc.
+ *  Replace [wsKey(WS_PREF_UNIT)] with ["1"], etc.
  * -------------------------------------------------------------------------
  *
- * Example, given:  jsonDocToClient[wsKey(WS_VERSION)] = someValue;
+ * Example, given:  jsonDocToClient[wsKey(WS_PREF_UNIT)] = someValue;
  *          yields: jsonDocToClient["0"].
  *
  * @param  int id Key ID #.
@@ -751,15 +710,15 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
 
     // --- Preference defaults. ---
     const char      NAMESPACE[]         = "config"; // The preference namespace. 
-    const char      DEF_PRF_UNT[]       = "meter";  // Distance units: meter/feet (used only in browser).   Matching global var: char     prfUnt[6].
-    const char      DEF_PRF_RTC_IN[]    = "radio";  // Control RTCM in: off/radio/ntrip.                    Matching global var: char     prfRtcIn[6].
-    const char      DEF_PRF_NME_OUT[]   = "on";     // Control NMEA out: off/on.                            Matching global var: char     prfNmeOut[4].
-    const char      DEF_PRF_HOT_SSI[]   = "ssid";   // WiFi hotspot client: network SSID.                   Matching global var: char     prfHotSsi[20].
-    const char      DEF_PRF_HOT_PASS[]  = "pass";   // WiFi hotspot client: password.                       Matching global var: char     prfHotPas[30].
-    const uint8_t   DEF_PRF_GNS_NAV_RAT = 2;        // ZED rate (times/interval): OUTPUT a new solution.    Matching global var: uint8_t  prfGnsNavRat.
-    const uint16_t  DEF_PRF_GNS_MSR_INT = 100;      // ZED interval (ms): CREATE a new solution.            Matching global var: uint16_t prfGnsMsrInt.
-    const uint16_t  DEF_PRF_POL_HGT     = 0;        // Instrument pole height (mm).                         Matching global var: int16_t  prfPolHgt.
-    const uint16_t  NUM_PREFS           = 9;        // Number of preferences being used (includes buildString).
+    const char      DEF_PRF_UNT[]       = "meter";  // Distance units: meter/feet (used only in browser).                       Matching global var: char     prfUnt[6].
+    const char      DEF_PRF_RTC_IN[]    = "radio";  // Control RTCM in: off/radio/ntrip.                                        Matching global var: char     prfRtcIn[6].
+    const char      DEF_PRF_NME_OUT[]   = "on";     // Control NMEA out: off/on.                                                Matching global var: char     prfNmeOut[4].
+    const char      DEF_PRF_HOT_SSI[]   = "ssid";   // WiFi hotspot client: network SSID.                                       Matching global var: char     prfHotSsi[20].
+    const char      DEF_PRF_HOT_PASS[]  = "pass";   // WiFi hotspot client: password.                                           Matching global var: char     prfHotPas[30].
+    const uint8_t   DEF_PRF_GNS_NAV_RAT = 2;        // ZED rate (times/interval): OUTPUT a new solution.                        Matching global var: uint8_t  prfGnsNavRat.
+    const uint16_t  DEF_PRF_GNS_MSR_INT = 100;      // ZED interval (ms): CREATE a new solution.                                Matching global var: uint16_t prfGnsMsrInt.
+    const uint16_t  DEF_PRF_INSTR_HGT   = 128;      // Instrument height (mm - includes rover height [128] + pole height [0]).  Matching global var: int16_t  prfInstrHgt.
+    const uint16_t  NUM_PREFS           = 8;        // Number of preferences being used.
 
     // --- Other. ---
     bool hasKey = false;
@@ -794,13 +753,14 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             roverPrefs.getString("prfNmeOut",    prfNmeOut, sizeof(prfNmeOut));
             roverPrefs.getString("prfHotSsi",    prfHotSsi, sizeof(prfHotSsi));
             roverPrefs.getString("prfHotPas",    prfHotPas, sizeof(prfHotPas));
-            prfGnsNavRat = roverPrefs.getUChar("prfGnsNavRat");
+            prfGnsNavRat = roverPrefs.getUShort("prfGnsNavRat");
             prfGnsMsrInt = roverPrefs.getUShort("prfGnsMsrInt");
-            prfPolHgt    = roverPrefs.getShort("prfPolHgt");
+            prfInstrHgt  = roverPrefs.getUShort("prfInstrHgt");
             roverPrefs.end();                                                   // Close NAMESPACE object.
 
             // -- Wrap up. --
             Serial.println("Preferences read."); 
+            prefUtility(PREF_PRINT);
             break;
 
         case PREF_SAVE:
@@ -819,10 +779,10 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             roverPrefs.putString("prfNmeOut", prfNmeOut);                               // Store preference as "prfNmeOut" (sent/rcvd as "3").
 
             prfGnsMsrInt = (uint16_t) atoi(JSONdata[wsKey(WS_PREF_GNSS_MESASURE_INTERVAL)]);
-            roverPrefs.putUShort("prfGnsMsrInt", prfGnsMsrInt);                             // Store preference as "prfGnsMsrInt" (sent/rcvd as "4").
+            roverPrefs.putUShort("prfGnsMsrInt", prfGnsMsrInt);                         // Store preference as "prfGnsMsrInt" (sent/rcvd as "4").
 
             prfGnsNavRat = (uint8_t) atoi(JSONdata[wsKey(WS_PREF_GNSS_NAV_RATE)]);      // KV values are stored in NVS as int, but set to C-string in onWebSocketMessage() for code clarity.
-            roverPrefs.putUChar("prfGnsNavRat", prfGnsNavRat);                          // Store preference as "prfGnsNavRat" (sent/rcvd as "45").
+            roverPrefs.putUShort("prfGnsNavRat", prfGnsNavRat);                         // Store preference as "prfGnsNavRat" (sent/rcvd as "45").
 
             strcpy(prfHotSsi, JSONdata[wsKey(WS_PREF_HOT_SPOT_SSID)]);
             roverPrefs.putString("prfHotSsi", prfHotSsi);                               // Store preference as "prfHotSsi" (sent/rcvd as "6").
@@ -830,34 +790,8 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             strcpy(prfHotPas, JSONdata[wsKey(WS_PREF_HOT_SPOT_PASS)]);
             roverPrefs.putString("prfHotPas", prfHotPas);                               // Store preference as "prfHotPas" (sent/rcvd as "7").
 
-            prfPolHgt = (int16_t) atoi(JSONdata[wsKey(WS_POLE_HEIGHT)]);                // KV values are stored in NVS as int, but set to C-string in onWebSocketMessage() for code clarity.
-            roverPrefs.putUChar("prfPolHgt", prfPolHgt);                                // Store preference as "prfPolHgt" (sent/rcvd as "165").
-
-            // ToDo: delete this section of code? [2024-06-25]
-            // if (strcmp(key, wsKey(WS_PREF_UNIT)) == 0) {                            // Preference sent as "1".
-                
-            //     strcpy(prfUnt, JSONdata["0"]);                                      // Update global var.
-            //     roverPrefs.putString("prfUnt", prfUnt);                             // Store preference "prfUnt".
-            // } else if (strcmp(key, wsKey(WS_PREF_RTCM_IN)) == 0) {                  // Preference sent as "2".
-            //     strcpy(prfRtcIn, value);
-
-            //     roverPrefs.putString("prfRtcIn", prfRtcIn);                         // Store preference as "prfRtcIn".
-            // } else if (strcmp(key, wsKey(WS_PREF_NMEA_OUT)) == 0) {                 // Preference sent as "3".
-            //     strcpy(prfNmeOut, value);
-            //     roverPrefs.putString("prfNmeOut", prfNmeOut);                       // Store preference "prfNmeOut".
-            // } else if (strcmp(key, wsKey(WS_PREF_GNSS_MESASURE_INTERVAL)) == 0) {   // Preference sent as "4".
-            //     prfGnsNavRat = (uint8_t) atoi(value);                               // KV values are stored in NVS as int, but set to C-string in onWebSocketMessage() for code clarity.
-            //     roverPrefs.putUChar("prfGnsNavRat", prfGnsNavRat);                  // Store preference "prfGnsNavRat".
-            // } else if (strcmp(key, wsKey(WS_PREF_GNSS_NAV_RATE)) == 0) {            // Preference sent as "5".
-                
-            //     roverPrefs.putUShort("prfGnsMsrInt", prfGnsMsrInt);                 // Store preference as "prfGnsMsrInt".
-            // }  else if (strcmp(key, wsKey(WS_PREF_HOT_SPOT_SSID)) == 0) {           // Preference sent as "6".
-            //     strcpy(prfHotSsi, value);
-            //     roverPrefs.putString("prfHotSsi", prfHotSsi);                       // Store preference as "prfHotSsi".
-            // } else if (strcmp(key, wsKey(WS_PREF_HOT_SPOT_PASS)) == 0) {            // Preference sent as "7".
-            //     strcpy(prfHotPas, value);
-            //     roverPrefs.putString("prfHotPas", prfHotPas);                       // Store preference as "prfHotPas".
-            // }
+            prfInstrHgt = (int16_t) atoi(JSONdata[wsKey(WS_INSTRUMENT_HEIGHT)]);        // KV values are stored in NVS as int, but set to C-string in onWebSocketMessage() for code clarity.
+            roverPrefs.putUShort("prfInstrHgt", prfInstrHgt);                           // Store preference as "prfInstrHgt" (sent/rcvd as e.g. "165").
             
             // -- Wrap up. --
             roverPrefs.end();                                           // Close NAMESPACE object.
@@ -881,16 +815,16 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             strcpy(prfHotPas, DEF_PRF_HOT_PASS);
             prfGnsNavRat = DEF_PRF_GNS_NAV_RAT;
             prfGnsMsrInt = DEF_PRF_GNS_MSR_INT;
-            prfPolHgt    = DEF_PRF_POL_HGT;
+            prfInstrHgt  = DEF_PRF_INSTR_HGT;
             roverPrefs.begin(NAMESPACE, RW_MODE);                       // Open NAMESPACE object for read/write. 
             roverPrefs.putString("prfUnt",       prfUnt);               // If key doesn't exist, create it. Set value to global var (aka default).
             roverPrefs.putString("prfRtcIn",     prfRtcIn);
             roverPrefs.putString("prfNmeOut",    prfNmeOut);
             roverPrefs.putString("prfHotSsi",    prfHotSsi);
             roverPrefs.putString("prfHotPas",    prfHotPas);
-            roverPrefs.putUChar("prfGnsNavRat",  prfGnsNavRat);
+            roverPrefs.putUShort("prfGnsNavRat", prfGnsNavRat);
             roverPrefs.putUShort("prfGnsMsrInt", prfGnsMsrInt);
-            roverPrefs.putShort("prfPolHgt",     prfPolHgt);
+            roverPrefs.putUShort("prfInstrHgt",  prfInstrHgt);
             roverPrefs.end();                                           // Close NAMESPACE object.
 
             // -- Wrap up. --
@@ -902,26 +836,26 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
 
         case PREF_PRINT:
             roverPrefs.begin(NAMESPACE, RO_MODE);                       // Open NAMESPACE object for read.
-            Serial.println("--- Default, Global var, NVS pref. ---");
+            Serial.println("---          Default, Global, NVS. ---");
             Serial.printf( "prfUnt       \"%s\", \"%s\", \"%s\"\n", DEF_PRF_UNT,         prfUnt,       roverPrefs.getString("prfUnt"));
             Serial.printf( "prfRtcIn     \"%s\", \"%s\", \"%s\"\n", DEF_PRF_RTC_IN,      prfRtcIn,     roverPrefs.getString("prfRtcIn"));
             Serial.printf( "prfNmeOut    \"%s\", \"%s\", \"%s\"\n", DEF_PRF_NME_OUT,     prfNmeOut,    roverPrefs.getString("prfNmeOut"));
             Serial.printf( "prfHotSsi    \"%s\", \"%s\", \"%s\"\n", DEF_PRF_HOT_SSI,     prfHotSsi,    roverPrefs.getString("prfHotSsi"));
             Serial.printf( "prfHotPas    \"%s\", \"%s\", \"%s\"\n", DEF_PRF_HOT_PASS,    prfHotPas,    roverPrefs.getString("prfHotPas"));
-            Serial.printf( "prfGnsNavRat %u, %u, %u\n",             DEF_PRF_GNS_NAV_RAT, prfGnsNavRat, roverPrefs.getUChar("prfGnsNavRat"));
+            Serial.printf( "prfGnsNavRat %u, %u, %u\n",             DEF_PRF_GNS_NAV_RAT, prfGnsNavRat, roverPrefs.getUShort("prfGnsNavRat"));
             Serial.printf( "prfGnsMsrInt %u, %u, %u\n",             DEF_PRF_GNS_MSR_INT, prfGnsMsrInt, roverPrefs.getUShort("prfGnsMsrInt"));
-            Serial.printf( "prfPolHgt    %u, %u, %u\n",             DEF_PRF_POL_HGT,     prfPolHgt,    roverPrefs.getShort("prfPolHgt"));
+            Serial.printf( "prfInstrHgt  %u, %u, %u\n",             DEF_PRF_INSTR_HGT,   prfInstrHgt,  roverPrefs.getUShort("prfInstrHgt"));
             roverPrefs.end();                                           // Close NAMESPACE object.
             break;
 
         case PREF_TO_JSON:
         // -------------------------------------------------------------------------
         //  browser --> {"page":"menu/nmea/files/config/operate"}.
-        //  browser <-- {"0":"3.0.12 - Feb 19 2026 @ 12:46:28","1":"meter","2":"radio","3":"on","4":"50","5":"2","6":"xxx","7":"xxxx", "8":"165"}.
+        //  browser <-- {"0":"3.0.12 - Feb 19 2026 @ 12:46:28","1":"meter","2":"radio","3":"on","4":"50","5":"2","6":"xxx","7":"xxxx","35":30,"36":0}}.
         //  Value of each global var preference will always match value stored in NVS.
         // -------------------------------------------------------------------------
             jsonDocToClient.clear();
-            jsonDocToClient[wsKey(WS_VERSION)]                     = buildString;   //  0.
+            jsonDocToClient[wsKey(WS_VERSION)]                     = buildString;   //  0. Was an NVS preference, now created "on the fly" in showBuild().
             jsonDocToClient[wsKey(WS_PREF_UNIT)]                   = prfUnt;        //  1.
             jsonDocToClient[wsKey(WS_PREF_RTCM_IN)]                = prfRtcIn;      //  2.
             jsonDocToClient[wsKey(WS_PREF_NMEA_OUT)]               = prfNmeOut;     //  3.
@@ -930,7 +864,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             jsonDocToClient[wsKey(WS_PREF_HOT_SPOT_SSID)]          = prfHotSsi;     //  6.
             jsonDocToClient[wsKey(WS_PREF_HOT_SPOT_PASS)]          = prfHotPas;     //  7.
             jsonDocToClient[wsKey(WS_SOCKET_NUM)]                  = clientId;      // 35.
-            jsonDocToClient[wsKey(WS_POLE_HEIGHT)]                 = prfPolHgt;     // 36.
+            jsonDocToClient[wsKey(WS_INSTRUMENT_HEIGHT)]           = prfInstrHgt;   // 36.
     }
 }
 
@@ -1074,7 +1008,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
  *
  * @since 3.0.11 [2026-01-08-10:30am] Browser initiated updates.
  * @see   showBuild()            - Display build & processor info.
- * @see   prefUtility(PREF_INIT) - Preference utility.
+ * @see   prefUtility(PREF_INIT) - Preference utility (get preferences).
  * @see   startSerial()          - Start serial interfaces.
  * @see   initPins()             - Initialize pins & pin values.
  * @see   startI2C()             - Start I2C wire interfaces.
@@ -1107,12 +1041,12 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
 void showBuild() {
 
     // --- Local vars. ---
-    const uint8_t   MAJOR_VERSION = 3;
-    const uint8_t   MINOR_VERSION = 1;
-    const uint8_t   PATCH_VERSION = 1;
-    const char      NAME[]        = "Ghost Rover 3";
+    const uint8_t   MAJOR_VERSION    = 3;
+    const uint8_t   MINOR_VERSION    = 1;
+    const uint8_t   PATCH_VERSION    = 1;
+    const char      NAME[]           = "Ghost Rover 3";
     const uint32_t  SERIAL_USB_SPEED = 115200;   // Serial USB speed.
-    const uint64_t  START_DELAY = 4000000;       // 4 second startup delay.
+    const uint64_t  START_DELAY      = 4000000;  // 4 second startup delay.
     esp_chip_info_t chip_info;
 
     // --- Run. ---
@@ -2604,7 +2538,7 @@ void checkGnssLockButton() {
  */
 void setup() {
     showBuild();                // Display build & processor info.
-    prefUtility(PREF_INIT);     // Check preferences.
+    prefUtility(PREF_INIT);     // Get preferences.
     startSerial();              // Start serial interfaces.
     initPins();                 // Initialize pin modes & pin values.
     startI2C();                 // Start I2C wire interfaces.

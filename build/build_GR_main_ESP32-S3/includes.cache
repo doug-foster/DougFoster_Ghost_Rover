@@ -1,0 +1,297 @@
+[
+  {
+    "Sourcefile": null,
+    "Include": "",
+    "Includepath": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/cores/esp32"
+  },
+  {
+    "Sourcefile": null,
+    "Include": "",
+    "Includepath": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/variants/sparkfun_esp32s3_thing_plus"
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/build/build_GR_main_ESP32-S3/sketch/DougFoster_Ghost_Rover.ino.cpp",
+    "Include": "WiFi.h",
+    "Includepath": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/WiFi/src"
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/build/build_GR_main_ESP32-S3/sketch/DougFoster_Ghost_Rover.ino.cpp",
+    "Include": "Network.h",
+    "Includepath": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/Network/src"
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/build/build_GR_main_ESP32-S3/sketch/DougFoster_Ghost_Rover.ino.cpp",
+    "Include": "SD.h",
+    "Includepath": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/SD/src"
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/build/build_GR_main_ESP32-S3/sketch/DougFoster_Ghost_Rover.ino.cpp",
+    "Include": "FS.h",
+    "Includepath": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/FS/src"
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/build/build_GR_main_ESP32-S3/sketch/DougFoster_Ghost_Rover.ino.cpp",
+    "Include": "SPI.h",
+    "Includepath": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/SPI/src"
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/build/build_GR_main_ESP32-S3/sketch/DougFoster_Ghost_Rover.ino.cpp",
+    "Include": "Wire.h",
+    "Includepath": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/Wire/src"
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/build/build_GR_main_ESP32-S3/sketch/DougFoster_Ghost_Rover.ino.cpp",
+    "Include": "Preferences.h",
+    "Includepath": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/Preferences/src"
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/build/build_GR_main_ESP32-S3/sketch/DougFoster_Ghost_Rover.ino.cpp",
+    "Include": "AsyncTCP.h",
+    "Includepath": "/Users/dougfoster/Library/Arduino15/internal/Async_TCP_3.4.10_c624da2a27e4fce1/Async TCP/src"
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/build/build_GR_main_ESP32-S3/sketch/DougFoster_Ghost_Rover.ino.cpp",
+    "Include": "ESPAsyncWebServer.h",
+    "Includepath": "/Users/dougfoster/Library/Arduino15/internal/ESP_Async_WebServer_3.11.1_0fe8183a6224be3c/ESP Async WebServer/src"
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/build/build_GR_main_ESP32-S3/sketch/DougFoster_Ghost_Rover.ino.cpp",
+    "Include": "ArduinoJson.h",
+    "Includepath": "/Users/dougfoster/Library/Arduino15/internal/ArduinoJson_7.4.3_65bbd090d30b7927/ArduinoJson/src"
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/build/build_GR_main_ESP32-S3/sketch/DougFoster_Ghost_Rover.ino.cpp",
+    "Include": "SparkFun_MAX1704x_Fuel_Gauge_Arduino_Library.h",
+    "Includepath": "/Users/dougfoster/Library/Arduino15/internal/SparkFun_MAX1704x_Fuel_Gauge_Arduino_Library_1.0.4_b1f6344d3049e/SparkFun MAX1704x Fuel Gauge Arduino Library/src"
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/build/build_GR_main_ESP32-S3/sketch/DougFoster_Ghost_Rover.ino.cpp",
+    "Include": "SparkFun_u-blox_GNSS_v3.h",
+    "Includepath": "/Users/dougfoster/Library/Arduino15/internal/SparkFun_u-blox_GNSS_v3_3.1.14_50ec5b48c7a01d4a/SparkFun u-blox GNSS v3/src"
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/build/build_GR_main_ESP32-S3/sketch/DougFoster_Ghost_Rover.ino.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/WiFi/src/AP.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/WiFi/src/STA.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/WiFi/src/WiFi.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/WiFi/src/WiFiAP.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/WiFi/src/WiFiGeneric.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/WiFi/src/WiFiMulti.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/WiFi/src/WiFiSTA.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/WiFi/src/WiFiScan.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/Network/src/NetworkClient.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/Network/src/NetworkEvents.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/Network/src/NetworkInterface.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/Network/src/NetworkManager.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/Network/src/NetworkServer.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/Network/src/NetworkUdp.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/SD/src/SD.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/SD/src/sd_diskio.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/SD/src/sd_diskio_crc.c",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/FS/src/FS.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/FS/src/vfs_api.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/SPI/src/SPI.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/Wire/src/Wire.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/Preferences/src/Preferences.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/Async_TCP_3.4.10_c624da2a27e4fce1/Async TCP/src/AsyncTCP.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/ESP_Async_WebServer_3.11.1_0fe8183a6224be3c/ESP Async WebServer/src/AsyncEventSource.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/ESP_Async_WebServer_3.11.1_0fe8183a6224be3c/ESP Async WebServer/src/AsyncJson.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/ESP_Async_WebServer_3.11.1_0fe8183a6224be3c/ESP Async WebServer/src/AsyncWebHeader.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/ESP_Async_WebServer_3.11.1_0fe8183a6224be3c/ESP Async WebServer/src/AsyncWebServerRequest.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/ESP_Async_WebServer_3.11.1_0fe8183a6224be3c/ESP Async WebServer/src/AsyncWebSocket.cpp",
+    "Include": "SHA1Builder.h",
+    "Includepath": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/Hash/src"
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/ESP_Async_WebServer_3.11.1_0fe8183a6224be3c/ESP Async WebServer/src/AsyncWebSocket.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/ESP_Async_WebServer_3.11.1_0fe8183a6224be3c/ESP Async WebServer/src/BackPort_SHA1Builder.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/ESP_Async_WebServer_3.11.1_0fe8183a6224be3c/ESP Async WebServer/src/ChunkPrint.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/ESP_Async_WebServer_3.11.1_0fe8183a6224be3c/ESP Async WebServer/src/Middleware.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/ESP_Async_WebServer_3.11.1_0fe8183a6224be3c/ESP Async WebServer/src/WebAuthentication.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/ESP_Async_WebServer_3.11.1_0fe8183a6224be3c/ESP Async WebServer/src/WebHandlers.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/ESP_Async_WebServer_3.11.1_0fe8183a6224be3c/ESP Async WebServer/src/WebRequest.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/ESP_Async_WebServer_3.11.1_0fe8183a6224be3c/ESP Async WebServer/src/WebResponses.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/ESP_Async_WebServer_3.11.1_0fe8183a6224be3c/ESP Async WebServer/src/WebServer.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/SparkFun_MAX1704x_Fuel_Gauge_Arduino_Library_1.0.4_b1f6344d3049e/SparkFun MAX1704x Fuel Gauge Arduino Library/src/SparkFun_MAX1704x_Fuel_Gauge_Arduino_Library.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/SparkFun_u-blox_GNSS_v3_3.1.14_50ec5b48c7a01d4a/SparkFun u-blox GNSS v3/src/sfe_bus.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/SparkFun_u-blox_GNSS_v3_3.1.14_50ec5b48c7a01d4a/SparkFun u-blox GNSS v3/src/u-blox_GNSS.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/Hash/src/PBKDF2_HMACBuilder.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/Hash/src/SHA1Builder.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/Hash/src/SHA2Builder.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "/Users/dougfoster/Library/Arduino15/internal/esp32_esp32_3.3.3_6ba8f974995a4c6b/libraries/Hash/src/SHA3Builder.cpp",
+    "Include": "",
+    "Includepath": null
+  }
+]

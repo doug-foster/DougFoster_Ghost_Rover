@@ -737,10 +737,17 @@ function flashRtcm() {
 });
 
 // --- Buttons. ---
-btnLaser.addEventListener('click', () => {
-    btnLaserLabel.classList.add('shadow');                  // Visual feedback.
-    setTimeout(function() { btnLaserLabel.classList.remove('shadow'); }, 100);
-    toggleButtons('laser');
+btnLaser.addEventListener('click', async () => {
+    btnLaserLabel.classList.toggle('shadow');                  // Visual feedback.
+    // setTimeout(function() { btnLaserLabel.classList.remove('shadow'); }, 100);
+    // toggleButtons('laser');
+    for (let i = 0; i < 10; i++) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        console.log(`iteration ${i}`);  // replace with your command
+    }
+
+
+
 });
 btnHeight.addEventListener('click', () => {
     btnHeightLabel.classList.add('shadow');                  // Visual feedback.

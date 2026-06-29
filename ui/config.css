@@ -14,6 +14,7 @@
  * @since  3.1.0  [2026-03-18-06:00pm] Run time options.
  * @since  3.1.0  [2026-03-20-12:00pm] Pole heights.
  * @since  3.1.1  [2026-06-25-02:00pm] Regroup: upload to SD card.
+ * @since  3.1.1  [2026-06-26-09:30pm] #pole-height {display: block;}.
  * @link   http://dougfoster.me.
 
 
@@ -224,9 +225,9 @@ form#config * {
 }
 
 #pole-height-preset {
-    display: block !important;
+    display: block;
     border:1px dashed red;
 }
 #pole-height {
-    display: block !important;
+    display: block;
 }

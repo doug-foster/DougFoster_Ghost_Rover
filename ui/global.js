@@ -18,6 +18,8 @@
  * @since  3.1.0  [2026-03-02-05:00pm] Stable 3.0 version.
  * @since  3.1.0  [2026-03-20-11:15am] Update var names.
  * @since  3.1.1  [2026-06-25-02:00pm] Regroup: upload to SD card.
+ * @since  3.1.1  [2026-06-26-09:30pm] HEIGHT_QUICK_RELEASE, changed height values.
+ * @since  3.1.1  [2026-06-29-03:45pm] CHanged NVS pref from pole height to instument height.
  * @link   http://dougfoster.me.
  * 
  * Websocket messages: See DougFoster_GhostRover.ino for exchange protocol.
@@ -32,6 +34,8 @@
  * @since  3.0.12 [2026-02-09-01:45pm].
  * @since  3.0.12 [2026-02-28-02:15pm] Add WS_SOCKET_NUM.
  * @since  3.1.0  [2026-03-20-11:15am] Update var names.
+ * @since  3.1.1  [2026-06-26-09:30pm] HEIGHT_QUICK_RELEASE, changed height values.
+ * @since  3.1.1  [2026-06-26-09:30pm] change WS_PREF_GNSS_MESASURE_INTERVAL to WS_PREF_GNSS_MEASURE_INTERVAL.
  * @see    operateMessage() in operate.js.
  * @see    setHeights() in config.js.
  */
@@ -71,7 +75,7 @@ const wsKey = Object.freeze({       // wsKey.WS_VERSION
     WS_PREF_UNIT:                   '1',
     WS_PREF_RTCM_IN:                '2',
     WS_PREF_NMEA_OUT:               '3',
-    WS_PREF_GNSS_MESASURE_INTERVAL: '4',
+    WS_PREF_GNSS_MEASURE_INTERVAL:  '4',
     WS_PREF_GNSS_NAV_RATE:          '5',
     WS_PREF_HOT_SPOT_SSID:          '6',
     WS_PREF_HOT_SPOT_PASS:          '7',
@@ -103,7 +107,7 @@ const wsKey = Object.freeze({       // wsKey.WS_VERSION
     WS_WIFI_LOCAL_NETWORK_IP:       '33',
     WS_WIFI_HOT_SPOT_IP:            '34',
     WS_SOCKET_NUM:                  '35',
-    WS_POLE_HEIGHT:                 '36'
+    WS_INSTRUMENT_HEIGHT:           '36'
 });
 
 // --- Preferences. ---
@@ -111,10 +115,10 @@ let prfUnt       = 0;
 let prfRtcIn     = 0;
 let prfNmeOut    = 0;
 let prfGnsMsrInt = 0;
-let prfGnsNavRat = 0
+let prfGnsNavRat = 0;
 let prfHotSsi    = 0;
 let prfHotPas    = 0;
-let prfPolHght   = 0;
+let prfInstrHght = 0;
 
 // --- SFESPK6618H antenna phase center offsets. ---
 // https://community.sparkfun.com/t/spk6618h-antenna-north-marker/68211/5
@@ -125,13 +129,16 @@ let prfPolHght   = 0;
 // Since North & East offsets are so small, ignore them.
 const HEIGHT_APC_TO_ARP      =   48;    // Antenna phase center to Antenna Reference Position height (mm).
 const HEIGHT_ARP_TO_QR_PLATE =   66;    // Antenna Reference Position to bottom of FALCAM F38 Quick Release plate height (mm).
-const HEIGHT_QR_RECEIVER     =    8;    // FALCAM F38 Quick Release receiver height (mm).
-const HEIGHT_GRIP_TRIPOD     =  165;    // Gun grip + washer + Zeadio tripod (mm).
-const HEIGHT_XYZPOLE_0       =  689;    // SingularXYZ pole - no extensions out (mm).
-const HEIGHT_XYZPOLE_1       = 1075;    // SingularXYZ pole - top 1 extension out (mm).
-const HEIGHT_XYZPOLE_2       = 1472;    // SingularXYZ pole - top 1 & 2 extensions out (mm).
-const HEIGHT_XYZPOLE_3       = 1819;    // SingularXYZ pole - all 3 extensions out (mm).
-const HEIGHT_ROVER           = HEIGHT_APC_TO_ARP + HEIGHT_ARP_TO_QR_PLATE + HEIGHT_QR_RECEIVER;  // 48 + 66 + 8 = 122.
+const HEIGHT_QUICK_RELEASE   =   14;    // FALCAM F38 Quick Release total height (mm).
+                                        // Quick Release plate height                  ( 0.25 inch =    6.4 mm).
+                                        // Quick Release receiver height               ( 0.31 inch =    7.9 mm).
+                                        // Quick Release total height                  ( 0.56 inch =    14.3mm).
+const HEIGHT_GRIP_TRIPOD     =  166;    // Gun grip + washer + Zeadio tripod           ( 6.53 inch =  165.8 mm).
+const HEIGHT_XYZPOLE_0       =  691;    // SingularXYZ pole - no extensions out        (27.19 inch =  690.6 mm).
+const HEIGHT_XYZPOLE_1       = 1073;    // SingularXYZ pole - top 1 extension out      (42.25 inch = 1073.2 mm).
+const HEIGHT_XYZPOLE_2       = 1468;    // SingularXYZ pole - top 1 & 2 extensions out (57.81 inch = 1468.4 mm).
+const HEIGHT_XYZPOLE_3       = 1819;    // SingularXYZ pole - all 3 extensions out     (71.60 inch = 1818.6 mm).
+const HEIGHT_ROVER           = HEIGHT_APC_TO_ARP + HEIGHT_ARP_TO_QR_PLATE + HEIGHT_QUICK_RELEASE;  // 48 + 66 + 14 = 128.
 let heightUnits              = 'mm';
 let heightPole               =    0;    // mm.
 
@@ -274,8 +281,9 @@ function webSocketRcvMessage(event) {
     if ('null' !== event.data) {
         Object.entries(myObj).forEach(([key, value]) => {
 
-            // --- Header. ---
             switch (key) {
+
+                // --- Header. ---
                 case wsKey.WS_VERSION:
                     versionRoverId.innerHTML = value;
                     break;
@@ -292,13 +300,17 @@ function webSocketRcvMessage(event) {
                             statusUnitDisplayId.innerHTML = value;
                             break;
                     }
+
+                // --- Status section. ---
                 case wsKey.WS_PREF_RTCM_IN:
                     prfRtcIn = value;
                     break;
+                // Todo: [2026-06-28] Add case for RTCM count.
+                // Todo: [2026-06-28] Add case for RTCM rate (kbps).
                 case wsKey.WS_PREF_NMEA_OUT:
                     prfNmeOut = value;
                     break;
-                case wsKey.WS_PREF_GNSS_MESASURE_INTERVAL:
+                case wsKey.WS_PREF_GNSS_MEASURE_INTERVAL:
                     prfGnsMsrInt = value;
                     break;
                 case wsKey.WS_PREF_GNSS_NAV_RATE:
@@ -313,8 +325,8 @@ function webSocketRcvMessage(event) {
                 case wsKey.WS_SOCKET_NUM:
                     prfHotPas = value;
                     break;
-                case wsKey.WS_POLE_HEIGHT:
-                    prfPolHght = value;
+                case wsKey.WS_INSTRUMENT_HEIGHT:
+                    prfInstrHght = value;
                     break;
             }
 
