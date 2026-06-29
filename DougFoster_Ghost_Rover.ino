@@ -8,6 +8,7 @@
  * @since  3.1.0  [2026-03-10-11:30am] Add pole height preference.
  * @since  3.1.1  [2026-06-25-10:30pm] Regroup. Cleanup.
  * @since  3.1.1  [2026-06-26-12:30pm] Cleanup formatting.
+ * @since  3.1.1  [2026-06-26-06:00pm] Change reset to restart.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover_BT_relay.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
@@ -341,7 +342,7 @@
  *        browser <-- {"0":"3.0.12 - Feb 28 2026 @ 09:40:15","1":"meter","2":"radio","3":"on","4":100,"5":2,"6":"ssid","7":"pass","35":10,"36":0}
  *     -- Set preferences. --
  *        browser --> [{"config":"set"},{"1":"meter","2":"radio","3":"on","4":"50","5":"2","6":"xxxx","7":"xxxx", "8":"0"}]
- *        prefUtility(PREF_READ, PREF_SAVE, PREF_PRINT, PREF_RESET).
+ *        prefUtility(PREF_READ, PREF_SAVE, PREF_PRINT, PREF_RESTART).
  *        browser <-- {"config":"Preference values updated."}
  *     -- Reset preferences. --
  *        browser --> [{"config":"reset"}].
@@ -544,7 +545,7 @@ enum CommandIndex {                         //  Readable index for command array
     DEBUG_WS,                               //  7.
     DEBUG_LIPO,                             //  8.
     SHOW_UPTIME,                            //  9.
-    RESET,                                  // 10.
+    RESTART,                                // 10.
     CHECK_WIRE1,                            // 11.
     DEBUG_TEMP,                             // 12.
     DEBUG_NMEA_HEX,                         // 13.
@@ -563,7 +564,7 @@ const char* COMMAND[NUM_COMMANDS] = {       // Command strings; match CommandInd
     "debugWs",                              // DEBUG_WS.
     "debugLiPo",                            // DEBUG_LIPO.
     "showUpTime",                           // SHOW_UPTIME.
-    "reset",                                // RESET.
+    "restart",                              // RESTART.
     "checkWire1",                           // CHECK_WIRE1.
     "debugTemp",                            // DEBUG_TEMP.
     "debugNMEAhex",                         // DEBUG_NMEA_HEX.
@@ -606,7 +607,7 @@ enum        prefAction {        // Readable index for preference actions.
     PREF_INIT,                  // 0.
     PREF_READ,                  // 1.
     PREF_SAVE,                  // 2.
-    PREF_RESET,                 // 3.
+    PREF_RESTART,               // 3.
     PREF_PRINT,                 // 4.
     PREF_TO_JSON                // 5.
 };
@@ -692,7 +693,7 @@ void statusLedOn() {
  * Keys for preference values are sent in WebSocket as "1", "2", etc. but stored in NVS as "prfUnt", "prfRtcIn", ... .
  * Refer to enum wsKeyID and char array WS_KEY_NUMS[] in WebSocket sertion of Global Vars to decode.
  * 
- * @param  object prefAction PREF_INIT, PREF_READ, PREF_SAVE, PREF_RESET, PREF_PRINT, PREF_TO_JSON.
+ * @param  object prefAction PREF_INIT, PREF_READ, PREF_SAVE, PREF_RESTART, PREF_PRINT, PREF_TO_JSON.
  * @param  array key WebSocket JSON key.
  * @param  array value WebSocket JSON value.
  * @return void  No output is returned.
@@ -737,7 +738,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             if(hasKey) {
                 prefUtility(PREF_READ);                                     // Recursive. Test preference exists, so they all should. Read values from NVS & set global vars.
             } else {
-                prefUtility(PREF_RESET);                                    // Recursive. If the test preference doesn't exist, none of them do.
+                prefUtility(PREF_RESTART);                                    // Recursive. If the test preference doesn't exist, none of them do.
             }
 
             // -- Wrap up. --
@@ -805,7 +806,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             }
             break;
 
-        case PREF_RESET:
+        case PREF_RESTART:
 
             // -- Set each KV pair to default values. --
             strcpy(prfUnt,    DEF_PRF_UNT);                             // Set global vars to defaults.
@@ -1841,7 +1842,7 @@ void onWebSocketMessage(void *arg, uint8_t *data, size_t len) {
         //  browser <-- browser {"config":"message"}.
         // -------------------------------------------------------------------------
         if ((strcmp(subTerm, "reset") == 0)) {
-            prefUtility(PREF_RESET);     // Reset preferences to defaults.
+            prefUtility(PREF_RESTART);     // Reset preferences to defaults.
             prefUtility(PREF_TO_JSON);   // Send new preference values back to browser.
             jsonDocToClient["config"] = "Preferences reset to defaults.";
         }
@@ -2458,7 +2459,7 @@ void debug() {
     }
 
     // --- Reset. ---
-    if (commandFlag[RESET]) {
+    if (commandFlag[RESTART]) {
         Serial.println("Restarting ...");
         esp_restart();
     }
