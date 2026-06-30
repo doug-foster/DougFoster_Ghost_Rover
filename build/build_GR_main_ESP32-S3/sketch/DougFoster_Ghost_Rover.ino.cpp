@@ -10,6 +10,7 @@
  * @since  3.1.1  [2026-06-25-10:30pm] Regroup. Cleanup.
  * @since  3.1.1  [2026-06-26-12:30pm] Cleanup formatting.
  * @since  3.1.1  [2026-06-26-06:00pm] Change reset to restart.
+ * @since  3.1.1  [2026-06-26-06:00pm] Change checkZED to checkZedUpdateOperate.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover_BT_relay.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
@@ -166,7 +167,7 @@
  *      -- onWebSocketMessage()        - Event - WebSocket message event handler.
  *      -- DevUBLOXGNSS::processNMEA() - DevUBLOXGNSS task - SparkFun_u-blox_GNSS_v3 library: process NMEA bytes.
  *  --- Loop functions. ---
- *      -- checkZED()                  - NMEA - Check ZED to trigger DevUBLOXGNSS::processNMEA().
+ *      -- checkZedUpdateOperate()     - NMEA - Check ZED to trigger DevUBLOXGNSS::processNMEA(). Update "operate" UI page over WebSocket.
  *      -- relaySerial1toSerial2()     - RTCM - Relay from Serial1 (HC-12 radio) to Serial2 (ZED UART2).
  *      -- rtcm3GetMessageType()       - RTCM - Return RTCM3 message type.
  *      -- checkSerialUSB()            - Check serial USB for input.
@@ -206,7 +207,7 @@
  *     startTasks()                  // Start tasks.
  *     preLoop()                     // Prepare for loop().
  * --- Run loop(). ---    
- *     checkZED()                    // NMEA - Check ZED to trigger DevUBLOXGNSS::processNMEA().
+ *     checkZedUpdateOperate()       // NMEA - Check ZED to trigger DevUBLOXGNSS::processNMEA(). Update "operate" UI page over WebSocket.
  *     relaySerial1toSerial2()       // RTCM - Relay from Serial1 (HC-12 radio) to Serial2 (ZED UART2).
  *     checkSerialUSB()              // Check serial USB for input.
  *     // checkGnssLockButton()      // Check GNSS lock button.
@@ -352,12 +353,12 @@
  * --- Exchange protocol for operate.html page. ---
  *     -- Hello. --
  *        browser --> [{"page":"operate"}].
- *        browser <-- {"0":"3.0.12 - Feb 28 2026 @ 09:40:15","1":"meter","2":"radio","3":"on","4":100,"5":2,"6":"ssid","7":"pass","35":10}
+ *        browser <-- {"0":"3.0.12 - Feb 28 2026 @ 09:40:15","1":"meter","2":"radio","3":"on","4":100,"5":2,"6":"ssid","7":"pass","35":10,"36":1201}
  *     -- GNSS & status values. --
  *        browser <-- {"8":1,"9":10,"10":"-40.68","11":"-4.62","12":"35.44418163","13":"-76.92332881","14":"8.464","15":"10.229","16":"d","17":"u","18":"101.30",
  *                     "19":"2.5","20":"4h 29m 52s","30":526389,"31":160768,"23":77545,"24":77545,"25":129240,"26":216211,"27":25848,"28":0,"29":0,"32":"r",
- *                     "33":"192.168.23.1","34":"172.20.10.2","35":30,"36":0}}
- *        checkZed() calls operDataToJsonDoc() which uses jsonDocToClient[wsKey(WS_GNSS_FIX)] ... to generate numeric webSocket keys with values.
+ *                     "33":"192.168.23.1","34":"172.20.10.2","35":30,"37":12,"38":89}
+ *        checkZedUpdateOperate() calls operDataToJsonDoc() which uses jsonDocToClient[wsKey(WS_GNSS_FIX)] ... to generate numeric WebSocket keys with values.
  *
  *     -- Lock/unlock buttons. --
  *        browser --> [{"laser"/height/position:"lock/unlock"}].
@@ -486,7 +487,9 @@ enum wsKeyID {                              // Readable index for WebSocket keys
     WS_WIFI_LOCAL_NETWORK_IP,               // jsonDocToClient["l-ip"]          33 - jsonDocToClient[wsKey(WS_WIFI_LOCAL_NETWORK_IP)].
     WS_WIFI_HOT_SPOT_IP,                    // jsonDocToClient["h-ip"]          34 - jsonDocToClient[wsKey(WS_WIFI_HOT_SPOT_IP)].
     WS_SOCKET_NUM,                          // jsonDocToClient["socketNum"]     35 - jsonDocToClient[wsKey(WS_SOCKET_NUM)].
-    WS_INSTRUMENT_HEIGHT                    // new                              36 - jsonDocToClient[wsKey(WS_INSTRUMENT_HEIGHT)].
+    WS_INSTRUMENT_HEIGHT,                   // new                              36 - jsonDocToClient[wsKey(WS_INSTRUMENT_HEIGHT)].
+    WS_RTCM_SENTENCE_COUNT,                 // new                              37 - jsonDocToClient[wsKey(WS_RTCM_SENTENCE_COUNT)].
+    WS_RTCM_KBPS                            // new                              38 - jsonDocToClient[wsKey(WS_RTCM_KBPS].
 };
 const char* const WS_KEY_NUMS[] = {         // see enum wsKeyID{} above for corresponding alpha.    
     "0",
@@ -525,7 +528,9 @@ const char* const WS_KEY_NUMS[] = {         // see enum wsKeyID{} above for corr
     "33",
     "34",
     "35",
-    "36"
+    "36",
+    "37",
+    "38",
 };
 
 // --- GNSS. ---
@@ -592,6 +597,8 @@ char    whichPage[10]             = {'\0'};     // Current browser page served b
 char    buildString[40]           = {'\0'};     // Build string (build version on date at time). e.g. 3.0.12 - Feb 19 2026 @ 12:23:13
 char    serialState[4];                         // Serial state: [USB] [S0] [S1] [S2]; value = u, d, or -.
 size_t  wsSendCount = 0;                        // # of WebSocket messages sent.
+size_t  rtcmSentenceCount = 0;                  // # of RTCM sentences in.
+size_t  rtcmKbps = 0;                           // RTCM kbps (average).
 int64_t startTime;                              // Boot time.
 
 // --- Preferences. ---
@@ -653,63 +660,63 @@ int64_t nmeaSentenceLength = 0;
  * @return char* const Key ID #.
  * @since  03.0.12 [2026-02-19] New.
  */
-#line 655 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 662 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 const char * wsKey(int id);
-#line 668 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 675 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void statusLedOn();
-#line 882 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 889 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void operDataToJsonDoc();
-#line 1042 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1050 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void showBuild();
-#line 1093 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1101 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startSerial();
-#line 1124 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1132 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void initPins();
-#line 1150 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1158 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startI2C();
-#line 1187 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1195 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startLiPo();
-#line 1211 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1219 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startWiFi();
-#line 1310 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1318 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startSD();
-#line 1372 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1380 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startHttpServer();
-#line 1427 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1435 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startWebSocketServer();
-#line 1462 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1470 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startAndConfigGNSS();
-#line 1540 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1548 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startTasks();
-#line 1556 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1564 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void preLoop();
-#line 1593 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1601 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void taskLoopStatusLed(void * pvParameters);
-#line 1633 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1641 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void onWiFiEvent(arduino_event_id_t event);
-#line 1665 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1673 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void onHttpFileUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final);
-#line 1711 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1719 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void onWebSocketEvent(AsyncWebSocket *httpServer, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len);
-#line 1766 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1774 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void onWebSocketMessage(void *arg, uint8_t *data, size_t len);
-#line 2110 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void checkZED();
-#line 2176 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 2118 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void checkZedUpdateOperate();
+#line 2184 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void relaySerial1toSerial2();
-#line 2245 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 2257 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 uint16_t rtcm3GetMessageType(const char* rtcmSentence);
-#line 2268 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 2280 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void checkSerialUSB();
-#line 2341 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 2353 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void debug();
-#line 2512 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 2524 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void checkGnssLockButton();
-#line 2540 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 2552 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void setup();
-#line 2566 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 2578 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void loop();
-#line 655 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 662 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 const char* wsKey(int id) {
     return WS_KEY_NUMS[id];
 }
@@ -1046,7 +1053,8 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
         jsonDocToClient[wsKey(WS_NMEA_OUT_RATE)]           = nmeaRate;
         jsonDocToClient[wsKey(WS_OPERATIONAL_MODE)]        = operMode;
         jsonDocToClient[wsKey(WS_WIFI_LOCAL_NETWORK_IP)]   = localIp;
-       jsonDocToClient[wsKey(WS_WIFI_HOT_SPOT_IP)]         = hotspotIp;
+        jsonDocToClient[wsKey(WS_RTCM_SENTENCE_COUNT)]     = rtcmSentenceCount;
+        jsonDocToClient[wsKey(WS_RTCM_KBPS)]               = rtcmKbps;
     } else {
         jsonDocToClient[wsKey(WS_GNSS_FIX)]                = 0;                 // GNSS down. 
         jsonDocToClient[wsKey(WS_GNSS_SAT_IN_VIEW)]        = 0;
@@ -2143,7 +2151,7 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
  * Check task functions and event handlers. These are independent of loop().
  * 
  * @since 3.0.11 [2026-01-12-06:00pm] Browser initiated updates.
- * @see checkZED()                - NMEA - Check ZED to trigger DevUBLOXGNSS::processNMEA().
+ * @see checkZedUpdateOperate()   - NMEA - Check ZED to trigger DevUBLOXGNSS::processNMEA(). Update "operate" UI page over WebSocket.
  * @see relaySerial1toSerial2()   - RTCM - Relay from Serial1 (HC-12 radio) to Serial2 (ZED UART2).
  * @see rtcm3GetMessageType()     - RTCM - Return RTCM3 message type.
  * @see checkSerialUSB()          - Check serial USB for input.
@@ -2154,7 +2162,7 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
 
  /**
  * -------------------------------------------------------------------------
- *  NMEA - Check ZED to trigger DevUBLOXGNSS::processNMEA().
+ *  NMEA - Check ZED to trigger DevUBLOXGNSS::processNMEA(). Update "operate" UI page over WebSocket.
  * -------------------------------------------------------------------------
  * 
  * (prfGnsNavRat * prfGnsMsrInt) = interval (ms) to query ZED for PVT data.
@@ -2165,13 +2173,13 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
  * @since  3.0.12 [2026-02-14-06:15pm] Replace prfRqsPvtInt with (prfGnsNavRat * prfGnsMsrInt).
  * @see    DevUBLOXGNSS::processNMEA().
  */
-void checkZED() {
+void checkZedUpdateOperate() {
 
     // --- "nmea" page. ---
     if (strcmp(whichPage, "nmea") == 0) {
 
         // -- Local vars. --
-        const int64_t  THROTTLE_CHECK_ZED = (prfGnsNavRat * prfGnsMsrInt) * 1000;   // Convert from (us) to (ms)Time (us), time between checkZED().
+        const int64_t  THROTTLE_CHECK_ZED = (prfGnsNavRat * prfGnsMsrInt) * 1000;   // Convert from (us) to (ms), time between checkZedUpdateOperate().
         static int64_t lastZedCheck = esp_timer_get_time();                         // Throttle. Initialize only once, then persist.
             int64_t lastTime;
 
@@ -2186,10 +2194,10 @@ void checkZED() {
         lastTime = esp_timer_get_time();
     }
 
-    // --- "operate" page ---
+    // --- Update "operate" page. ---
     if (strcmp(whichPage, "operate") == 0) {
 
-        // -- Load data. --
+        // -- Load data for WebSocket message. --
         operDataToJsonDoc();
 
         // -- Send update. --
@@ -2261,23 +2269,27 @@ void relaySerial1toSerial2() {
         ws2812LedColor = GREEN;
         ws2812LedBlink = true;
 
-        // -- Output for debug. --
-        if (commandFlag[DEBUG_RTCM]) {
-            if (inputChar == 0xd3) {                                // Start of new sentence.
-                msg_type = rtcm3GetMessageType(rtcmSentence);       // Parse message type.
-                uint16_t RTCMinterval = ((esp_timer_get_time()-lastRTCMtime)/1000);
-                // for (size_t i = 0; i < byteCount; i++) {
-                //     Serial.printf("[%02x] ", rtcmSentence[i]);
-                // }
-                Serial.printf("\nRTCM3 %ld (%u ms): %i bytes.\n\nd3 ", msg_type, RTCMinterval, byteCount);
-                lastRTCMtime = esp_timer_get_time();                // Used to check for timeout.
-                memset(rtcmSentence, '\0', sizeof(rtcmSentence));   // Clear the sentence buffer.
-                rtcmSentence[0] = 0xd3;
-                byteCount = 1;
-            } else {
-                Serial.printf("%02x ", inputChar);
-                byteCount++;
+        // -- Stats. --
+        if (inputChar == 0xd3) {                                // Start of new sentence.
+            rtcmSentenceCount++;
+            msg_type = rtcm3GetMessageType(rtcmSentence);       // Parse message type.
+            uint16_t RTCMinterval = ((esp_timer_get_time()-lastRTCMtime)/1000);
+            // for (size_t i = 0; i < byteCount; i++) {
+            //     Serial.printf("[%02x] ", rtcmSentence[i]);
+            // }
+            if (commandFlag[DEBUG_RTCM]) {                      // Debug.
+                Serial.printf("\nRTCM3 #%i %ld (%u ms): %i bytes.\n\nd3 ", rtcmSentenceCount, msg_type, RTCMinterval, byteCount);
             }
+
+            lastRTCMtime = esp_timer_get_time();                // Used to check for timeout.
+            memset(rtcmSentence, '\0', sizeof(rtcmSentence));   // Clear the sentence buffer.
+            rtcmSentence[0] = 0xd3;
+            byteCount = 1;
+        } else {
+            if (commandFlag[DEBUG_RTCM]) {                      // Debug.
+                Serial.printf("%02x ", inputChar);
+            }
+            byteCount++;
         }
     }
 }
@@ -2622,7 +2634,7 @@ void setup() {
  * @see   Event handlers.
  */
 void loop() {
-    checkZED();                 // NMEA - Check ZED to trigger DevUBLOXGNSS::processNMEA().
+    checkZedUpdateOperate();    // NMEA - Check ZED to trigger DevUBLOXGNSS::processNMEA(). Update "operate" UI page over WebSocket.
     relaySerial1toSerial2();    // RTCM - Relay from Serial1 (HC-12 radio) to Serial2 (ZED UART2).
     checkSerialUSB();           // Check serial USB for input.
     // checkGnssLockButton();      // Check GNSS lock button.  // ToDo: Implement.
