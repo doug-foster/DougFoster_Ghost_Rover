@@ -19,7 +19,8 @@
  * @since  3.1.0  [2026-03-20-11:45am] Update var names, add pole height.
  * @since  3.1.1  [2026-06-25-02:00pm] Regroup: upload to SD card.
  * @since  3.0.12 [2026-02-28-09:00pm] WS_PREF_GNSS_MESASURE_INTERVAL -> WS_PREF_GNSS_MEASURE_INTERVAL.
- * @since  3.1.1 [2026-06-29-03:45pm] Refactor.
+ * @since  3.1.1  [2026-06-29-03:45pm] Refactor.
+ * @since  3.1.1  [2026-07-01-06:30pm] window.location.reload() after resetting default preferences.
  * @link   http://dougfoster.me.
 */
 
@@ -344,7 +345,7 @@ resetConfigBtn.addEventListener('click', () => {
             websocket.send(RESET_PREFS);  // Send "reset" preferences message to rover.
             console.log('browser --> ' + RESET_PREFS);
             clearMessageField();
-            setHeights('change');
+            window.location.reload();
         } else {
             messageForm.textContent = 'Reset cancelled.';
             clearMessageField();

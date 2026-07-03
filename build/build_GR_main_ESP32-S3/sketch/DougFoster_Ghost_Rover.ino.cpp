@@ -281,7 +281,7 @@
  *     int64_t/long long            %lld      64 bits = 8 bytes,      -9.22e+18 to 9.22e+18.
  *
  * --- Signed decimal/floating point. ---
- *     float                        %f        32 bits = 4 bytes,   6-7 sig. digits (hardware),  -3.40e+38 to 3.40e+38).
+ *     float                        %.2f      32 bits = 4 bytes,   6-7 sig. digits (hardware),  -3.40e+38 to 3.40e+38), 2 decimal places.
  *     double/long double           %f,%lf    64 bits = 8 bytes, 15-17 sig. digits (software), -1.79e+308 to 1.79e+308).
  *
  * --- Character/text. ---
@@ -579,27 +579,27 @@ const char* COMMAND[NUM_COMMANDS] = {       // Command strings; match CommandInd
 };      
 const bool RW_MODE = false;                     // Open preference name space as read/write.
 const bool RO_MODE = true;                      // Open preference name space as read only.
-bool    ghostMode          = false;             // Flag, in Ghost mode (i.e. locked coordinates).
-bool    i2cUp              = false;             // Status: true if both Wire & Wire1 up, else false.
-bool    inLoop             = false;             // In loop() indicator.
-bool    RTCMin             = false;             // RTCM received from NTRIP or radio within RTCM_TIMEOUT.
-bool    NMEAout            = false;             // NMEA sent OUT to MCU #2?
-bool    zeroStatusCounters = false;             // Flag to zero status counters.
-bool    buttonGnssLock;                         // UI - // ToDo: implement.
-bool    buttonAltitudeLock;                     // UI - // ToDo: implement.
-bool    buttonPositionLock;                     // UI - // ToDo: implement.
-bool    buttonLaser;                            // UI button to turn laser pointer on/off.
-bool    buttonUnlockAll;                        // UI - // ToDo: implement.
-bool    commandFlag[NUM_COMMANDS] = {false};    // Command flags.
-char    operMode[2]               = {'\0'};     // Operation mode (r=rover, b=base).
-char    debugTemp[250]            = {'\0'};     // Various debug scenarios.
-char    whichPage[10]             = {'\0'};     // Current browser page served by startHttpServer().
-char    buildString[40]           = {'\0'};     // Build string (build version on date at time). e.g. 3.0.12 - Feb 19 2026 @ 12:23:13
-char    serialState[4];                         // Serial state: [USB] [S0] [S1] [S2]; value = u, d, or -.
-size_t  wsSendCount = 0;                        // # of WebSocket messages sent.
-size_t  rtcmSentenceCount = 0;                  // # of RTCM sentences in.
-size_t  rtcmKbps = 0;                           // RTCM kbps (average).
-int64_t startTime;                              // Boot time.
+bool      ghostMode                 = false;    // Flag, in Ghost mode (i.e. locked coordinates).
+bool      i2cUp                     = false;    // Status: true if both Wire & Wire1 up, else false.
+bool      inLoop                    = false;    // In loop() indicator.
+bool      RTCMin                    = false;    // RTCM received from NTRIP or radio within RTCM_TIMEOUT.
+bool      NMEAout                   = false;    // NMEA sent OUT to MCU #2?
+bool      zeroStatusCounters        = false;    // Flag to zero status counters.
+bool      buttonGnssLock;                       // UI - // ToDo: implement.
+bool      buttonAltitudeLock;                   // UI - // ToDo: implement.
+bool      buttonPositionLock;                   // UI - // ToDo: implement.
+bool      buttonLaser;                          // UI button to turn laser pointer on/off.
+bool      buttonUnlockAll;                      // UI - // ToDo: implement.
+bool      commandFlag[NUM_COMMANDS] = {false};  // Command flags.
+char      operMode[2]               = {'\0'};   // Operation mode (r=rover, b=base).
+char      debugTemp[250]            = {'\0'};   // Various debug scenarios.
+char      whichPage[10]             = {'\0'};   // Current browser page served by startHttpServer().
+char      buildString[40]           = {'\0'};   // Build string (build version on date at time). e.g. 3.0.12 - Feb 19 2026 @ 12:23:13
+char      serialState[4];                       // Serial state: [USB] [S0] [S1] [S2]; value = u, d, or -.
+size_t    wsSendCount               = 0;        // # of WebSocket messages sent.
+size_t    rtcmSentenceCount         = 0;        // # of RTCM sentences in.
+int64_t   startTime;                            // Boot time.
+float     rtcmKbps                  = 0;        // RTCM kbps (average).
 
 // --- Preferences. ---
 char        prfUnt[6];          // Distance units: meter/feet (used only in browser).
@@ -666,55 +666,55 @@ const char * wsKey(int id);
 void statusLedOn();
 #line 889 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void operDataToJsonDoc();
-#line 1050 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1049 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void showBuild();
-#line 1101 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1100 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startSerial();
-#line 1132 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1131 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void initPins();
-#line 1158 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1157 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startI2C();
-#line 1195 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1194 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startLiPo();
-#line 1219 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1218 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startWiFi();
-#line 1318 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1317 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startSD();
-#line 1380 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1379 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startHttpServer();
-#line 1435 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1434 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startWebSocketServer();
-#line 1470 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1469 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startAndConfigGNSS();
-#line 1548 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1547 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startTasks();
-#line 1564 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1563 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void preLoop();
-#line 1601 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1600 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void taskLoopStatusLed(void * pvParameters);
-#line 1641 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1640 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void onWiFiEvent(arduino_event_id_t event);
-#line 1673 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1672 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void onHttpFileUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final);
-#line 1719 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1718 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void onWebSocketEvent(AsyncWebSocket *httpServer, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len);
-#line 1774 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1773 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void onWebSocketMessage(void *arg, uint8_t *data, size_t len);
 #line 2118 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void checkZedUpdateOperate();
 #line 2184 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void relaySerial1toSerial2();
-#line 2257 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 2258 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 uint16_t rtcm3GetMessageType(const char* rtcmSentence);
-#line 2280 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 2281 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void checkSerialUSB();
-#line 2353 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 2354 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void debug();
-#line 2524 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 2525 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void checkGnssLockButton();
-#line 2552 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 2553 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void setup();
-#line 2578 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 2579 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void loop();
 #line 662 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 const char* wsKey(int id) {
@@ -953,7 +953,6 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
     // --- Fill jsonDocToClient. ---
     jsonDocToClient.clear();
     if (roverGNSS.getSIV() > MIN_SATELLITE_THRESHHOLD) {            // Enough satellites?
-
         // -- Fix type. --
         if (roverGNSS.getFixType() == 3) {
             jsonDocToClient[wsKey(WS_GNSS_FIX)] = 1;                // Single.
@@ -1040,7 +1039,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
         sprintf(uptime, "%uh %um %us", hours % 24, minutes % 60, seconds % 60);
         jsonDocToClient[wsKey(WS_ROVER_UP_TIME)] = uptime;
         // WebSocket status items are calculated in operate.js. All prefs use global vars.
-        jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_ALL)]      = 1;                 // Todo: finish.
+        jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_ALL)]      = 1;
         jsonDocToClient[wsKey(WS_NMEA_OUT_RATE)]           = 4;
         jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_GGA)]      = nmeaCountGGA;
         jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_RMC)]      = nmeaCountRMC;
@@ -2048,6 +2047,7 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
     if (inLoop) {
         strncat(nmeaBuffer, &incoming, 1);                                  // Add NMEA byte from RTK-SMA to outbound buffer.
         if ((incoming == '\n') && (nmeaBuffer[0] == '$')) {                 // We have a full sentence.
+            // Here is where the NMEA sentence should get modified for instrument hieght and lock button.
             if (i2cUp) {                                                    // Slave is up.
                 Wire1.beginTransmission(8);                                 // Prepare to send on I2C1.
                 for (int i = 0; i < strlen(nmeaBuffer); i++) {              // Add bytes to output queue.
@@ -2177,14 +2177,14 @@ void checkZedUpdateOperate() {
 
     // --- "nmea" page. ---
     if (strcmp(whichPage, "nmea") == 0) {
-
         // -- Local vars. --
-        const int64_t  THROTTLE_CHECK_ZED = (prfGnsNavRat * prfGnsMsrInt) * 1000;   // Convert from (us) to (ms), time between checkZedUpdateOperate().
+        const  int64_t THROTTLE_CHECK_ZED = (prfGnsNavRat * prfGnsMsrInt) * 1000;   // Convert from (us) to (ms), time between checkZedUpdateOperate().
         static int64_t lastZedCheck = esp_timer_get_time();                         // Throttle. Initialize only once, then persist.
-            int64_t lastTime;
+               int64_t lastTime;
 
         // -- Throttle loop() calls. --
         if ((esp_timer_get_time() - lastZedCheck) < THROTTLE_CHECK_ZED) {           // Not time to run.
+
             return; 
         }
         lastZedCheck = esp_timer_get_time();                                        // Time to run. Reset timer.
@@ -2196,7 +2196,7 @@ void checkZedUpdateOperate() {
 
     // --- Update "operate" page. ---
     if (strcmp(whichPage, "operate") == 0) {
-
+  
         // -- Load data for WebSocket message. --
         operDataToJsonDoc();
 
@@ -2247,7 +2247,7 @@ void relaySerial1toSerial2() {
     }
     
     // --- Local vars. ---
-    const  uint16_t RTCM_TIMEOUT      = 3000000;            // Time (us) not to exceed for RTCM input received (3 sec).
+    const  int64_t  RTCM_TIMEOUT      = 3000000;            // Time (us) not to exceed for RTCM input received (3 sec).
     static uint16_t byteCount         =       0;
     static int64_t  lastRTCMtime      =       0;            // Last time (us) when RTCM input received.
     static char     rtcmSentence[300] =  {'\0'};            // RTCM3 sentence buffer.
@@ -2262,6 +2262,7 @@ void relaySerial1toSerial2() {
 
     // --- Read from Serial1 (HC-12), write to Serial2 (ZED UART2). ---
     if (Serial1.available() > 0) {                                  // HC-12 data to read?
+
         char inputChar = Serial1.read();                            // Read a character from Serial1 (HC-12) @ SERIAL1_SPEED.
         Serial2.write(inputChar);                                   // Write a character to Serial2 (ZED UART2) @ SERIAL2_SPEED.
         rtcmSentence[byteCount] = inputChar;                        // RTCM3 sentence buffer used to parse message type.
@@ -2270,17 +2271,17 @@ void relaySerial1toSerial2() {
         ws2812LedBlink = true;
 
         // -- Stats. --
-        if (inputChar == 0xd3) {                                // Start of new sentence.
+        if (inputChar == 0xd3) {   
             rtcmSentenceCount++;
             msg_type = rtcm3GetMessageType(rtcmSentence);       // Parse message type.
-            uint16_t RTCMinterval = ((esp_timer_get_time()-lastRTCMtime)/1000);
+            int64_t RTCMinterval = ((esp_timer_get_time()-lastRTCMtime)/1000);
+            rtcmKbps = ((float)byteCount * 8.0f) / (float)RTCMinterval;
             // for (size_t i = 0; i < byteCount; i++) {
             //     Serial.printf("[%02x] ", rtcmSentence[i]);
             // }
             if (commandFlag[DEBUG_RTCM]) {                      // Debug.
-                Serial.printf("\nRTCM3 #%i %ld (%u ms): %i bytes.\n\nd3 ", rtcmSentenceCount, msg_type, RTCMinterval, byteCount);
+                Serial.printf("\nRTCM3 #%zu Type:%u bytes:%u ms:%lld kbps:%.2f\n\nd3 ", rtcmSentenceCount, msg_type, byteCount, RTCMinterval, rtcmKbps);
             }
-
             lastRTCMtime = esp_timer_get_time();                // Used to check for timeout.
             memset(rtcmSentence, '\0', sizeof(rtcmSentence));   // Clear the sentence buffer.
             rtcmSentence[0] = 0xd3;

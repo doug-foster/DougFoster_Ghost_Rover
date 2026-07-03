@@ -20,6 +20,7 @@
  * @since  3.1.1  [2026-06-25-02:00pm] Regroup: upload to SD card.
  * @since  3.1.1  [2026-06-26-09:30pm] HEIGHT_QUICK_RELEASE, changed height values.
  * @since  3.1.1  [2026-06-29-03:45pm] CHanged NVS pref from pole height to instument height.
+ * @since  3.1.1  [2026-07-03-10:30am] General cleanup.
  * @link   http://dougfoster.me.
  * 
  * Websocket messages: See DougFoster_GhostRover.ino for exchange protocol.
@@ -107,18 +108,14 @@ const wsKey = Object.freeze({       // wsKey.WS_VERSION
     WS_WIFI_LOCAL_NETWORK_IP:       '33',
     WS_WIFI_HOT_SPOT_IP:            '34',
     WS_SOCKET_NUM:                  '35',
-    WS_INSTRUMENT_HEIGHT:           '36'
+    WS_INSTRUMENT_HEIGHT:           '36',
+    WS_RTCM_SENTENCE_COUNT:         '37',
+    WS_RTCM_KBPS:                   '38'
 });
 
 // --- Preferences. ---
-let prfUnt       = 0;
-let prfRtcIn     = 0;
-let prfNmeOut    = 0;
-let prfGnsMsrInt = 0;
-let prfGnsNavRat = 0;
-let prfHotSsi    = 0;
-let prfHotPas    = 0;
-let prfInstrHght = 0;
+// let prfGnsMsrInt = 0;
+// let prfGnsNavRat = 0;
 
 // --- SFESPK6618H antenna phase center offsets. ---
 // https://community.sparkfun.com/t/spk6618h-antenna-north-marker/68211/5
@@ -300,34 +297,6 @@ function webSocketRcvMessage(event) {
                             statusUnitDisplayId.innerHTML = value;
                             break;
                     }
-
-                // --- Status section. ---
-                case wsKey.WS_PREF_RTCM_IN:
-                    prfRtcIn = value;
-                    break;
-                // Todo: [2026-06-28] Add case for RTCM count.
-                // Todo: [2026-06-28] Add case for RTCM rate (kbps).
-                case wsKey.WS_PREF_NMEA_OUT:
-                    prfNmeOut = value;
-                    break;
-                case wsKey.WS_PREF_GNSS_MEASURE_INTERVAL:
-                    prfGnsMsrInt = value;
-                    break;
-                case wsKey.WS_PREF_GNSS_NAV_RATE:
-                    prfGnsNavRat = value;
-                    break;
-                case wsKey.WS_PREF_HOT_SPOT_SSID:
-                    prfHotSsi = value;
-                    break;
-                case wsKey.WS_PREF_HOT_SPOT_PASS:
-                    prfHotPas = value;
-                    break;
-                case wsKey.WS_SOCKET_NUM:
-                    prfHotPas = value;
-                    break;
-                case wsKey.WS_INSTRUMENT_HEIGHT:
-                    prfInstrHght = value;
-                    break;
             }
 
             // -- Route each message to its page. --

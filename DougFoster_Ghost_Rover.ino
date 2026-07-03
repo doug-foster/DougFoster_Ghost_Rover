@@ -10,6 +10,7 @@
  * @since  3.1.1  [2026-06-26-12:30pm] Cleanup formatting.
  * @since  3.1.1  [2026-06-26-06:00pm] Change reset to restart.
  * @since  3.1.1  [2026-06-26-06:00pm] Change checkZED to checkZedUpdateOperate.
+ * @since  3.1.1  [2026-07-03-10:30am] General cleanup.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover_BT_relay.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
@@ -43,9 +44,9 @@
  *
  * --- Major components: rover. ---
  *     -- FQBN               "Sparkfun ESP32-S3 Thing Plus" (~/Library/Arduino15/packages/esp32/hardware/esp32/3.3.10/boards.txt).
- *     -- GR-MCU1 board      https://www.sparkfun.com/sparkfun-thing-plus-esp32-c6.html (SparkFun Thing Plus - ESP32-C6).
+ *     -- GR-MCU1 board      https://www.sparkfun.com/sparkfun-thing-plus-esp32-s3.html (SparkFun Thing Plus - ESP32-S3).
  *        - micro SD card    https://www.amazon.com/dp/B0BDYVC5TD (SanDisk 128GB ImageMate microSDXC UHS-1 - Up to 140MB/s).
- *     -- GR-MCU2 board      https://www.sparkfun.com/sparkfun-qwiic-pocket-development-board-esp32-c6.html (Sparkfun Qwiic Pocket Development Board - ESP32-C6 - I2C address 0x36).
+ *     -- GR-MCU2 board      https://www.sparkfun.com/sparkfun-thing-plus-esp32-s3.html (SparkFun Thing Plus - ESP32-S3).
  *     -- GNSS board         https://www.sparkfun.com/sparkfun-gps-rtk-sma-breakout-zed-f9p-qwiic.html (SparkFun GPS-RTK-SMA Breakout - ZED-F9P (Qwiic) - I2C address 0x42).
  *     -- HC-12 RF radio     https://www.amazon.com/dp/B01MYTE1XR (HiLetgo HC-12 433Mhz SI4438).
  *     -- laser pointer      https://www.petsmart.com/cat/toys/interactive-and-electronic/whisker-city-thrills-and-chills-laser-cat-toy-84577.html.
@@ -280,7 +281,7 @@
  *     int64_t/long long            %lld      64 bits = 8 bytes,      -9.22e+18 to 9.22e+18.
  *
  * --- Signed decimal/floating point. ---
- *     float                        %f        32 bits = 4 bytes,   6-7 sig. digits (hardware),  -3.40e+38 to 3.40e+38).
+ *     float                        %.2f      32 bits = 4 bytes,   6-7 sig. digits (hardware),  -3.40e+38 to 3.40e+38), 2 decimal places.
  *     double/long double           %f,%lf    64 bits = 8 bytes, 15-17 sig. digits (software), -1.79e+308 to 1.79e+308).
  *
  * --- Character/text. ---
@@ -578,27 +579,27 @@ const char* COMMAND[NUM_COMMANDS] = {       // Command strings; match CommandInd
 };      
 const bool RW_MODE = false;                     // Open preference name space as read/write.
 const bool RO_MODE = true;                      // Open preference name space as read only.
-bool    ghostMode          = false;             // Flag, in Ghost mode (i.e. locked coordinates).
-bool    i2cUp              = false;             // Status: true if both Wire & Wire1 up, else false.
-bool    inLoop             = false;             // In loop() indicator.
-bool    RTCMin             = false;             // RTCM received from NTRIP or radio within RTCM_TIMEOUT.
-bool    NMEAout            = false;             // NMEA sent OUT to MCU #2?
-bool    zeroStatusCounters = false;             // Flag to zero status counters.
-bool    buttonGnssLock;                         // UI - // ToDo: implement.
-bool    buttonAltitudeLock;                     // UI - // ToDo: implement.
-bool    buttonPositionLock;                     // UI - // ToDo: implement.
-bool    buttonLaser;                            // UI button to turn laser pointer on/off.
-bool    buttonUnlockAll;                        // UI - // ToDo: implement.
-bool    commandFlag[NUM_COMMANDS] = {false};    // Command flags.
-char    operMode[2]               = {'\0'};     // Operation mode (r=rover, b=base).
-char    debugTemp[250]            = {'\0'};     // Various debug scenarios.
-char    whichPage[10]             = {'\0'};     // Current browser page served by startHttpServer().
-char    buildString[40]           = {'\0'};     // Build string (build version on date at time). e.g. 3.0.12 - Feb 19 2026 @ 12:23:13
-char    serialState[4];                         // Serial state: [USB] [S0] [S1] [S2]; value = u, d, or -.
-size_t  wsSendCount = 0;                        // # of WebSocket messages sent.
-size_t  rtcmSentenceCount = 0;                  // # of RTCM sentences in.
-size_t  rtcmKbps = 0;                           // RTCM kbps (average).
-int64_t startTime;                              // Boot time.
+bool      ghostMode                 = false;    // Flag, in Ghost mode (i.e. locked coordinates).
+bool      i2cUp                     = false;    // Status: true if both Wire & Wire1 up, else false.
+bool      inLoop                    = false;    // In loop() indicator.
+bool      RTCMin                    = false;    // RTCM received from NTRIP or radio within RTCM_TIMEOUT.
+bool      NMEAout                   = false;    // NMEA sent OUT to MCU #2?
+bool      zeroStatusCounters        = false;    // Flag to zero status counters.
+bool      buttonGnssLock;                       // UI - // ToDo: implement.
+bool      buttonAltitudeLock;                   // UI - // ToDo: implement.
+bool      buttonPositionLock;                   // UI - // ToDo: implement.
+bool      buttonLaser;                          // UI button to turn laser pointer on/off.
+bool      buttonUnlockAll;                      // UI - // ToDo: implement.
+bool      commandFlag[NUM_COMMANDS] = {false};  // Command flags.
+char      operMode[2]               = {'\0'};   // Operation mode (r=rover, b=base).
+char      debugTemp[250]            = {'\0'};   // Various debug scenarios.
+char      whichPage[10]             = {'\0'};   // Current browser page served by startHttpServer().
+char      buildString[40]           = {'\0'};   // Build string (build version on date at time). e.g. 3.0.12 - Feb 19 2026 @ 12:23:13
+char      serialState[4];                       // Serial state: [USB] [S0] [S1] [S2]; value = u, d, or -.
+size_t    wsSendCount               = 0;        // # of WebSocket messages sent.
+size_t    rtcmSentenceCount         = 0;        // # of RTCM sentences in.
+int64_t   startTime;                            // Boot time.
+float     rtcmKbps                  = 0;        // RTCM kbps (average).
 
 // --- Preferences. ---
 char        prfUnt[6];          // Distance units: meter/feet (used only in browser).
@@ -895,7 +896,6 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
     // --- Fill jsonDocToClient. ---
     jsonDocToClient.clear();
     if (roverGNSS.getSIV() > MIN_SATELLITE_THRESHHOLD) {            // Enough satellites?
-
         // -- Fix type. --
         if (roverGNSS.getFixType() == 3) {
             jsonDocToClient[wsKey(WS_GNSS_FIX)] = 1;                // Single.
@@ -982,7 +982,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
         sprintf(uptime, "%uh %um %us", hours % 24, minutes % 60, seconds % 60);
         jsonDocToClient[wsKey(WS_ROVER_UP_TIME)] = uptime;
         // WebSocket status items are calculated in operate.js. All prefs use global vars.
-        jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_ALL)]      = 1;                 // Todo: finish.
+        jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_ALL)]      = 1;
         jsonDocToClient[wsKey(WS_NMEA_OUT_RATE)]           = 4;
         jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_GGA)]      = nmeaCountGGA;
         jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_RMC)]      = nmeaCountRMC;
@@ -1990,6 +1990,7 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
     if (inLoop) {
         strncat(nmeaBuffer, &incoming, 1);                                  // Add NMEA byte from RTK-SMA to outbound buffer.
         if ((incoming == '\n') && (nmeaBuffer[0] == '$')) {                 // We have a full sentence.
+            // Here is where the NMEA sentence should get modified for instrument hieght and lock button.
             if (i2cUp) {                                                    // Slave is up.
                 Wire1.beginTransmission(8);                                 // Prepare to send on I2C1.
                 for (int i = 0; i < strlen(nmeaBuffer); i++) {              // Add bytes to output queue.
@@ -2119,14 +2120,14 @@ void checkZedUpdateOperate() {
 
     // --- "nmea" page. ---
     if (strcmp(whichPage, "nmea") == 0) {
-
         // -- Local vars. --
-        const int64_t  THROTTLE_CHECK_ZED = (prfGnsNavRat * prfGnsMsrInt) * 1000;   // Convert from (us) to (ms), time between checkZedUpdateOperate().
+        const  int64_t THROTTLE_CHECK_ZED = (prfGnsNavRat * prfGnsMsrInt) * 1000;   // Convert from (us) to (ms), time between checkZedUpdateOperate().
         static int64_t lastZedCheck = esp_timer_get_time();                         // Throttle. Initialize only once, then persist.
-            int64_t lastTime;
+               int64_t lastTime;
 
         // -- Throttle loop() calls. --
         if ((esp_timer_get_time() - lastZedCheck) < THROTTLE_CHECK_ZED) {           // Not time to run.
+
             return; 
         }
         lastZedCheck = esp_timer_get_time();                                        // Time to run. Reset timer.
@@ -2138,7 +2139,7 @@ void checkZedUpdateOperate() {
 
     // --- Update "operate" page. ---
     if (strcmp(whichPage, "operate") == 0) {
-
+  
         // -- Load data for WebSocket message. --
         operDataToJsonDoc();
 
@@ -2189,7 +2190,7 @@ void relaySerial1toSerial2() {
     }
     
     // --- Local vars. ---
-    const  uint16_t RTCM_TIMEOUT      = 3000000;            // Time (us) not to exceed for RTCM input received (3 sec).
+    const  int64_t  RTCM_TIMEOUT      = 3000000;            // Time (us) not to exceed for RTCM input received (3 sec).
     static uint16_t byteCount         =       0;
     static int64_t  lastRTCMtime      =       0;            // Last time (us) when RTCM input received.
     static char     rtcmSentence[300] =  {'\0'};            // RTCM3 sentence buffer.
@@ -2204,6 +2205,7 @@ void relaySerial1toSerial2() {
 
     // --- Read from Serial1 (HC-12), write to Serial2 (ZED UART2). ---
     if (Serial1.available() > 0) {                                  // HC-12 data to read?
+
         char inputChar = Serial1.read();                            // Read a character from Serial1 (HC-12) @ SERIAL1_SPEED.
         Serial2.write(inputChar);                                   // Write a character to Serial2 (ZED UART2) @ SERIAL2_SPEED.
         rtcmSentence[byteCount] = inputChar;                        // RTCM3 sentence buffer used to parse message type.
@@ -2212,17 +2214,17 @@ void relaySerial1toSerial2() {
         ws2812LedBlink = true;
 
         // -- Stats. --
-        if (inputChar == 0xd3) {                                // Start of new sentence.
+        if (inputChar == 0xd3) {   
             rtcmSentenceCount++;
             msg_type = rtcm3GetMessageType(rtcmSentence);       // Parse message type.
-            uint16_t RTCMinterval = ((esp_timer_get_time()-lastRTCMtime)/1000);
+            int64_t RTCMinterval = ((esp_timer_get_time()-lastRTCMtime)/1000);
+            rtcmKbps = ((float)byteCount * 8.0f) / (float)RTCMinterval;
             // for (size_t i = 0; i < byteCount; i++) {
             //     Serial.printf("[%02x] ", rtcmSentence[i]);
             // }
             if (commandFlag[DEBUG_RTCM]) {                      // Debug.
-                Serial.printf("\nRTCM3 #%i %ld (%u ms): %i bytes.\n\nd3 ", rtcmSentenceCount, msg_type, RTCMinterval, byteCount);
+                Serial.printf("\nRTCM3 #%zu Type:%u bytes:%u ms:%lld kbps:%.2f\n\nd3 ", rtcmSentenceCount, msg_type, byteCount, RTCMinterval, rtcmKbps);
             }
-
             lastRTCMtime = esp_timer_get_time();                // Used to check for timeout.
             memset(rtcmSentence, '\0', sizeof(rtcmSentence));   // Clear the sentence buffer.
             rtcmSentence[0] = 0xd3;
