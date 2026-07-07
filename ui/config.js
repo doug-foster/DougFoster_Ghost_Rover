@@ -22,6 +22,7 @@
  * @since  3.1.1  [2026-06-29-03:45pm] Refactor.
  * @since  3.1.1  [2026-07-01-06:30pm] window.location.reload() after resetting default preferences.
  * @since  3.1.2  [2026-07-05-08:30pm] General cleanup.
+ * @since  3.1.2  [2026-07-07-01:00pm] Instrument height always in mm.
  * @link   http://dougfoster.me.
 */
 
