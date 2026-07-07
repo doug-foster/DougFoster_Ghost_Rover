@@ -1,7 +1,7 @@
 /**
- * *************************************
- *      Ghost Rover 3 - UI JS.
- * *************************************
+ * *************************************************************************
+ *  Ghost Rover 3 - UI JS.
+ * *************************************************************************
  * 
  * operate.js
  *
@@ -21,13 +21,15 @@
  * @since  3.1.0  [2026-03-02-05:00pm] Stable 3.0 version.
  * @since  3.1.0  [2026-03-20-11:15am] Update var names.
  * @since  3.1.1  [2026-06-25-02:00pm] Regroup: upload to SD card.
+ * @since  3.1.2  [2026-07-05-05:45pm] Adjust decimal places for status items.
+ * @since  3.1.2  [2026-07-05-05:45pm] Remove clearOperateUi().
  * @link   http://dougfoster.me.
 */
 
 /**
- * ============================================================================
- *                                Global vars.
- * ============================================================================
+ * =========================================================================
+ *  Global vars.
+ * =========================================================================
  *
  * @since  3.0.7  [2025-11-14-09:30am].
  * @since  3.0.11 [2026-01-20-07:00pm] Change altitude to height.
@@ -78,7 +80,7 @@ const commBt                       = document.querySelector('.info #bt');
 const batteryStatus                = document.querySelector('.info #battery-status');
 const batteryBars                  = document.querySelectorAll('.info #battery .bar');
 
-// --- Section: Status. 
+// --- Section: Status. ---
 const stuffStatus                  = document.querySelector('.status #status-stuff');
 const btnStatus                    = document.querySelector('.status #status');
 const tblStatus                    = document.querySelector('.status table');
@@ -111,37 +113,37 @@ const statusInstrumentHeight       = document.querySelector('.status #instrument
 
 // --- General. ---
 const THIS_PAGE                    = '[{"page":"operate"}]';
-const wsMessageWindowMaxCount      = 10;     // WebSocket message status tracking window (# messages).
+const wsMessageWindowMaxCount      = 10;    // WebSocket message status tracking window (# messages).
 let prfGnsMsrInt                   = 0;
 let prfGnsNavRat                   = 0;
 let startTime;
-let wsMessageCountTotal            = 0;      // Total # of WebSocket messages received. 
+let wsMessageCountTotal            = 0;     // Total # of WebSocket messages received. 
 let wsWindowStartTime              = 0;
 let wsWindowInterval               = 0;
-let convert = 1; // Conversion for default units preference (which is 'meter');
+let convert                        = 1;     // Conversion for default units preference (which is 'meter');
 
 /**
- * ============================================================================
- *                                Functions.
- * ============================================================================
+ * =========================================================================
+ *  Functions.
+ * =========================================================================
  *
  * @since 3.0.3  [2025-10-16-01:45pm] New.
  * @since 3.0.12 [2026-01-28-06:00pm] Refactor for status section.
- * @since  3.0.12 [2026-02-07-07:30am] Add THIS_PAGE.
+ * @since 3.0.12 [2026-02-07-07:30am] Add THIS_PAGE.
+ * @since 3.1.2  [2026-07-05-05:45pm] Remove clearOperateUi().
  * @see   update()         - Update server.
  * @see   fix()            - Fix - set state.
  * @see   button()         - Buttons - set button states.
  * @see   toggleButtons()  - Buttons - set icon states.
  * @see   battery()        - Battery - set items.
  * @see   operateMessage() - Execute WebSocket message.
- * @see   clearOperateUi() - Clear Operate UI.
  * @see   flash()          - Flash an LED.
  */
 
 /**
- * ------------------------------------------------
- *      Update server.
- * ------------------------------------------------
+ * -------------------------------------------------------------------------
+ *  Update server.
+ * -------------------------------------------------------------------------
  * 
  * @return void  No output is returned.
  * @since  3.0.10 [2026-01-07-04:30pm] New.
@@ -160,9 +162,9 @@ function update() {
 }
 
 /**
- * ------------------------------------------------
- *      Fix - set state.
- * ------------------------------------------------
+ * -------------------------------------------------------------------------
+ *  Fix - set state.
+ * -------------------------------------------------------------------------
  * 
  * Since there is (1) fix state per WebSocket message, also calculate the WebSocket stats.
  *
@@ -205,20 +207,20 @@ function fix(state) {
     // --- Track WebSocket stats. ---
     wsWindowInterval = Date.now() - wsWindowStartTime;  // Window interval (ms).
 
-    // -- Display values. --
+    // --- Display values. ---
     statusWsMessageCountId.innerHTML    = (wsMessageCountTotal++).toLocaleString();
-    statusWsMessageIntervalId.innerHTML = (wsWindowInterval).toFixed(1);
+    statusWsMessageIntervalId.innerHTML = (wsWindowInterval).toFixed(0);
     statusWsMessageLengthId.innerHTML   = wsNumBytesThisMessage;  // @see webSocketRcvMessage() in global.js.
     statusWsMessageRateId.innerHTML     = ((wsNumBytesThisMessage * 8) / (wsWindowInterval/1000) / 1024).toFixed(2);  // kbps.
 
-    // -- Reset counters. --
+    // --- Reset counters. ---
     wsWindowStartTime          = Date.now();
 }
 
 /**
- * ------------------------------------------------
- *      Buttons - set button states.
- * ------------------------------------------------
+ * -------------------------------------------------------------------------
+ *  Buttons - set button states.
+ * -------------------------------------------------------------------------
  *
  * @return void  No output is returned.
  * @since  3.0.3 [2025-10-13-02:15pm].
@@ -275,9 +277,9 @@ function button(which, action) {
 }
 
 /**
- * ------------------------------------------------
- *      Buttons - set icon states.
- * ------------------------------------------------
+ * -------------------------------------------------------------------------
+ *  Buttons - set icon states.
+ * -------------------------------------------------------------------------
  *
  * @return void  No output is returned.
  * @since  3.0.3 [2025-10-13-02:15pm].
@@ -305,9 +307,9 @@ function toggleButtons(which) {
 }
 
 /**
- * ------------------------------------------------
- *      Battery - set items.
- * ------------------------------------------------
+ * -------------------------------------------------------------------------
+ *  Battery - set items.
+ * -------------------------------------------------------------------------
  *
  * example JSON: {"bat":93.07031,"batc":-1.2}
  *
@@ -358,9 +360,9 @@ function battery(which, info) {
 }
 
 /**
- * ------------------------------------------------
- *      Execute WebSocket message.
- * ------------------------------------------------
+ * -------------------------------------------------------------------------
+ *  Execute WebSocket message.
+ * -------------------------------------------------------------------------
  *
  * @return void   No output is returned.
  * @since  3.0.7  [2025-11-14-09:30am].
@@ -376,12 +378,12 @@ function battery(which, info) {
  * @since  3.0.12 [2026-02-18-11:00pm] Shorten RTCM & NMEA status.
  * @since  3.0.12 [2026-02-25-09:45pm] Refactor, move into statusItem().
  * @since  3.0.12 [2026-02-28-02:15pm] Add WS_SOCKET_NUM.
+ * @since  3.1.2  [2026-07-05-05:45pm] Remove clearOperateUi().
  * @see    webSocketRcvMessage() in global.js.
  */
 function operateMessage(key, value) {
 
-    // --- Call function based on data group. ---
-    //     -- fix(), button(), battery(). --
+    // --- Set element content directly or via fix(), button(), or battery() functions. ---
     switch (key) {
         case 'status':                                      // {"status":"ready"}.
             if(value === 'ready') {
@@ -523,7 +525,7 @@ function operateMessage(key, value) {
             statusRtcmSentenceCountAllId.textContent = value.toLocaleString();
             break;
         case wsKey.WS_RTCM_KBPS:                            // {"38":0}.
-            statusRtcmSentenceRateId.textContent     = value.toLocaleString();
+            statusRtcmSentenceRateId.textContent     = value.toFixed(2);
             break;
         case 'laser':                                       // {"laser":"locked"}.
         case 'height':                                      // {"height":"locked"}.
@@ -534,54 +536,9 @@ function operateMessage(key, value) {
 }
 
 /**
- * ------------------------------------------------
- *      Clear Operate UI.
- * ------------------------------------------------
- *
- * @return void  No output is returned.
- * @since  3.0.7  [2025-11-15-05:00pm].
- * @since  3.0.10 [2026-01-08-09:30am] Shortened keywords (e.g. latitude to lat).
- * @since  3.0.12 [2026-02-08-01:45pm] Add THIS_PAGE, change heights.
- */
-function clearOperateUi() {
-fix(                        0);
-// number('siv',               '--');
-// number('hgt-elip',          0);
-// number('hgt-orth',          0);
-// number('lat',               0);
-// number('long',              0);
-// number('vac',               0);
-// number('hac',               0);
-// comm('rtcm',                'd');
-// comm('bt',                  'd');
-battery('soc',              0);
-// statusItem('up-tm',         0);
-// statusItem('prfGnsNavRat',  0);
-// statusItem('prfGnsMsrInt',  0);
-// statusItem('ver',           '-.-.-');
-// statusItem('prfUnt',        '-');
-// statusItem('prfRtcIn',      '-');
-// statusItem('rtcm-cnt-all',  0);
-// statusItem('rtcm-rate',     0);
-// statusItem('nmea-cnt-gga',  0);
-// statusItem('nmea-cnt-rmc',  0);
-// statusItem('nmea-cnt-gsa',  0);
-// statusItem('nmea-cnt-gsv',  0);
-// statusItem('nmea-cnt-gst',  0);
-// statusItem('nmea-cnt-txt',  0);
-// statusItem('nmea-cnt-othr', 0);
-// statusItem('nmea-cnt-all',  0);
-// statusItem('nmea-rate',     0);
-// statusItem('l-ip',          '-.-.-.-');
-// statusItem('h-ip',          '-.-.-.-');
-// statusItem('prfHotSsi',     'XXXX');
-// statusItem('prfHotPas',     'XXXX');
-}
-
-/**
- * ------------------------------------------------
- *      Flash an LED.
- * ------------------------------------------------
+ * -------------------------------------------------------------------------
+ *  Flash an LED.
+ * -------------------------------------------------------------------------
  *
  * @return void  No output is returned.
  * @since  3.0.12 [2026-02-08-06:45pm] New.
@@ -600,19 +557,10 @@ function flashRtcm() {
 }
 
 /**
- * ============================================================================
- *                             Event listeners.
- * ============================================================================
+ * =========================================================================
+ *  Event listeners.
+ * =========================================================================
  *
- * @since  3.0.3 [2025-10-20-01:30pm].
- */
-
-/**
- * ------------------------------------------------
- *      General.
- * ------------------------------------------------
- *
- * @return void  No output is returned.
  * @since  3.0.3  [2025-10-22-01:30pm].
  * @since  3.0.10 [2026-01-07-02:00pm] Add update.
  * @since  3.0.11 [2026-01-20-07:00pm] Change altitude to height.
@@ -624,10 +572,10 @@ function flashRtcm() {
 // --- Page. ---
  document.addEventListener('DOMContentLoaded', () => {
 
-    // --- Start WebSocket. ---
+    // -- Start WebSocket. --
     webSocketInit();
 
-    // --- Uptime timer. ---
+    // -- Uptime timer. --
     startTime = Date.now();
     const intervalId = setInterval(function() {
         let seconds = Math.floor((Date.now() - startTime) / 1000);
@@ -636,22 +584,23 @@ function flashRtcm() {
         statusUptimeOperateId.innerHTML = (hours % 24) + 'h ' + (minutes % 60) + 'm ' + (seconds % 60) + 's';
     }, 1000); // Every 1000ms.
 
-    // --- Console debug. ---
+    // -- Console debug. --
     console.log('Show console messages is "' + sessionStorage.getItem("displayJsConsoleMessages") + '".');
 });
 
 // --- Buttons. ---
 btnLaser.addEventListener('click', async () => {
-    btnLaserLabel.classList.toggle('shadow');                  // Visual feedback.
-    // setTimeout(function() { btnLaserLabel.classList.remove('shadow'); }, 100);
-    // toggleButtons('laser');
-    for (let i = 0; i < 10; i++) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        console.log(`iteration ${i}`);  // replace with your command
-    }
+    btnLaserLabel.classList.toggle('shadow');               // Visual feedback.
+    setTimeout(function() { btnLaserLabel.classList.remove('shadow'); }, 100);
+    toggleButtons('laser');
+    // Work with this for lock buttons.
+    // for (let i = 0; i < 10; i++) {
+    //     await new Promise(resolve => setTimeout(resolve, 2000));
+    //     console.log(`iteration ${i}`);  // replace with your command
+    // }
 });
 btnHeight.addEventListener('click', () => {
-    btnHeightLabel.classList.add('shadow');                  // Visual feedback.
+    btnHeightLabel.classList.add('shadow');                 // Visual feedback.
     setTimeout(function() { btnHeightLabel.classList.remove('shadow'); }, 100);
     toggleButtons('height');
 });
@@ -682,21 +631,21 @@ btnStatus.addEventListener('click', () => {
     stuffStatus.classList.toggle('hide');
 });
 
-
-
 /**
- * ============================================================================
- *                                    Test.
- * ============================================================================
+ * =========================================================================
+ *  Test.
+ * =========================================================================
  *
  * @since  3.0.12 [2026-02-08-08:00pm].
  */
 
 /**
- * ============================================================================
- *                             Run on page load.
- * ============================================================================
+ * =========================================================================
+ *  Run on page load.
+ * =========================================================================
  *
  * @since  3.0.3 [2025-10-16-10:00am].
+ * @since  3.1.2  [2026-07-05-05:45pm] Remove clearOperateUi().
  */
-// clearOperateUi();
+fix(           0);
+battery('soc', 0);

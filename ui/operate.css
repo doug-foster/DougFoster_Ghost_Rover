@@ -1,7 +1,7 @@
 /**
- * *************************************
- *      Ghost Rover 3 - UI CSS.
- * *************************************
+ * *************************************************************************
+ *  Ghost Rover 3 - UI CSS.
+ * *************************************************************************
  *
  * operate.css
  *
@@ -18,14 +18,14 @@
  * @since  3.1.0  [2026-03-02-05:00pm] Stable 3.0 version.
  * @since  3.1.1  [2026-06-25-02:00pm] Regroup: upload to SD card.
  * @since  3.1.1  [2026-06-25-10:00pm] td:nth-of-type(2) ... {width: 85px;}, ditto.
- * @since  3.1.1  [2026-07-03-10:30am] General cleanup.
+ * @since  3.1.2  [2026-07-05-08:45pm] General cleanup.
  * @link   http://dougfoster.me.
 */
 
 /**
-// -------------------------------------
-//      Operation: Fix state.
-// -------------------------------------
+ * -------------------------------------------------------------------------
+ *  Operation: Fix state.
+ * -------------------------------------------------------------------------
 */
 .fix {
     margin-top: 25px;
@@ -85,9 +85,9 @@
 }
 
 /**
-// -------------------------------------
-//      Operation: numbers.
-// -------------------------------------
+ * -------------------------------------------------------------------------
+ *  Operation: numbers.
+ * -------------------------------------------------------------------------
 */
 .numbers {
     margin: 10px 0 20px 0;
@@ -109,9 +109,9 @@
 }
 
 /**
-// -------------------------------------
-//      Operation: buttons.
-// -------------------------------------
+ * -------------------------------------------------------------------------
+ *  Operation: buttons.
+ * -------------------------------------------------------------------------
 */
 .buttons .oper-button {
     display: flex;
@@ -125,11 +125,11 @@
 }
 .buttons .oper-button .label {
     display: flex;
-    flex: 1;  /* Use remaining space. */
-    align-items: center;      /* Center vertically. */
+    flex: 1;                    /* Use remaining space. */
+    align-items: center;        /* Center vertically. */
     padding: 20px;
     border-radius: var(--std-border-radius);
-    justify-content: center;  /* Center horizontally. */
+    justify-content: center;    /* Center horizontally. */
     transition: border-radius 0.3s ease;
 }
 .buttons .oper-button .shadow {
@@ -149,11 +149,11 @@
 }
 .buttons .icon {
     display: flex;
-    align-items: center;      /* Center vertically. */
-    justify-content: center;  /* Center horizontally. */
+    align-items: center;        /* Center vertically. */
+    justify-content: center;    /* Center horizontally. */
 }
 .buttons .icon {
-    flex: 0 0 0;  /* Don't grow, don't shrink, 0% width. */
+    flex: 0 0 0;                /* Don't grow, don't shrink, 0% width. */
     transition: flex-basis 0.3s ease;
     overflow: hidden;
     border-top-left-radius: var(--std-border-radius);
@@ -205,9 +205,9 @@
 }
 
 /**
-// -------------------------------------
-//      Operation: info.
-// -------------------------------------
+ * -------------------------------------------------------------------------
+ *  Operation: info.
+ * -------------------------------------------------------------------------
 */
 .info .item {
     display: flex;
@@ -286,9 +286,9 @@
 }
 
 /**
-// -------------------------------------
-//      Operation: status.
-// -------------------------------------
+ * -------------------------------------------------------------------------
+ *  Operation: status.
+ * -------------------------------------------------------------------------
 */
 .status {
     margin: 10px 0 20px 0;

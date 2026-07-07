@@ -12,6 +12,7 @@
  * @since  3.1.1  [2026-06-26-06:00pm] Change checkZED to checkZedUpdateOperate.
  * @since  3.1.1  [2026-07-03-10:30am] General cleanup.
  * @since  3.1.2  [2026-07-03-06:15pm] New, task taskRtcmRelay() replaced relaySerial1toSerial2() in loop().
+ * @since  3.1.2  [2026-07-03-07:30pm] Address rtcmSentence buffer overflow.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover_BT_relay.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
@@ -1055,7 +1056,7 @@ void showBuild() {
     // --- Local vars. ---
     const uint8_t   MAJOR_VERSION    = 3;
     const uint8_t   MINOR_VERSION    = 1;
-    const uint8_t   PATCH_VERSION    = 1;
+    const uint8_t   PATCH_VERSION    = 2;
     const char      NAME[]           = "Ghost Rover 3";
     const uint32_t  SERIAL_USB_SPEED = 115200;   // Serial USB speed.
     const uint64_t  START_DELAY      = 4000000;  // 4 second startup delay.
@@ -1544,6 +1545,7 @@ void startAndConfigGNSS() {
  * @return void  No output is returned.
  * @since  3.0.7  [2025-11-14-04:30pm].
  * @since  3.0.11 [2026-01-08-10:30am] Remove taskSendGnss() & taskSendBatteryStatus().
+ * @since  3.1.2  [2026-07-03-07:30pm] xTaskCreatePinnedToCore from 4096 to 8192.
  * @see    Global vars: Task handles.
  * @see    setup().
  * @link   https://www.freertos.org/Documentation/02-Kernel/04-API-references/01-Task-creation/01-xTaskCreate.
@@ -1558,7 +1560,7 @@ void startTasks() {
     // Arduino-ESP32 core 0 defaults: WiFi/BT.
     // Arduino-ESP32 core 1 defaults: Arduino loop(), WiFi/I2C.
     // Pin taskRtcmRelay() to core 0 for parallel execution instead of round-robin in loop() since I2C calls block and don't yield.
-    xTaskCreatePinnedToCore(taskRtcmRelay, "RTCM_Relay", 4096, NULL, 2, &taskRtcmRelayHandle, 0);
+    xTaskCreatePinnedToCore(taskRtcmRelay, "RTCM_Relay", 8192, NULL, 2, &taskRtcmRelayHandle, 0);
     Serial.println("Task \"RTCM relay\" started.");
 }
 
@@ -1672,6 +1674,7 @@ uint16_t rtcm3GetMessageType(const char* rtcmSentence) {
  * @param  void * pvParameters Pointer to task parameters.
  * @return void   No output is returned (infinite task loop).
  * @since  3.1.2  [2026-07-03-06:15pm] New, replaced relaySerial1toSerial2() in loop().
+ * @since  3.1.2  Added if (byteCount < sizeof(rtcmSentence) - 1) to check for rtcmSentence overflow.
  * @see    startTasks().
  * @see    rtcm3GetMessageType().
  * @see    Global vars: Serial, startSerialInterfaces(), loop().
@@ -1685,7 +1688,7 @@ void taskRtcmRelay(void *pvParameters) {
     const  uint16_t RTCM_TIMEOUT      = 3000000;                        // Time (us) not to exceed for RTCM input received (3 sec).
            uint16_t byteCount         =       0;
            int64_t  lastRTCMtime      =       0;                        // Last time (us) when RTCM input received.
-           char     rtcmSentence[300] =  {'\0'};                        // RTCM3 sentence buffer.
+           char     rtcmSentence[1030] =  {'\0'};                        // RTCM3 sentence buffer.
            uint16_t msg_type          =       0;
 
     // --- Task loop. ---
@@ -1708,7 +1711,9 @@ void taskRtcmRelay(void *pvParameters) {
         while (Serial1.available() > 0) {                               // Loop until caught up, not just once.
             char inputChar = Serial1.read();                            // Read a character from Serial1 (HC-12) @ SERIAL1_SPEED.
             Serial2.write(inputChar);                                   // Write a character to Serial2 (ZED UART2) @ SERIAL2_SPEED.
-            rtcmSentence[byteCount] = inputChar;                        // RTCM3 sentence buffer used to parse message type.
+            if (byteCount < sizeof(rtcmSentence) - 1) {                 // Bounds check - prevent stack buffer overflow (relay above is unaffected either way).
+                rtcmSentence[byteCount] = inputChar;                    // RTCM3 sentence buffer used to parse message type.
+            }
             RTCMin = true;
             ws2812LedColor = GREEN;
             ws2812LedBlink = true;
