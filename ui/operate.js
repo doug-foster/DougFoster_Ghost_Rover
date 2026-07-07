@@ -23,6 +23,7 @@
  * @since  3.1.1  [2026-06-25-02:00pm] Regroup: upload to SD card.
  * @since  3.1.2  [2026-07-05-05:45pm] Adjust decimal places for status items.
  * @since  3.1.2  [2026-07-05-05:45pm] Remove clearOperateUi().
+ * @since  3.1.2  [2026-07-05-08:45pm] General cleanup.
  * @link   http://dougfoster.me.
 */
 
