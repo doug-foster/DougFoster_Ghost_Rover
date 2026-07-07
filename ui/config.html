@@ -19,6 +19,7 @@
  * @since  3.1.1  [2026-06-26-10:00pm] Hand grip w/tripod.
  * @since  3.1.1  [2026-06-29-02:00pm] GhostRover -> GhostRover + QR.
  * @since  3.1.2  [2026-07-05-08:30pm] General cleanup.
+ * @since  3.1.2  [2026-07-07-01:00pm] Instrument height always in mm.
  * @link   http://dougfoster.me.
 -->
 
@@ -45,7 +46,7 @@
         <form id="config">
             <section class="grid-container collapsed">
                 <div class="config-grid-buttons">
-                    <div class="grid-item">Unit</div>
+                    <div class="grid-item">Units</div>
                     <div id="set-unit" class="switch-field grid-item">
                         <input type="radio" id="unit-meter" name="switch-unit" value="meter" />
                         <label for="unit-meter">Meter</label>
@@ -99,7 +100,7 @@
                             <option value="9">9 Hz</option>
                             <option value="10">10 Hz</option>
                         </select>
-                        <div id="message-output-interval">* Output PVT every <span id="output-interval"></span> ms.</div>
+                        <div id="message-output-interval" class="note">* Output PVT every <span id="output-interval"></span> ms.</div>
                     </div>
                     <div class="config-grid-fields field-group">
                         <label for="hotspot-ssid">Hotspot SSID</label>
@@ -122,8 +123,9 @@
                     <div id="pole-height-preset"></div>
                     <input id="pole-height" type="text"/>
                     <!-- <div id="pole-height-preset" class="hide"></div> -->
-                    <div class="vcenter">Instrument height</div>
-                    <div id="instrument-height"></div>
+                    <div class="vcenter">Instrument height<sup>*</sup> (mm/in)</div>
+                    <div id="instrument-height"><span id="instrument-height-mm"></span> / <span id="instrument-height-in"></span></div>
+                    <div class="note"><sup>*</sup>Aways saved as mm in NVS prefs.</div>
                 </div>
                 <div id="update-config-btn" class="std-button">
                     <span class="label">Apply new values</span>
@@ -131,7 +133,7 @@
                 <div id="reset-config-btn" class="std-button">
                     <span class="label">Reset to Defaults</span>
                 </div>
-                <div id="message-form">&nbsp;</div>  
+                <div id="message-form" class="note">&nbsp;</div>  
             </section>
         </form>
         <div id="runtime-options">

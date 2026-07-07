@@ -60,6 +60,8 @@ const poleSelectXYZ3      = document.querySelector('#config #pole-select #xyzPol
 const poleHeightPreset    = document.querySelector('#config #pole-height-preset');
 const poleHeight          = document.querySelector('#config #pole-height');
 const instrumentHeight    = document.querySelector('#config #instrument-height');
+const instrumentHeightMm  = document.querySelector('#config #instrument-height-mm');
+const instrumentHeightIn  = document.querySelector('#config #instrument-height-in');
 const heightUnitsVal      = document.querySelector('#config #height-units');
 const THIS_PAGE           = '[{"page":"config"}]';
 const RESET_PREFS         = '[{"config":"reset"}]';
@@ -128,7 +130,7 @@ function uiToPrefs() {
           '5'     : gnssNavRate.value,                                                       //  5. prfGnsNavRat.
           '6'     : hotspotSsid.value,                                                       //  6. prfHotSsi.
           '7'     : hotspotPassword.value,                                                   //  7. prfHotPas.
-         '36'     : instrumentHeight.textContent.replace(',', '')                            // 36. prfInstrHght.
+         '36'     : instrumentHeightMm.textContent.replace(',', '')                          // 36. prfInstrHght.
     }] )
 }
 
@@ -209,6 +211,8 @@ function prefsMessage(key, value) {
  * const poleHeightPreset    = document.querySelector('#config #pole-height-preset');
  * const poleHeight          = document.querySelector('#config #pole-height');
  * const instrumentHeight    = document.querySelector('#config #instrument-height');
+ * const instrumentHeightMm  = document.querySelector('#config #instrument-height-mm');
+ * const instrumentHeightIn  = document.querySelector('#config #instrument-height-in');
  * const jsConsoleMessages   = document.querySelector('#js-console-messages input');
  *
  * @param  string action Action to take.
@@ -226,14 +230,15 @@ function setHeights(action) {
 
     switch (action) {
         case 'init':
-            heightUnitsVal.textContent   = heightUnits;
-            ghostRoverHeight.textContent = HEIGHT_ROVER;
-            poleSelectGrip.value         = HEIGHT_GRIP_TRIPOD;
-            poleSelectXYZ0.value         = HEIGHT_XYZPOLE_0;
-            poleSelectXYZ1.value         = HEIGHT_XYZPOLE_1;
-            poleSelectXYZ2.value         = HEIGHT_XYZPOLE_2;
-            poleSelectXYZ3.value         = HEIGHT_XYZPOLE_3;
-            instrumentHeight.textContent = prfInstrHght.toLocaleString();                           // NVS preference from WebSocket.
+            heightUnitsVal.textContent     = heightUnits;
+            ghostRoverHeight.textContent   = HEIGHT_ROVER;
+            poleSelectGrip.value           = HEIGHT_GRIP_TRIPOD;
+            poleSelectXYZ0.value           = HEIGHT_XYZPOLE_0;
+            poleSelectXYZ1.value           = HEIGHT_XYZPOLE_1;
+            poleSelectXYZ2.value           = HEIGHT_XYZPOLE_2;
+            poleSelectXYZ3.value           = HEIGHT_XYZPOLE_3;
+            instrumentHeightMm.textContent = prfInstrHght.toLocaleString();                         // NVS preference from WebSocket.
+            instrumentHeightIn.textContent = (parseFloat(instrumentHeightMm.textContent.replace(',', ''))/25.4).toFixed(1);
             poleSelectOptions.forEach((option) => {                                                 // Loop all select options.
                 if ((parseInt(option.value) + HEIGHT_ROVER) == prfInstrHght) {
                     if (0 !== parseInt(option.value)) {
@@ -261,12 +266,14 @@ function setHeights(action) {
                 poleHeight.classList.add('hide');                                                   // "Standard" pole height option.
             }
             heightPole = parseFloat(poleSelect.value);
-            poleHeightPreset.textContent = heightPole.toLocaleString();  
-            poleHeight.value             = heightPole;
-            instrumentHeight.textContent = (parseFloat(poleHeight.value.replace(',', '')) + parseFloat(HEIGHT_ROVER)).toLocaleString();
+            poleHeightPreset.textContent   = heightPole.toLocaleString();  
+            poleHeight.value               = heightPole;
+            instrumentHeightMm.textContent = (parseFloat(poleHeight.value.replace(',', '')) + parseFloat(HEIGHT_ROVER)).toLocaleString();
+            instrumentHeightIn.textContent = (parseFloat(instrumentHeightMm.textContent.replace(',', ''))/25.4).toFixed(1);
             break;
         case 'compute':
-            instrumentHeight.textContent = (parseFloat(poleHeight.value.replace(',', '')) + parseFloat(HEIGHT_ROVER)).toLocaleString();  // Calculate a new instrument height.
+            instrumentHeightMm.textContent = (parseFloat(poleHeight.value.replace(',', '')) + parseFloat(HEIGHT_ROVER)).toLocaleString();  // Calculate a new instrument height.
+            instrumentHeightIn.textContent = (parseFloat(instrumentHeightMm.textContent.replace(',', ''))/25.4).toFixed(1);
             break;
     }
     messageForm.textContent = 'Instrument height calculated.';
