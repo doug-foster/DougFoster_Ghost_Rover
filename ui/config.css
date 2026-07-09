@@ -17,6 +17,7 @@
  * @since  3.1.1  [2026-06-26-09:30pm] #pole-height {display: block;}.
  * @since  3.1.2  [2026-07-05-08:30pm] General cleanup.
  * @since  3.1.2  [2026-07-07-01:00pm] Instrument height only in mm.
+ * @since  3.1.2  [2026-07-08-09:30pm] Add NTRIP.
  * @link   http://dougfoster.me.
 */
 
@@ -27,31 +28,51 @@
 */
 
 /* --- Form --- */
-form#config * {
-    font-size: 16px !important;
+form#config {
+    margin-top: 20px;
+}
+#config .config-section {
+    padding: 10px;
+    background-color: aliceblue;
+    font-size: 16px;
+}
+#config .section-heading {
+    font-size: 17px;
+    font-weight: 800;
+    text-align: center;
+    padding-bottom: 15px;
+}
+#config .full-row,
+#config .note {
+    grid-column: 1 / -1;
+}
+#config .note {
+    box-sizing: border-box;
+    width: 100%;
+    margin: 10px auto;
+    padding: 10px;
+    background-color: var(--gray-4);
+    font-family: 'Courier New', Courier, monospace;
 }
 
-/* -- Form: switches. -- */
-#config {
-    padding: 10px;
-}
+/* -- Form: button switches. -- */
 #config .config-grid-buttons {
     display: grid;
     grid-template-rows: 1fr;
     grid-template-columns: 1fr 2fr;
 }
-#config .grid-item {
+#config .config-grid-buttons .grid-item {
     display: flex;
+    margin: 6px 0;
     align-items: center;
     justify-content: left;
-    margin: 6px 0;
     font-size: 17px;
 }
-#config .switch-field {
+#config .config-grid-buttons .switch-field {
     display: flex;
     overflow: hidden;
 }
-#config .switch-field input {
+#config .config-grid-buttons .switch-field input {
     position: absolute !important;
     clip: rect(0, 0, 0, 0);
     height: 1px;
@@ -59,7 +80,7 @@ form#config * {
     overflow: hidden;
     border: 0;
 }
-#config .switch-field label {
+#config .config-grid-buttons .switch-field label {
     padding: 8px 16px;
     margin-right: -1px;
     background-color: var(--gray-4);
@@ -68,19 +89,20 @@ form#config * {
     border: 1px solid var(--gray-2);
     transition: all 0.1s ease-in-out;
 }
-#config .switch-field label:hover {
+#config .config-grid-buttons .switch-field label:hover {
     cursor: pointer;
 }
-#config .switch-field input:checked + label {
+#config .config-grid-buttons .switch-field input:checked + label {
     background-color: var(--green-2);
     box-shadow: none;
 }
-#config .switch-field label:first-of-type {
+#config .config-grid-buttons .switch-field label:first-of-type {
     border-radius: var(--std-border-radius) 0 0 var(--std-border-radius);
 }
 #config .switch-field label:last-of-type {
     border-radius: 0 var(--std-border-radius) var(--std-border-radius) 0;
 }
+
 /* -- Form: fields. -- */
 #config .config-grid-fields {
     display: grid;
@@ -97,12 +119,8 @@ form#config * {
     border-radius: 3px;
     font-size: 1rem;
 }
-#config .config-grid-fields.field-group {
-    padding: 10px;
-    background-color: aliceblue;
-}
 
-/* --- Form: other. --- */
+/* -- Form: other. -- */
 #config #update-config-btn,
 #config #reset-config-btn {
     margin: 20px 0;
@@ -116,23 +134,20 @@ form#config * {
     background-color: red;
     border-color: red;
 }
-#config .note {
-    grid-column: 1 / -1;
-    box-sizing: border-box;
-    width: 100%;
-    margin: 10px auto;
-    padding: 10px;
-    background-color: var(--gray-4);
-    font-family: 'Courier New', Courier, monospace;
+#config #ntrip-send-gga {
+    padding-bottom: 10px;
+}
+#config .checkmark {
+    background-color: white;
 }
 
 /* -- Checkbox - https://www.w3schools.com/howto/tryit.asp?filename=tryhow_css_custom_checkbox. -- */
 /* - Checkbox: container. - */
-.container {
+.checkbox-container {
     display: block;
     position: relative;
     padding-left: 35px;
-    margin-top: 20px;
+    /* margin-top: 20px; */
     cursor: pointer;
     font-size: 22px;
     -webkit-user-select: none;
@@ -140,13 +155,13 @@ form#config * {
     -ms-user-select: none;
     user-select: none;
 }
-.container span:first-of-type {
+.checkbox-container span:first-of-type {
     padding: 4px 0 5px 5px;
     font-size: 1rem;;
     display: block;
 }
 /* - Checkbox: hide the browser's default checkbox. - */
-.container input {
+.checkbox-container input {
     position: absolute;
     opacity: 0;
     cursor: pointer;
@@ -154,7 +169,7 @@ form#config * {
     width: 0;
 }
 /* - Checkbox: custom checkbox. - */
-.container .checkmark {
+.checkbox-container .checkmark {
     position: absolute;
     top: 0;
     left: 0;
@@ -165,7 +180,7 @@ form#config * {
     border: 1px solid var(--gray-1);
 }
 /* - Checkbox: checkmark indicator. - */
-.container .checkmark:after {
+.checkbox-container .checkmark:after {
     content: "";
     position: absolute;
     display: none;
@@ -179,12 +194,12 @@ form#config * {
     -ms-transform: rotate(45deg);
     transform: rotate(45deg);
 }
-/* - Checkbox: If checked, background = blue. - */
-.container input:checked ~ .checkmark {
-    background-color: black;
+/* - Checkbox: If checked, background = black. - */
+.checkbox-container input:checked ~ .checkmark {
+    background-color: black !important;
 }
 /* - Checkbox: show the checkmark when checked. - */
-.container input:checked ~ .checkmark:after {
+.checkbox-container input:checked ~ .checkmark:after {
     display: block;
 }
 
@@ -213,15 +228,24 @@ form#config * {
     padding-right: 5px;
     text-align: right;
 }
-
-/* --- Runtime options. --- */
-#runtime-options {
-    padding: 10px;
-}
 #pole-height-preset {
     display: block;
     border:1px dashed red;
 }
 #pole-height {
     display: block;
+}
+
+/* -- Form: NTRIP. -- */
+#config #ntrip {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
+}
+#config #ntrip #ntrip-caster,
+#config #ntrip #ntrip-verison {
+    width: 50px;
+}
+
+/* --- Runtime options. --- */
+#runtime-options {
+    padding: 10px;
 }

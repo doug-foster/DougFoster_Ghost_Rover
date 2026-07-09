@@ -1110,7 +1110,8 @@ void startSerial() {
     const uint8_t  ZED_RX2       = 17;      // ZED UART2 RX2 {white wire}.
     const uint8_t  ZED_TX2       = 16;      // ZED UART2 TX2 {yellow wire} (not used).
     const uint32_t SERIAL1_SPEED = 9600;    // HC-12 default speed is 9600.
-    const uint32_t SERIAL2_SPEED = 57600;   // ZED UART2 default speed is 38400.
+    // const uint32_t SERIAL2_SPEED = 57600;   // ZED UART2 default speed is 38400.
+    const uint32_t SERIAL2_SPEED = 38400;   // ZED UART2 default speed is 38400.
 
     // --- Start serial interfaces. ---
     serialState[1] = '-';   // Serial0 is not used: [USB][-][S1][S2].
