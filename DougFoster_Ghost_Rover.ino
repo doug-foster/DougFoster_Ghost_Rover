@@ -13,6 +13,7 @@
  * @since  3.1.1  [2026-07-03-10:30am] General cleanup.
  * @since  3.1.2  [2026-07-03-06:15pm] New, task taskRtcmRelay() replaced relaySerial1toSerial2() in loop().
  * @since  3.1.2  [2026-07-03-07:30pm] Address rtcmSentence buffer overflow.
+ * @since  3.1.2  [2026-07-15-04:45pm] Add NTRIP preferences.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover_BT_relay.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
@@ -345,14 +346,24 @@
  *     -- Hello. --
  *        browser --> [{"page":"config"}].
  *        browser <-- {"0":"3.0.12 - Feb 28 2026 @ 09:40:15","1":"meter","2":"radio","3":"on","4":100,"5":2,"6":"ssid","7":"pass","35":10,"36":0}
+ * 
+ *  // ToDO: add NTRIP.
+ *  WS_NTRIP_CASTER_1                                                           39 - jsonDocToClient[wsKey(WS_NTRIP_CASTER_1].
+ *  WS_NTRIP_CASTER_2,                      // new                              40 - jsonDocToClient[wsKey(WS_NTRIP_CASTER_2].
+ *  WS_NTRIP_CASTER_3,                      // new                              41 - jsonDocToClient[wsKey(WS_NTRIP_CASTER_3].
+ *  WS_NTRIP_CASTER_ACTIVE                  // new                              42 - jsonDocToClient[wsKey(WS_NTRIP_CASTER_ACTIVE].
+ *
  *     -- Set preferences. --
  *        browser --> [{"config":"set"},{"1":"meter","2":"radio","3":"on","4":"50","5":"2","6":"xxxx","7":"xxxx", "8":"0"}]
- *        prefUtility(PREF_READ, PREF_SAVE, PREF_PRINT, PREF_RESTART).
+ *        prefUtility(PREF_INIT, PREF_READ, PREF_SAVE, PREF_RESTART, PREF_PRINT, PREF_TO_JSON).
  *        browser <-- {"config":"Preference values updated."}
  *     -- Reset preferences. --
  *        browser --> [{"config":"reset"}].
  *        browser <-- browser {"config":"message"}     message="Preferences reset to defaults."
  *
+ * 
+ * 
+ * 
  * --- Exchange protocol for operate.html page. ---
  *     -- Hello. --
  *        browser --> [{"page":"operate"}].
@@ -380,6 +391,7 @@
  * @since 3.1.1   [2026-06-25-02:00pm] Updated library <ESPAsyncWebServer.h>       from 3.9.3  to 3.11.1.
  * @since 3.1.1   [2026-06-25-02:00pm] Updated library <ArduinoJson.h>             from 7.4.2  to 7.4.3.
  * @since 3.1.1   [2026-06-25-02:00pm] Updated library <SparkFun_u-blox_GNSS_v3.h> from 3.1.13 to 3.1.14.
+ * @since 3.1.2   [2026-07-15-04:45pm] Add NTRIP preferences.
  * @link  Arduino https://docs.arduino.cc/libraries/.
  * @link  ESP32   https://docs.espressif.com/projects/arduino-esp32/en/latest/libraries.html.
  */
@@ -492,7 +504,11 @@ enum wsKeyID {                              // Readable index for WebSocket keys
     WS_SOCKET_NUM,                          // jsonDocToClient["socketNum"]     35 - jsonDocToClient[wsKey(WS_SOCKET_NUM)].
     WS_INSTRUMENT_HEIGHT,                   // new                              36 - jsonDocToClient[wsKey(WS_INSTRUMENT_HEIGHT)].
     WS_RTCM_SENTENCE_COUNT,                 // new                              37 - jsonDocToClient[wsKey(WS_RTCM_SENTENCE_COUNT)].
-    WS_RTCM_KBPS                            // new                              38 - jsonDocToClient[wsKey(WS_RTCM_KBPS].
+    WS_RTCM_KBPS,                           // new                              38 - jsonDocToClient[wsKey(WS_RTCM_KBPS].
+    WS_NTRIP_CASTER_1,                      // new                              39 - jsonDocToClient[wsKey(WS_NTRIP_CASTER_1].
+    WS_NTRIP_CASTER_2,                      // new                              40 - jsonDocToClient[wsKey(WS_NTRIP_CASTER_2].
+    WS_NTRIP_CASTER_3,                      // new                              41 - jsonDocToClient[wsKey(WS_NTRIP_CASTER_3].
+    WS_NTRIP_CASTER_ACTIVE                  // new                              42 - jsonDocToClient[wsKey(WS_NTRIP_CASTER_ACTIVE].
 };
 const char* const WS_KEY_NUMS[] = {         // see enum wsKeyID{} above for corresponding alpha.    
     "0",
@@ -534,6 +550,10 @@ const char* const WS_KEY_NUMS[] = {         // see enum wsKeyID{} above for corr
     "36",
     "37",
     "38",
+    "39",
+    "40",
+    "41",
+    "42"
 };
 
 // --- GNSS. ---
@@ -606,23 +626,37 @@ int64_t   startTime;                            // Boot time.
 float     rtcmKbps                  = 0;        // RTCM kbps (average).
 
 // --- Preferences. ---
-char        prfUnt[6];          // Distance units: meter/feet (used only in browser).
-char        prfRtcIn[6];        // Control RTCM in: off/radio/ntrip.
-char        prfNmeOut[4];       // Control NMEA out: off/on.
-char        prfHotSsi[20];      // WiFi hotspot client: network SSID.
-char        prfHotPas[30];      // WiFi hotspot client: password.
-uint8_t     prfGnsNavRat;       // ZED: OUTPUT every X (e.g. 5) MEASURE intervals every (e.g. 5*100=500) ms.
-uint16_t    prfGnsMsrInt;       // ZED: MEASURE every Y (e.g. 100) ms.
-int16_t     prfInstrHgt;        // Instrument height (includes rover height + pole height).
-Preferences roverPrefs;         // Rover's NVS preferences namespace.
-enum        prefAction {        // Readable index for preference actions.
-    PREF_INIT,                  // 0.
-    PREF_READ,                  // 1.
-    PREF_SAVE,                  // 2.
-    PREF_RESTART,               // 3.
-    PREF_PRINT,                 // 4.
-    PREF_TO_JSON                // 5.
+char           prfUnt[6];                       // Distance units: meter/feet (used only in browser).
+char           prfRtcIn[6];                     // Control RTCM in: off/radio/ntrip.
+char           prfNmeOut[4];                    // Control NMEA out: off/on.
+char           prfHotSsi[20];                   // WiFi hotspot client: network SSID.
+char           prfHotPas[30];                   // WiFi hotspot client: password.
+uint8_t        prfGnsNavRat;                    // ZED: OUTPUT every X (e.g. 5) MEASURE intervals every (e.g. 5*100=500) ms.
+uint16_t       prfGnsMsrInt;                    // ZED: MEASURE every Y (e.g. 100) ms.
+int16_t        prfInstrHgt;                     // Instrument height (includes rover height + pole height).
+Preferences    roverPrefs;                      // Rover's NVS preferences namespace.
+enum           prefAction {                     // Readable index for preference actions.
+    PREF_INIT,                                  // 0.
+    PREF_READ,                                  // 1.
+    PREF_SAVE,                                  // 2.
+    PREF_RESTART,                               // 3.
+    PREF_PRINT,                                 // 4.
+    PREF_TO_JSON                                // 5.
 };
+struct         ntripCasterProfile {             // NTRIP profile template.  // ToDo: not needed?
+    bool     sendGGA;
+    char     name[48];
+    char     url[48];
+    char     mountpoint[24];
+    char     username[48];
+    char     password[48];
+    uint8_t  id;
+    uint8_t  version;
+    uint16_t port;
+};
+ntripCasterProfile ntripCaster = {};            // NTRIP caster attribute profile being used.   // ToDo: not needed?
+JsonDocument       jsonDocToNVS;                // JSON document: NTRIP caster profile saved to NVS.
+JsonDocument       jsonDocFromNVS;              // JSON document: NTRIP caster profile read from NVS.
 
 // --- Oper status. ---
 size_t  nmeaCountAll       = 0;
@@ -705,52 +739,59 @@ void statusLedOn() {
  * Keys for preference values are sent in WebSocket as "1", "2", etc. but stored in NVS as "prfUnt", "prfRtcIn", ... .
  * Refer to enum wsKeyID and char array WS_KEY_NUMS[] in WebSocket sertion of Global Vars to decode.
  * 
- * @param  object prefAction PREF_INIT, PREF_READ, PREF_SAVE, PREF_RESTART, PREF_PRINT, PREF_TO_JSON.
- * @param  array key WebSocket JSON key.
- * @param  array value WebSocket JSON value.
- * @return void  No output is returned.
+ * @param  object  prefAction PREF_INIT, PREF_READ, PREF_SAVE, PREF_RESTART, PREF_PRINT, PREF_TO_JSON.
+ * @param  array   key WebSocket JSON key.
+ * @param  array   value WebSocket JSON value.
+ * @return void    No output is returned.
  * @since  3.0.12 [2026-02-07-10:30am] New.
  * @since  3.0.12 [2026-02-14-06:15pm] Remove prfRqsPvtInt.
  * @since  3.0.12 [2026-02-18-06:00pm] Add buildString.
  * @since  3.0.12 [2026-02-23-01:00pm] Shorten RTCM & NMEA status.
  * @since  3.0.12 [2026-02-28-02:45pm] Fix bugs: prfRtcIn, jsonDocToClient.clear().
  * @since  3.1.0  [2026-03-20-11:45am] Add pole height preference.
+ * @since  3.1.2  [2026-07-09-09:00pm] Add (3) NTRIP caster profiles.
+ * @since  3.1.2  [2026-07-15-04:45pm] Refactor: NTRIP & cleanup.
  * @see    Global vars: Preference defaults, setup().
  * @link   https://docs.espressif.com/projects/arduino-esp32/en/latest/tutorials/preferences.html.
  * @link   https://github.com/espressif/arduino-esp32/tree/master/libraries/Preferences/.
  */
 void prefUtility(prefAction action, const char* key = NULL, const char* value = NULL) {
 
-    // --- Preference defaults. ---
-    const char      NAMESPACE[]         = "config"; // The preference namespace. 
-    const char      DEF_PRF_UNT[]       = "meter";  // Distance units: meter/feet (used only in browser).                       Matching global var: char     prfUnt[6].
-    const char      DEF_PRF_RTC_IN[]    = "radio";  // Control RTCM in: off/radio/ntrip.                                        Matching global var: char     prfRtcIn[6].
-    const char      DEF_PRF_NME_OUT[]   = "on";     // Control NMEA out: off/on.                                                Matching global var: char     prfNmeOut[4].
-    const char      DEF_PRF_HOT_SSI[]   = "ssid";   // WiFi hotspot client: network SSID.                                       Matching global var: char     prfHotSsi[20].
-    const char      DEF_PRF_HOT_PASS[]  = "pass";   // WiFi hotspot client: password.                                           Matching global var: char     prfHotPas[30].
-    const uint8_t   DEF_PRF_GNS_NAV_RAT = 2;        // ZED rate (times/interval): OUTPUT a new solution.                        Matching global var: uint8_t  prfGnsNavRat.
-    const uint16_t  DEF_PRF_GNS_MSR_INT = 100;      // ZED interval (ms): CREATE a new solution.                                Matching global var: uint16_t prfGnsMsrInt.
-    const uint16_t  DEF_PRF_INSTR_HGT   = 128;      // Instrument height (mm - includes rover height [128] + pole height [0]).  Matching global var: int16_t  prfInstrHgt.
-    const uint16_t  NUM_PREFS           = 8;        // Number of preferences being used.
-
-    // --- Other. ---
-    bool hasKey = false;
-    JsonObject JSONdata = jsonDocFromClient[1].as<JsonObject>();            // Second array element is JSON data
+    // --- Local vars. ---
+    const char      NAMESPACE[]             = "config";         // The preference namespace. 
+    const char      DEF_UNT[]               = "meter";          // Default distance units: meter/feet (used only in browser).                       Matching global var: char     prfUnt[6].
+    const char      DEF_RTC_IN[]            = "radio";          // Default control RTCM in: off/radio/ntrip.                                        Matching global var: char     prfRtcIn[6].
+    const char      DEF_NME_OUT[]           = "on";             // Default control NMEA out: off/on.                                                Matching global var: char     prfNmeOut[4].
+    const char      DEF_HOT_SSI[]           = "ssid";           // Default WiFi hotspot client: network SSID.                                       Matching global var: char     prfHotSsi[20].
+    const char      DEF_HOT_PASS[]          = "pass";           // Default WiFi hotspot client: password.                                           Matching global var: char     prfHotPas[30].
+    const char      DEF_NTRIP_CAST_ATTR_1[] = "";               // Default NTRIP caster attribute profile 1.                                        Matching global var: char     prfNtripCastAttr[0].
+    const char      DEF_NTRIP_CAST_ATTR_2[] = "";               // Default NTRIP caster attribute profile 2.                                        Matching global var: char     prfNtripCastAttr[1].
+    const char      DEF_NTRIP_CAST_ATTR_3[] = "";               // Default NTRIP caster attribute profile 3.                                        Matching global var: char     prfNtripCastAttr[2].
+    const uint8_t   DEF_GNS_NAV_RAT         = 2;                // Default ZED rate (times/interval): OUTPUT a new solution.                        Matching global var: uint8_t  prfGnsNavRat.
+    const uint8_t   DEF_NTRIP_CAST_ACT      = 1;                // Default NTRIP caster profile being used.                                         Matching global var: uint8_t  prfNtripCastAct.
+    const uint16_t  DEF_GNS_MSR_INT         = 100;              // Default ZED interval (ms): CREATE a new solution.                                Matching global var: uint16_t prfGnsMsrInt.
+    const uint16_t  DEF_INSTR_HGT           = 128;              // Default Instrument height (mm - includes rover height [128] + pole height [0]).  Matching global var: uint16_t prfInstrHgt.
+    const uint16_t  NUM_PREFS               = 15;               // Number of preferences being used.
+    const uint16_t  NTRIP_CAST_ATTR_LEN     = 512;              // Length of character array for NTRIP caster attibute profile.
+    bool            hasKey                  = false;
+    char            prfNtripCastAttr[3][NTRIP_CAST_ATTR_LEN];   // 2D Array of (3) NTRIP caster attribute profiles (each is in JSON format).
+    uint8_t         prfNtripCastAct;                            // Which # NTRIP caster attribute profile is being used.
+    JsonObject      JSONdata                = jsonDocFromClient[1].as<JsonObject>();     // Second array element is JSON data
 
     // --- Which action? ---
     switch (action) {
-        case PREF_INIT:                                                     // Only called by setup().
+        case PREF_INIT:                                             // Only called by setup().
 
             // -- Check namespace. --
-            roverPrefs.begin(NAMESPACE, RW_MODE);                           // Open NAMESPACE object for read/write. If it doesn't exist, create it.
-            hasKey = roverPrefs.isKey("prfUnt");                            // Check for preferences (stored as "prfUnt", "prfRtcIn", etc.).
-            roverPrefs.end();                                               // Close NAMESPACE object.
+            roverPrefs.begin(NAMESPACE, RW_MODE);                   // Open NAMESPACE object for read/write. If it doesn't exist, create it.
+            hasKey = roverPrefs.isKey("prfUnt");                    // Check for preferences (stored as "prfUnt", "prfRtcIn", etc.).
+            roverPrefs.end();                                       // Close NAMESPA   
 
             // -- Read or reset? --
             if(hasKey) {
-                prefUtility(PREF_READ);                                     // Recursive. Test preference exists, so they all should. Read values from NVS & set global vars.
+                prefUtility(PREF_READ);                             // Test preference exists, so they all should. Read values from NVS & set global vars.
             } else {
-                prefUtility(PREF_RESTART);                                    // Recursive. If the test preference doesn't exist, none of them do.
+                prefUtility(PREF_RESTART);                          // If the test preference doesn't exist, none of them do.
             }
 
             // -- Wrap up. --
@@ -759,125 +800,184 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
 
         case PREF_READ:
 
-            // -- Read values. --
-            roverPrefs.begin(NAMESPACE, RO_MODE);                               // Open NAMESPACE object for read.
-            roverPrefs.getString("prfUnt",       prfUnt,    sizeof(prfUnt));    // Preference stored as "prfUnt".
-            roverPrefs.getString("prfRtcIn",     prfRtcIn,  sizeof(prfRtcIn));
-            roverPrefs.getString("prfNmeOut",    prfNmeOut, sizeof(prfNmeOut));
-            roverPrefs.getString("prfHotSsi",    prfHotSsi, sizeof(prfHotSsi));
-            roverPrefs.getString("prfHotPas",    prfHotPas, sizeof(prfHotPas));
-            prfGnsNavRat = roverPrefs.getUShort("prfGnsNavRat");
-            prfGnsMsrInt = roverPrefs.getUShort("prfGnsMsrInt");
-            prfInstrHgt  = roverPrefs.getUShort("prfInstrHgt");
-            roverPrefs.end();                                                   // Close NAMESPACE object.
+            // -- Open name space. --
+            roverPrefs.begin(NAMESPACE, RO_MODE);
+
+            // -- Set local vars from NVS preferences. --
+            roverPrefs.getString("prfUnt",          prfUnt,              sizeof(prfUnt));    // Preference stored as "prfUnt".
+            roverPrefs.getString("prfRtcIn",        prfRtcIn,            sizeof(prfRtcIn));
+            roverPrefs.getString("prfNmeOut",       prfNmeOut,           sizeof(prfNmeOut));
+            roverPrefs.getString("prfHotSsi",       prfHotSsi,           sizeof(prfHotSsi));
+            roverPrefs.getString("prfHotPas",       prfHotPas,           sizeof(prfHotPas));
+            roverPrefs.getString("prfNtripCaster1", prfNtripCastAttr[0], NTRIP_CAST_ATTR_LEN);
+            roverPrefs.getString("prfNtripCaster2", prfNtripCastAttr[1], NTRIP_CAST_ATTR_LEN);
+            roverPrefs.getString("prfNtripCaster3", prfNtripCastAttr[2], NTRIP_CAST_ATTR_LEN);
+            prfGnsNavRat    = roverPrefs.getUShort("prfGnsNavRat");
+            prfNtripCastAct = roverPrefs.getUShort("prfNtripCastAct");            
+            prfGnsMsrInt    = roverPrefs.getUShort("prfGnsMsrInt");
+            prfInstrHgt     = roverPrefs.getUShort("prfInstrHgt");
+
+            // -- Close name space. --
+            roverPrefs.end();
+            Serial.println("Preferences read.");
+
+            // ToDo start: remove once WebSockets is done. Using dummy values.
+            strlcpy(                                                                    // Dummy value for caster 1.
+                prfNtripCastAttr[0],
+                "[{\"id\":\"1\",\"name\":\"PointPerfect (SparkPNT)\",\"url\":\"ppntrip.services.u-blox.com\",\"mount\":\"NEAR-RTCM\",\"port\":\"2101\",\"version\":\"1\",\"user\":\"Af8PE4947bVB\",\"pass\":\"a*2KCExb%L\",\"sendGga\":true}]",
+                NTRIP_CAST_ATTR_LEN
+            );
+            strlcpy(                                                                    // Dummy value for caster 2.
+                prfNtripCastAttr[1],
+                "[{\"id\":\"2\",\"name\":\"name 2\",\"url\":\"\",\"mount\":\"\",\"port\":\"\",\"version\":\"1\",\"user\":\"\",\"pass\":\"\",\"sendGga\":true}]",
+                NTRIP_CAST_ATTR_LEN
+            );
+            strlcpy(                                                                    // Dummy value for caster 3.
+                prfNtripCastAttr[2],
+                "[{\"id\":\"3\",\"name\":\"name 3\",\"url\":\"\",\"mount\":\"\",\"port\":\"\",\"version\":\"1\",\"user\":\"\",\"pass\":\"\",\"sendGga\":true}]",
+                NTRIP_CAST_ATTR_LEN
+            );
+                        prfNtripCastAct = DEF_NTRIP_CAST_ACT;
+            // ToDo end: remove once WebSockets is done. Using dummy values.
+
+            // ToDo: set global struct values (used by NTRIP client code TBD) - decode prfNtripCastAttr[prfNtripCastAct] JSON string.
+            // ntripCaster.sendGGA = true;
+            // strlcpy(ntripCaster.name,       "PointPerfect (SparkPNT)",     sizeof(ntripCaster1.name));
+            // strlcpy(ntripCaster.url,        "ppntrip.services.u-blox.com", sizeof(ntripCaster1.url));
+            // strlcpy(ntripCaster.mountpoint, "NEAR-RTCM",                   sizeof(ntripCaster1.mountpoint));
+            // strlcpy(ntripCaster.username,   "Af8PE4947bVB",                sizeof(ntripCaster1.username));
+            // strlcpy(ntripCaster.password,   "a*2KCExb%L",                  sizeof(ntripCaster1.password));
+            // ntripCaster.id      = 1;
+            // ntripCaster.version = 1;
+            // ntripCaster.port    = 2101;
 
             // -- Wrap up. --
-            Serial.println("Preferences read."); 
             prefUtility(PREF_PRINT);
             break;
 
         case PREF_SAVE:
-            
-            // -- Open name space. ---
-            roverPrefs.begin("config", RW_MODE);                                        // Open namespace object for read/write. Namespace remains open.
 
-            // -- Process KV pairs. --
-            strcpy(prfUnt, JSONdata[wsKey(WS_PREF_UNIT)]);                              // Update global var.
-            roverPrefs.putString("prfUnt", prfUnt);                                     // Store preference "prfUnt" (sent/rcvd as "1").
+            // -- Copy WebSocket values to local vars. --
+            strlcpy(prfUnt,    JSONdata[wsKey(WS_PREF_UNIT)],          sizeof(prfUnt));
+            strlcpy(prfRtcIn,  JSONdata[wsKey(WS_PREF_RTCM_IN)],       sizeof(prfRtcIn));
+            strlcpy(prfNmeOut, JSONdata[wsKey(WS_PREF_NMEA_OUT)],      sizeof(prfNmeOut));
+            strlcpy(prfHotSsi, JSONdata[wsKey(WS_PREF_HOT_SPOT_SSID)], sizeof(prfHotSsi));
+            strlcpy(prfHotPas, JSONdata[wsKey(WS_PREF_HOT_SPOT_PASS)], sizeof(prfHotPas));
+            // strlcpy(prfNtripCastAttr[0], JSONdata[wsKey(WS_NTRIP_CASTER_1)], NTRIP_CAST_ATTR_LEN); // ToDo: Remove comments.
+            // strlcpy(prfNtripCastAttr[1], JSONdata[wsKey(WS_NTRIP_CASTER_2)], NTRIP_CAST_ATTR_LEN);
+            // strlcpy(prfNtripCastAttr[2], JSONdata[wsKey(WS_NTRIP_CASTER_3)], NTRIP_CAST_ATTR_LEN);
+            prfGnsNavRat    = (uint8_t) atoi(JSONdata[wsKey(WS_PREF_GNSS_NAV_RATE)]);   // KV values are stored in NVS as int, but set to C-string in onWebSocketMessage() for code clarity.
+            // prfNtripCastAct = (uint8_t) atoi(JSONdata[wsKey(WS_NTRIP_CAST_ACT)]);  // ToDo: Remove comment.
+            prfGnsMsrInt    = (uint16_t) atoi(JSONdata[wsKey(WS_PREF_GNSS_MESASURE_INTERVAL)]);
+            prfInstrHgt     = (int16_t) atoi(JSONdata[wsKey(WS_INSTRUMENT_HEIGHT)]);    // KV values are stored in NVS as int, but set to C-string in onWebSocketMessage() for code clarity.
 
-            strcpy(prfRtcIn, JSONdata[wsKey(WS_PREF_RTCM_IN)]);
-            roverPrefs.putString("prfRtcIn", prfRtcIn);                                 // Store preference as "prfRtcIn" (sent/rcvd as "2").
+            // -- Open name space. --
+            roverPrefs.begin("config", RW_MODE);
 
-            strcpy(prfNmeOut, JSONdata[wsKey(WS_PREF_NMEA_OUT)]);
-            roverPrefs.putString("prfNmeOut", prfNmeOut);                               // Store preference as "prfNmeOut" (sent/rcvd as "3").
+            // -- Write local vars to NVS preferences. --
+            roverPrefs.putString("prfUnt",          prfUnt);                // Store preference as "prfUnt"          (sent/rcvd as "1").
+            roverPrefs.putString("prfRtcIn",        prfRtcIn);              // Store preference as "prfRtcIn"        (sent/rcvd as "2").
+            roverPrefs.putString("prfNmeOut",       prfNmeOut);             // Store preference as "prfNmeOut"       (sent/rcvd as "3").
+            roverPrefs.putString("prfHotSsi",       prfHotSsi);             // Store preference as "prfHotSsi"       (sent/rcvd as "6").
+            roverPrefs.putString("prfHotPas",       prfHotPas);             // Store preference as "prfHotPas"       (sent/rcvd as "7").
+            roverPrefs.putString("prfNtripCaster1", prfNtripCastAttr[0]);   // Store preference as "prfNtripCaster1" (sent/rcvd as "39").
+            roverPrefs.putString("prfNtripCaster2", prfNtripCastAttr[1]);   // Store preference as "prfNtripCaster2" (sent/rcvd as "40").
+            roverPrefs.putString("prfNtripCaster3", prfNtripCastAttr[2]);   // Store preference as "prfNtripCaster3" (sent/rcvd as "41").
+            roverPrefs.putUShort("prfGnsNavRat",    prfGnsNavRat);          // Store preference as "prfGnsNavRat"    (sent/rcvd as "5").
+            roverPrefs.putUShort("prfNtripCastAct", prfNtripCastAct);       // Store preference as "prfNtripCastAct" (sent/rcvd as "42").
+            roverPrefs.putUShort("prfGnsMsrInt",    prfGnsMsrInt);          // Store preference as "prfGnsMsrInt"    (sent/rcvd as "4").
+            roverPrefs.putUShort("prfInstrHgt",     prfInstrHgt);           // Store preference as "prfInstrHgt"     (sent/rcvd as "36" with value in mm, e.g. "165").
 
-            prfGnsMsrInt = (uint16_t) atoi(JSONdata[wsKey(WS_PREF_GNSS_MESASURE_INTERVAL)]);
-            roverPrefs.putUShort("prfGnsMsrInt", prfGnsMsrInt);                         // Store preference as "prfGnsMsrInt" (sent/rcvd as "4").
+            // -- Close name space. --
+            roverPrefs.end();
 
-            prfGnsNavRat = (uint8_t) atoi(JSONdata[wsKey(WS_PREF_GNSS_NAV_RATE)]);      // KV values are stored in NVS as int, but set to C-string in onWebSocketMessage() for code clarity.
-            roverPrefs.putUShort("prfGnsNavRat", prfGnsNavRat);                         // Store preference as "prfGnsNavRat" (sent/rcvd as "45").
-
-            strcpy(prfHotSsi, JSONdata[wsKey(WS_PREF_HOT_SPOT_SSID)]);
-            roverPrefs.putString("prfHotSsi", prfHotSsi);                               // Store preference as "prfHotSsi" (sent/rcvd as "6").
-
-            strcpy(prfHotPas, JSONdata[wsKey(WS_PREF_HOT_SPOT_PASS)]);
-            roverPrefs.putString("prfHotPas", prfHotPas);                               // Store preference as "prfHotPas" (sent/rcvd as "7").
-
-            prfInstrHgt = (int16_t) atoi(JSONdata[wsKey(WS_INSTRUMENT_HEIGHT)]);        // KV values are stored in NVS as int, but set to C-string in onWebSocketMessage() for code clarity.
-            roverPrefs.putUShort("prfInstrHgt", prfInstrHgt);                           // Store preference as "prfInstrHgt" (sent/rcvd as e.g. "165").
-            
             // -- Wrap up. --
-            roverPrefs.end();                                           // Close NAMESPACE object.
             jsonDocToClient["config"] = "Preference values updated.";
             Serial.println("Preferences saved.");
-            if (inLoop) {                                               // Rerun dependent functions.
-                startAndConfigGNSS();                                   // Uses prfGnsNavRat, prfGnsMsrInt.
+
+            // -- Rerun dependent functions. --
+            if (inLoop) {
+                startAndConfigGNSS();                                       // Uses prfGnsNavRat, prfGnsMsrInt.
                 if (strcmp(prfRtcIn, "ntrip") == 0) {
-                    startWiFi();                                        // Uses prfHotSsi & prfHotPas.
+                    startWiFi();                                            // NTRIP uses prfHotSsi & prfHotPas.
                 } 
             }
             break;
 
         case PREF_RESTART:
 
-            // -- Set each KV pair to default values. --
-            strcpy(prfUnt,    DEF_PRF_UNT);                             // Set global vars to defaults.
-            strcpy(prfRtcIn,  DEF_PRF_RTC_IN);
-            strcpy(prfNmeOut, DEF_PRF_NME_OUT);
-            strcpy(prfHotSsi, DEF_PRF_HOT_SSI);
-            strcpy(prfHotPas, DEF_PRF_HOT_PASS);
-            prfGnsNavRat = DEF_PRF_GNS_NAV_RAT;
-            prfGnsMsrInt = DEF_PRF_GNS_MSR_INT;
-            prfInstrHgt  = DEF_PRF_INSTR_HGT;
-            roverPrefs.begin(NAMESPACE, RW_MODE);                       // Open NAMESPACE object for read/write. 
-            roverPrefs.putString("prfUnt",       prfUnt);               // If key doesn't exist, create it. Set value to global var (aka default).
-            roverPrefs.putString("prfRtcIn",     prfRtcIn);
-            roverPrefs.putString("prfNmeOut",    prfNmeOut);
-            roverPrefs.putString("prfHotSsi",    prfHotSsi);
-            roverPrefs.putString("prfHotPas",    prfHotPas);
-            roverPrefs.putUShort("prfGnsNavRat", prfGnsNavRat);
-            roverPrefs.putUShort("prfGnsMsrInt", prfGnsMsrInt);
-            roverPrefs.putUShort("prfInstrHgt",  prfInstrHgt);
-            roverPrefs.end();                                           // Close NAMESPACE object.
+            // -- Copy default values to local vars. --
+            strlcpy(prfUnt,              DEF_UNT,               sizeof(prfUnt));
+            strlcpy(prfRtcIn,            DEF_RTC_IN,            sizeof(prfRtcIn));
+            strlcpy(prfNmeOut,           DEF_NME_OUT,           sizeof(prfNmeOut));
+            strlcpy(prfHotSsi,           DEF_HOT_SSI,           sizeof(prfHotSsi));
+            strlcpy(prfHotPas,           DEF_HOT_PASS,          sizeof(prfHotPas));
+            strlcpy(prfNtripCastAttr[0], DEF_NTRIP_CAST_ATTR_1, NTRIP_CAST_ATTR_LEN);
+            strlcpy(prfNtripCastAttr[1], DEF_NTRIP_CAST_ATTR_2, NTRIP_CAST_ATTR_LEN);
+            strlcpy(prfNtripCastAttr[2], DEF_NTRIP_CAST_ATTR_3, NTRIP_CAST_ATTR_LEN);
+            prfGnsNavRat               = DEF_GNS_NAV_RAT;
+            prfNtripCastAct            = DEF_NTRIP_CAST_ACT;
+            prfGnsMsrInt               = DEF_GNS_MSR_INT;
+            prfInstrHgt                = DEF_INSTR_HGT;
 
-            // -- Wrap up. --
-            Serial.println("Preferences reset.");
-            if(inLoop) {                                                // Rerun dependent functions if in loop.
-                startAndConfigGNSS();                                   // Uses prfGnsNavRat, prfGnsMsrInt.
-            }
+            // -- Write local vars to NVS preferences. --
+            prefUtility(PREF_SAVE);
             break;
 
         case PREF_PRINT:
-            roverPrefs.begin(NAMESPACE, RO_MODE);                       // Open NAMESPACE object for read.
-            Serial.println("---          Default, Global, NVS. ---");
-            Serial.printf( "prfUnt       \"%s\", \"%s\", \"%s\"\n", DEF_PRF_UNT,         prfUnt,       roverPrefs.getString("prfUnt"));
-            Serial.printf( "prfRtcIn     \"%s\", \"%s\", \"%s\"\n", DEF_PRF_RTC_IN,      prfRtcIn,     roverPrefs.getString("prfRtcIn"));
-            Serial.printf( "prfNmeOut    \"%s\", \"%s\", \"%s\"\n", DEF_PRF_NME_OUT,     prfNmeOut,    roverPrefs.getString("prfNmeOut"));
-            Serial.printf( "prfHotSsi    \"%s\", \"%s\", \"%s\"\n", DEF_PRF_HOT_SSI,     prfHotSsi,    roverPrefs.getString("prfHotSsi"));
-            Serial.printf( "prfHotPas    \"%s\", \"%s\", \"%s\"\n", DEF_PRF_HOT_PASS,    prfHotPas,    roverPrefs.getString("prfHotPas"));
-            Serial.printf( "prfGnsNavRat %u, %u, %u\n",             DEF_PRF_GNS_NAV_RAT, prfGnsNavRat, roverPrefs.getUShort("prfGnsNavRat"));
-            Serial.printf( "prfGnsMsrInt %u, %u, %u\n",             DEF_PRF_GNS_MSR_INT, prfGnsMsrInt, roverPrefs.getUShort("prfGnsMsrInt"));
-            Serial.printf( "prfInstrHgt  %u, %u, %u\n",             DEF_PRF_INSTR_HGT,   prfInstrHgt,  roverPrefs.getUShort("prfInstrHgt"));
+
+            // -- Open name space. --
+            roverPrefs.begin(NAMESPACE, RO_MODE);
+
+            // -- Print values. --
+            Serial.println("---                     Default, Global, NVS. ---");
+            Serial.printf( "prfUnt                  \"%s\", \"%s\", \"%s\"\n", DEF_UNT,            prfUnt,              roverPrefs.getString("prfUnt"));
+            Serial.printf( "prfRtcIn                \"%s\", \"%s\", \"%s\"\n", DEF_RTC_IN,         prfRtcIn,            roverPrefs.getString("prfRtcIn"));
+            Serial.printf( "prfNmeOut               \"%s\", \"%s\", \"%s\"\n", DEF_NME_OUT,        prfNmeOut,           roverPrefs.getString("prfNmeOut"));
+            Serial.printf( "prfHotSsi               \"%s\", \"%s\", \"%s\"\n", DEF_HOT_SSI,        prfHotSsi,           roverPrefs.getString("prfHotSsi"));
+            Serial.printf( "prfHotPas               \"%s\", \"%s\", \"%s\"\n", DEF_HOT_PASS,       prfHotPas,           roverPrefs.getString("prfHotPas"));
+            Serial.printf( "prfGnsNavRat            %u, %u, %u\n",             DEF_GNS_NAV_RAT,    prfGnsNavRat,        roverPrefs.getUShort("prfGnsNavRat"));
+            Serial.printf( "prfGnsMsrInt            %u, %u, %u\n",             DEF_GNS_MSR_INT,    prfGnsMsrInt,        roverPrefs.getUShort("prfGnsMsrInt"));
+            Serial.printf( "prfNtripCastAct         %u, %u, %u\n",             DEF_NTRIP_CAST_ACT, prfNtripCastAct,     roverPrefs.getUShort("prfNtripCastAct"));
+            Serial.printf( "DEF_NTRIP_CAST_ATTR_1   \"%s\"\n", DEF_NTRIP_CAST_ATTR_1);
+            Serial.printf( "prfNtripCastAttr[0]     \"%s\"\n", prfNtripCastAttr[0]);
+            Serial.printf( "prfNtripCaster1         \"%s\"\n", roverPrefs.getString("prfNtripCaster1"));
+            Serial.printf( "DEF_NTRIP_CAST_ATTR_2   \"%s\"\n", DEF_NTRIP_CAST_ATTR_2);
+            Serial.printf( "prfNtripCastAttr[1]     \"%s\"\n", prfNtripCastAttr[1]);
+            Serial.printf( "prfNtripCaster2         \"%s\"\n", roverPrefs.getString("prfNtripCaster2"));
+            Serial.printf( "DEF_NTRIP_CAST_ATTR_3   \"%s\"\n", DEF_NTRIP_CAST_ATTR_3);
+            Serial.printf( "prfNtripCastAttr[2]     \"%s\"\n", prfNtripCastAttr[2]);
+            Serial.printf( "prfNtripCaster3         \"%s\"\n\n", roverPrefs.getString("prfNtripCaster3"));
+
+            // -- Close name space. --
             roverPrefs.end();                                           // Close NAMESPACE object.
+
+            // -- Wrap up. --
             break;
 
         case PREF_TO_JSON:
-        // -------------------------------------------------------------------------
-        //  browser --> {"page":"menu/nmea/files/config/operate"}.
-        //  browser <-- {"0":"3.0.12 - Feb 19 2026 @ 12:46:28","1":"meter","2":"radio","3":"on","4":"50","5":"2","6":"xxx","7":"xxxx","35":30,"36":0}}.
-        //  Value of each global var preference will always match value stored in NVS.
-        // -------------------------------------------------------------------------
+
+            // -------------------------------------------------------------------------
+            //  browser --> {"page":"menu/nmea/files/config/operate"}.
+            //  browser <-- {"0":"3.0.12 - Feb 19 2026 @ 12:46:28","1":"meter","2":"radio","3":"on","4":"50","5":"2","6":"xxx","7":"xxxx","35":30,"36":0}}.
+            // ToDO: update example reponse.
+            //  Value of each global var preference will always match value stored in NVS.
+            // -------------------------------------------------------------------------
             jsonDocToClient.clear();
-            jsonDocToClient[wsKey(WS_VERSION)]                     = buildString;   //  0. Was an NVS preference, now created "on the fly" in showBuild().
-            jsonDocToClient[wsKey(WS_PREF_UNIT)]                   = prfUnt;        //  1.
-            jsonDocToClient[wsKey(WS_PREF_RTCM_IN)]                = prfRtcIn;      //  2.
-            jsonDocToClient[wsKey(WS_PREF_NMEA_OUT)]               = prfNmeOut;     //  3.
-            jsonDocToClient[wsKey(WS_PREF_GNSS_MESASURE_INTERVAL)] = prfGnsMsrInt;  //  4.
-            jsonDocToClient[wsKey(WS_PREF_GNSS_NAV_RATE)]          = prfGnsNavRat;  //  5.
-            jsonDocToClient[wsKey(WS_PREF_HOT_SPOT_SSID)]          = prfHotSsi;     //  6.
-            jsonDocToClient[wsKey(WS_PREF_HOT_SPOT_PASS)]          = prfHotPas;     //  7.
-            jsonDocToClient[wsKey(WS_SOCKET_NUM)]                  = clientId;      // 35.
-            jsonDocToClient[wsKey(WS_INSTRUMENT_HEIGHT)]           = prfInstrHgt;   // 36.
+            jsonDocToClient[wsKey(WS_VERSION)]                     = buildString;           //  0. Was an NVS preference, now created "on the fly" in showBuild().
+            jsonDocToClient[wsKey(WS_PREF_UNIT)]                   = prfUnt;                //  1.
+            jsonDocToClient[wsKey(WS_PREF_RTCM_IN)]                = prfRtcIn;              //  2.
+            jsonDocToClient[wsKey(WS_PREF_NMEA_OUT)]               = prfNmeOut;             //  3.
+            jsonDocToClient[wsKey(WS_PREF_GNSS_MESASURE_INTERVAL)] = prfGnsMsrInt;          //  4.
+            jsonDocToClient[wsKey(WS_PREF_GNSS_NAV_RATE)]          = prfGnsNavRat;          //  5.
+            jsonDocToClient[wsKey(WS_PREF_HOT_SPOT_SSID)]          = prfHotSsi;             //  6.
+            jsonDocToClient[wsKey(WS_PREF_HOT_SPOT_PASS)]          = prfHotPas;             //  7.
+            jsonDocToClient[wsKey(WS_SOCKET_NUM)]                  = clientId;              // 35.
+            jsonDocToClient[wsKey(WS_INSTRUMENT_HEIGHT)]           = prfInstrHgt;           // 36.
+            jsonDocToClient[wsKey(WS_NTRIP_CASTER_1)]              = prfNtripCastAttr[0];   // 39.
+            jsonDocToClient[wsKey(WS_NTRIP_CASTER_2)]              = prfNtripCastAttr[1];   // 40.
+            jsonDocToClient[wsKey(WS_NTRIP_CASTER_3)]              = prfNtripCastAttr[2];   // 41.
+            jsonDocToClient[wsKey(WS_NTRIP_CASTER_ACTIVE)]         = prfNtripCastAct;       // 42.
     }
 }
 
@@ -1906,7 +2006,7 @@ void onWebSocketMessage(void *arg, uint8_t *data, size_t len) {
     // --- Local vars. ---
     AwsFrameInfo *info = (AwsFrameInfo*)arg;
     // jsonDocFromClient is a global var.
-    // jsonDocToClient is a global var.
+    // jsonDocToClient   is a global var.
 
     // --- WebSocket message. ---
     if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {   // Full message has been received.

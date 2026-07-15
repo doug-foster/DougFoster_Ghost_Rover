@@ -23,6 +23,7 @@
  * @since  3.1.1  [2026-07-01-06:30pm] window.location.reload() after resetting default preferences.
  * @since  3.1.2  [2026-07-05-08:30pm] General cleanup.
  * @since  3.1.2  [2026-07-07-01:00pm] Instrument height always in mm.
+ * @since  3.1.2  [2026-07-14-09:45am] Add NTRIP.
  * @link   http://dougfoster.me.
 */
 
@@ -38,6 +39,7 @@
  * @since 3.0.12  [2026-02-21-03:30pm] Remove GET_PREFS.
  * @since  3.0.12 [2026-02-25-05:45pm] Websocket send - preserve KV pair order by changing JSON data to array.
  * @since  3.1.0  [2026-03-20-12:00pm] Pole heights.
+ * @since  3.1.2  [2026-07-14-09:45am] Add NTRIP.
  */
 
 const gnssMeasureInterval = document.querySelector('#config #gnss-measure-interval');
@@ -47,6 +49,7 @@ const hotspotSsid         = document.querySelector('#config #hotspot-ssid');
 const hotspotPassword     = document.querySelector('#config #hotspot-password');
 const updateConfigBtn     = document.querySelector('#config #update-config-btn');
 const resetConfigBtn      = document.querySelector('#config #reset-config-btn');
+const updateCasterBtn     = document.querySelector('#config #ntrip-update-attributes');
 const messageForm         = document.querySelector('#config #message-form');
 const formConfig          = document.querySelector('form#config');
 const jsConsoleMessages   = document.querySelector('#js-console-messages input');
@@ -64,6 +67,17 @@ const instrumentHeight    = document.querySelector('#config #instrument-height')
 const instrumentHeightMm  = document.querySelector('#config #instrument-height-mm');
 const instrumentHeightIn  = document.querySelector('#config #instrument-height-in');
 const heightUnitsVal      = document.querySelector('#config #height-units');
+const ntripCasterActive   = document.querySelector('#config #ntrip-caster-active');
+const ntripCaster         = document.querySelector('#config #ntrip-caster');
+const ntripName           = document.querySelector('#config #ntrip-name');
+const ntripUrl            = document.querySelector('#config #ntrip-url');
+const ntripMount          = document.querySelector('#config #ntrip-mount');
+const ntripPort           = document.querySelector('#config #ntrip-port');
+const ntripVersion        = document.querySelector('#config #ntrip-version');
+const ntripUser           = document.querySelector('#config #ntrip-user');
+const ntripPassword       = document.querySelector('#config #ntrip-password');
+const ntripSendGGA        = document.querySelector('#config #ntrip-send-gga input');
+const ntripCasterdup      = document.querySelector('#config #ntrip-caster-dup');
 const THIS_PAGE           = '[{"page":"config"}]';
 const RESET_PREFS         = '[{"config":"reset"}]';
         
@@ -79,6 +93,7 @@ const RESET_PREFS         = '[{"config":"reset"}]';
  * @see   uiToPrefs()         - Get UI values, return as JSON formatted string.
  * @see   prefsMessage()      - Parse WebSocket message, update UI elements.
  * @see   setHeights()        - Set & compute instrument height values.
+ * @see   ntripAttributes()   - Display/save NTRIP caster attibutes.
  */
 
 /**
@@ -217,7 +232,7 @@ function prefsMessage(key, value) {
  * const jsConsoleMessages   = document.querySelector('#js-console-messages input');
  *
  * @param  string action Action to take.
- * @return void No output is returned.
+ * @return void   No output is returned.
  * @since  3.1.0 [2026-03-08] New.
  * @since  3.1.0 [2026-03-19-11:00am] Update var names.
  * @since  3.1.0 [2026-03-20-12:45pm] Pole heights.
@@ -278,6 +293,68 @@ function setHeights(action) {
             break;
     }
     messageForm.textContent = 'Instrument height calculated.';
+    clearMessageField();
+}
+
+/**
+ * -------------------------------------------------------------------------
+ *  Display/save NTRIP caster attibutes.
+ * -------------------------------------------------------------------------
+ *
+ * @param  string Action to be performed (save, load).
+ * @return void   No output is returned.
+ * @since  3.1.2 [2026-07-14-09:30am] New.
+ */
+function ntripAttributes(action) {
+
+    ntripCasterdup.textContent = ntripCaster.value;
+
+    if ('save' == action) {
+        ntripCasterAttributes[parseInt(ntripCaster.value)] = JSON.stringify([{
+            'id'      : ntripCaster.value,
+            'name'    : ntripName.value,
+            'url'     : ntripUrl.value,
+            'mount'   : ntripMount.value,                                             
+            'port'    : ntripPort.value,                                                      
+            'version' : ntripVersion.value,                                                     
+            'user'    : ntripUser.value,                                                
+            'pass'    : ntripPassword.value,                       
+            'sendGga' : ntripSendGGA.checked                     
+            }
+        ]);
+        // ToDo: update NVS prefs too.
+        messageForm.textContent = 'Caster ' + ntripCaster.value + ' attributes saved.';
+        clearMessageField();
+    }
+
+    Object.entries(JSON.parse(ntripCasterAttributes[parseInt(ntripCaster.value)])[0]).forEach(([key, value]) => {
+        switch (key) {
+        case 'name':
+            ntripName.value = value;
+            break;
+        case 'url':
+            ntripUrl.value = value;
+            break;
+        case 'mount':
+            ntripMount.value = value;
+            break;
+        case 'port':
+            ntripPort.value = value;
+            break;
+        case 'version':
+            ntripVersion.value = value;
+            break;
+        case 'user':
+            ntripUser.value = value;
+            break;
+        case 'pass':
+            ntripPassword.value = value;
+            break;
+        case 'sendGga':
+            ntripSendGGA.checked = value;
+            break;
+        }
+    });
 }
 
 /**
@@ -300,9 +377,10 @@ function setHeights(action) {
  * @since  3.1.0  [2026-03-20-11:15am] Update var names.
  * @see    global.js: Global vars & webSocketInit().
  */
- document.addEventListener('DOMContentLoaded', () => {
+ document.addEventListener('DOMContentLoaded', (event) => {
     webSocketInit();
     clearMessageField();
+    ntripAttributes('load');
 
     // --- Console debug. ---
     console.log('Show console messages is "' + sessionStorage.getItem("displayJsConsoleMessages") + '".');
@@ -335,8 +413,9 @@ gnssNavRate.addEventListener('change', () => {
  * -------------------------------------------------------------------------
  *
  * @return void  No output is returned.
- * @since 3.0.12 [2026-02-06-10:45pm] New.
+ * @since  3.0.12 [2026-02-06-10:45pm] New.
  * @since  3.0.12 [2026-02-07-11:00am] Add clearMessageField().
+ * @since  3.1.2  [2026-07-14-09:30am] Add updateCasterBtn listener.
  */
 updateConfigBtn.addEventListener('click', () => {
     updateConfigBtn.classList.add('shadow');    // Visual feedback.
@@ -347,6 +426,7 @@ updateConfigBtn.addEventListener('click', () => {
     console.log('browser --> ' + uiToPrefs());
     clearMessageField();
 });
+
 resetConfigBtn.addEventListener('click', () => {
     updateConfigBtn.classList.add('shadow');    // Visual feedback.
     setTimeout(function() { updateConfigBtn.classList.remove('shadow'); }, 100);
@@ -364,13 +444,20 @@ resetConfigBtn.addEventListener('click', () => {
     }
 });
 
+updateCasterBtn.addEventListener('click', () => {
+    updateCasterBtn.classList.add('shadow');    // Visual feedback.
+    setTimeout(function() { updateCasterBtn.classList.remove('shadow'); }, 100);
+    ntripAttributes('save');
+});
+
 /**
  * -------------------------------------------------------------------------
  *  Other.
  * -------------------------------------------------------------------------
  *
- * @return void  No output is returned.
- * @since 3.0.12 [2026-02-08-08:45pm] New.
+ * @return void   No output is returned.
+ * @since  3.0.12 [2026-02-08-08:45pm] New.
+ * @since  3.1.2  [2026-07-14-09:30am] Add ntripCasterActive &  ntripCaster listeners.
  */
 jsConsoleMessages.addEventListener('change', () => {
     if (jsConsoleMessages.checked) {
@@ -389,6 +476,14 @@ poleHeight.addEventListener('blur', () => {
     setHeights('compute');
 });
 
+ntripCasterActive.addEventListener('change', (event) => {
+    ntripCaster.value = ntripCasterActive.value;
+    ntripAttributes('load');
+});
+
+ntripCaster.addEventListener('change', (event) => {
+    ntripAttributes('load');
+});
 
 /**
  * =========================================================================
@@ -397,6 +492,14 @@ poleHeight.addEventListener('blur', () => {
  *
  * @since  3.0.12 [2026-01-31-01:30pm].
  */
+
+// ToDo: change to NVS preferences. for now, fake it.
+ntripCasterActive.value   = 1;
+ntripCaster.value = ntripCasterActive.value.toString();     // Display the caster that matches the saved preference.
+let ntripCasterAttributes = [];
+ntripCasterAttributes[1]  = '[{"id":"1","name":"PointPerfect (SparkPNT)","url":"ppntrip.services.u-blox.com","mount":"NEAR-RTCM","port":"2101","version":"1","user":"Af8PE4947bVB","pass":"a*2KCExb%L","sendGga":true}]';
+ntripCasterAttributes[2]  = '[{"id":"2","name":"name 2","url":"","mount":"","port":"","version":"1","user":"","pass":"","sendGga":true}]';
+ntripCasterAttributes[3]  = '[{"id":"3","name":"name 3","url":"","mount":"","port":"","version":"1","user":"","pass":"","sendGga":true}]';
 
 /**
  * =========================================================================

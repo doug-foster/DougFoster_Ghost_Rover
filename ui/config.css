@@ -17,7 +17,7 @@
  * @since  3.1.1  [2026-06-26-09:30pm] #pole-height {display: block;}.
  * @since  3.1.2  [2026-07-05-08:30pm] General cleanup.
  * @since  3.1.2  [2026-07-07-01:00pm] Instrument height only in mm.
- * @since  3.1.2  [2026-07-08-09:30pm] Add NTRIP.
+ * @since  3.1.2  [2026-07-14-09:45am] Add NTRIP.
  * @link   http://dougfoster.me.
 */
 
@@ -238,11 +238,16 @@ form#config {
 
 /* -- Form: NTRIP. -- */
 #config #ntrip {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
 }
 #config #ntrip #ntrip-caster,
-#config #ntrip #ntrip-verison {
-    width: 50px;
+#config #ntrip #ntrip-caster-active,
+#config #ntrip #ntrip-version {
+    width: 40px;
+}
+#config #ntrip-update-attributes {
+    min-width: 190px !important;
+    margin-left: 164px;
 }
 
 /* --- Runtime options. --- */
