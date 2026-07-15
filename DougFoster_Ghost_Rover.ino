@@ -947,7 +947,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             Serial.printf( "prfNtripCaster2         \"%s\"\n", roverPrefs.getString("prfNtripCaster2"));
             Serial.printf( "DEF_NTRIP_CAST_ATTR_3   \"%s\"\n", DEF_NTRIP_CAST_ATTR_3);
             Serial.printf( "prfNtripCastAttr[2]     \"%s\"\n", prfNtripCastAttr[2]);
-            Serial.printf( "prfNtripCaster3         \"%s\"\n\n", roverPrefs.getString("prfNtripCaster3"));
+            Serial.printf( "prfNtripCaster3         \"%s\"\n", roverPrefs.getString("prfNtripCaster3"));
 
             // -- Close name space. --
             roverPrefs.end();                                           // Close NAMESPACE object.
@@ -2621,6 +2621,7 @@ void debug() {
     // --- Preferences. ---
     if (commandFlag[DEBUG_PREFS]) {
         prefUtility(PREF_PRINT);
+        Serial.println();
     }
 }
 
