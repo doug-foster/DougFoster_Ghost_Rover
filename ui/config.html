@@ -20,7 +20,7 @@
  * @since  3.1.1  [2026-06-29-02:00pm] GhostRover -> GhostRover + QR.
  * @since  3.1.2  [2026-07-05-08:30pm] General cleanup.
  * @since  3.1.2  [2026-07-07-01:00pm] Instrument height always in mm.
- * @since  3.1.2  [2026-07-14-09:45am] Add NTRIP.
+ * @since  3.1.2  [2026-07-21-03:30pm] Add NTRIP.
  * @link   http://dougfoster.me.
 -->
 
@@ -57,13 +57,22 @@
                         <label for="unit-feet">Feet</label>
                     </div>
                     <div class="grid-item">RTCM in</div>
-                    <div id="set-rtcm-in" class="switch-field grid-item">
+                    <div id="rtcm-in-buttons" class="switch-field grid-item">
                         <input type="radio" id="rtcm-in-off" name="switch-rtcm-in" value="off" />
                         <label for="rtcm-in-off">Off</label>
                         <input type="radio" id="rtcm-in-radio" name="switch-rtcm-in" value="radio" />
                         <label for="rtcm-in-radio">Radio</label>
                         <input type="radio" id="rtcm-in-ntrip" name="switch-rtcm-in" value="ntrip" />
                         <label for="rtcm-in-ntrip">NTRIP</label>
+                    </div>
+                    <div class="grid-item">NTRIP caster</div>
+                    <div id="ntrip-caster-active" class="switch-field grid-item">
+                        <input type="radio" id="ntrip-caster-1" name="switch-ntrip-caster-active" value="1" />
+                        <label for="ntrip-caster-1">1</label>
+                        <input type="radio" id="ntrip-caster-2" name="switch-ntrip-caster-active" value="2" />
+                        <label for="ntrip-caster-2">2</label>
+                        <input type="radio" id="ntrip-caster-3" name="switch-ntrip-caster-active" value="3" />
+                        <label for="ntrip-caster-3">3</label>
                     </div>
                     <div class="grid-item">NMEA BT out</div>
                     <div class="switch-field grid-item">
@@ -138,14 +147,8 @@
                 </div>
 
                 <div class="config-section config-grid-fields field-group" id="ntrip">  <!--- NTRIP. --->
-                    <div class="group-label full-row section-heading">NTRIP (RTCM in)</div>
-                    <label for="ntrip-caster-active">Using caster ...</label>
-                    <select id="ntrip-caster-active">
-                        <option value="1">1</option>
-                        <option value="2">2</option>
-                        <option value="3">3</option>
-                    </select>
-                    <label for="ntrip-caster">Attributes for caster</label>
+                    <div class="group-label full-row section-heading">NTRIP attributes</div>
+                    <label for="ntrip-caster">Caster</label>
                     <select id="ntrip-caster">
                         <option value="1">1</option>
                         <option value="2">2</option>

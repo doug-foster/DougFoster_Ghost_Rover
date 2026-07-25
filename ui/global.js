@@ -21,6 +21,8 @@
  * @since  3.1.1  [2026-06-26-09:30pm] HEIGHT_QUICK_RELEASE, changed height values.
  * @since  3.1.1  [2026-06-29-03:45pm] CHanged NVS pref from pole height to instument height.
  * @since  3.1.2  [2026-07-05-09:30pm] General cleanup.
+ * @since  3.2.1  [2026-07-25-04:15pm] Move JSON to webSocketRcvMessage() & toJson().
+ * @since  3.2.1  [2026-07-25-05:00pm] Convert NTRIP keys from alpha to numeric.
  * @link   http://dougfoster.me.
 */
 
@@ -35,6 +37,8 @@
  * @since  3.1.0  [2026-03-20-11:15am] Update var names.
  * @since  3.1.1  [2026-06-26-09:30pm] HEIGHT_QUICK_RELEASE, changed height values.
  * @since  3.1.1  [2026-06-26-09:30pm] change WS_PREF_GNSS_MESASURE_INTERVAL to WS_PREF_GNSS_MEASURE_INTERVAL.
+ * @since  3.1.2  [2026-07-16-10:00am] Add NTRIP.
+ * @since  3.2.1  [2026-07-25-04:30pm] Add caster[{}].
  * @see    operateMessage() in operate.js.
  * @see    setHeights() in config.js.
  * @see    Global vars () WebSockets) in DougFoster_Ghost_Rover.ino.
@@ -68,49 +72,14 @@ const versionRoverId          = document.querySelector('#version-rover');
 const statusUnitDisplayId     = document.querySelector('#unit-display');
 
 // --- WebSocket. ---
-// Websocket messages: See DougFoster_GhostRover.ino for exchange protocol.
+// @see "JSON key index" in webSocketRcvMessage for exchange protocol.
 let   websocket;
-const wsKey = Object.freeze({       // wsKey.WS_VERSION
-    WS_VERSION:                     '0',
-    WS_PREF_UNIT:                   '1',
-    WS_PREF_RTCM_IN:                '2',
-    WS_PREF_NMEA_OUT:               '3',
-    WS_PREF_GNSS_MEASURE_INTERVAL:  '4',
-    WS_PREF_GNSS_NAV_RATE:          '5',
-    WS_PREF_HOT_SPOT_SSID:          '6',
-    WS_PREF_HOT_SPOT_PASS:          '7',
-    WS_GNSS_FIX:                    '8',
-    WS_GNSS_SAT_IN_VIEW:            '9',
-    WS_GNSS_HEIGHT_ELLIPSOID:       '10',
-    WS_GNSS_HEIGHT_ORTHOMETRIC:     '11',
-    WS_GNSS_LATITUDE:               '12',
-    WS_GNSS_LONGITUDE:              '13',
-    WS_GNSS_HORIZONTAL_ACCURACY:    '14',
-    WS_GNSS_VERTICAL_ACCURACY:      '15',
-    WS_ROVER_RTCM_UP_DOWN:          '16',
-    WS_ROVER_BT_NMEA_UP_DOWN:       '17',
-    WS_ROVER_BATTERY_SOC:           '18',
-    WS_ROVER_BATTERY_CHANGE_RATE:   '19',
-    WS_ROVER_UP_TIME:               '20',
-    WS_RTCM_IN_COUNT_ALL:           '21',
-    WS_RTCM_IN_RATE:                '22',
-    WS_NMEA_OUT_COUNT_GGA:          '23',
-    WS_NMEA_OUT_COUNT_RMC:          '24',
-    WS_NMEA_OUT_COUNT_GSA:          '25',
-    WS_NMEA_OUT_COUNT_GSV:          '26',
-    WS_NMEA_OUT_COUNT_GST:          '27',
-    WS_NMEA_OUT_COUNT_TXT:          '28',
-    WS_NMEA_OUT_COUNT_OTHR:         '29',
-    WS_NMEA_OUT_COUNT_ALL:          '30',
-    WS_NMEA_OUT_RATE:               '31',
-    WS_OPERATIONAL_MODE:            '32',
-    WS_WIFI_LOCAL_NETWORK_IP:       '33',
-    WS_WIFI_HOT_SPOT_IP:            '34',
-    WS_SOCKET_NUM:                  '35',
-    WS_INSTRUMENT_HEIGHT:           '36',
-    WS_RTCM_SENTENCE_COUNT:         '37',
-    WS_RTCM_KBPS:                   '38'
-});
+const caster = [
+  { },
+  { id:'', name:'', url:'', mount:'', port:'', version:1, user:'', pass:'', sendGga:0 },
+  { id:'', name:'', url:'', mount:'', port:'', version:1, user:'', pass:'', sendGga:0 },
+  { id:'', name:'', url:'', mount:'', port:'', version:1, user:'', pass:'', sendGga:0 },
+];
 
 // --- Preferences. ---
 // let prfGnsMsrInt = 0;
@@ -145,12 +114,14 @@ let heightPole               =    0;    // mm.
  *
  * @since  3.0.3 [2025-10-16-01:45pm].
  * @since  3.1.0 [2026-03-20-11:15am] Update var names.
+ * @since  3.2.1 [2026-07-25-04:30pm] add toJson().
  * @see   webSocketInit()       - WebSocket: init.
  * @see   webSocketOpened()     - WebSocket: opened.
  * @see   webSocketClosed()     - WebSocket: closed.
  * @see   webSocketError()      - WebSocket: error.
  * @see   webSocketStop()       - WebSocket: stopped.
- * @see   webSocketRcvMessage() - WebSocket: message from server, what to do?
+ * @see   webSocketRcvMessage() - WebSocket: message from server. Decode.
+ * @see   toJson()              - WebSocket: Encode values into JSON.
  */
 
 /**
@@ -249,8 +220,62 @@ async function webSocketStop(event) {
 
 /**
  * -------------------------------------------------------------------------
- *  WebSocket: message from server, what to do?
+ *  WebSocket: message from server. Decode.
  * -------------------------------------------------------------------------
+ * 
+ * --- JSON key index. ---
+ *     0  = Build info.
+ *     1  = Units                           (prfUnt).
+ *     2  = RTCM in source                  (prfRtcIn).
+ *     3  = NMEA out - on/off               (prfNmeOut).
+ *     4  = GNSS measure interval           (prfGnsMsrInt).
+ *     5  = GNSS navigation rate            (prfGnsNavRat).
+ *     6  = WiFi hot spot SSID              (prfHotSsi).
+ *     7  = WiFi hot spot password          (prfHotPas).
+ *     8  = GNSS fix.
+ *     9  = GNSS satellites in view.
+ *     10 = GNSS ellipsoid height.
+ *     11 = GNSS orthometric height .
+ *     12 = GNSS latitude.
+ *     13 = GNSS longitude.
+ *     14 = GNSS horizontal accuracy.
+ *     15 = GNSS vertical accuracy.
+ *     16 = RTCM in status - up/down.
+ *     17 = NMEA out status - up/down.
+ *     18 = Battery State Of Charge (SOC).
+ *     19 = Battery change rate.
+ *     20 = Up time.
+ *     21 = RTCM in count all               Not used?
+ *     22 = RTCM in rate                    Not used?
+ *     23 = NMEA GGA out sentence count.
+ *     24 = NMEA RMC out sentence count.
+ *     25 = NMEA GSA out sentence count.
+ *     26 = NMEA GSV out sentence count.
+ *     27 = NMEA GST out sentence count.
+ *     28 = NMEA TXT out sentence count.
+ *     29 = NMEA other out sentence count.
+ *     30 = NMEA total out sentence count.
+ *     31 = NMEA out rate.
+ *     32 = Operational mode.
+ *     33 = WiFi local network IP address.
+ *     34 = WiFi hot spot address           Not used?
+ *     35 = WebSocket client/session id.
+ *     36 = Instrument height.
+ *     37 = RTCM sentence count.
+ *     38 = RTCM rate.
+ *     39 = NTRIP caster #1 attributes      (prfNtripCastAttr[0]).
+ *     40 = NTRIP caster #2 attributes      (prfNtripCastAttr[1]).
+ *     41 = NTRIP caster #3 attributes      (prfNtripCastAttr[2]).
+ *     42 = NTRIP caster active [1/2/3]     (prfNtripCastAct).
+ *     43 = NTRIP caster id                 (caster[1/2/3].id).
+ *     44 = NTRIP caster name               (caster[1/2/3].name).
+ *     45 = NTRIP caster url                (caster[1/2/3].url).
+ *     46 = NTRIP caster mount point        (caster[1/2/3].mount).
+ *     47 = NTRIP caster port               (caster[1/2/3].port).
+ *     48 = NTRIP caster version            (caster[1/2/3].version).
+ *     49 = NTRIP caster user               (caster[1/2/3].user).
+ *     50 = NTRIP caster password           (caster[1/2/3].pass).
+ *     51 = NTRIP caster sendGga            (caster[1/2/3].sendGga).
  *
  * @return void  No output is returned.
  * @since  3.0.7 [2025-11-15-02:00pm].
@@ -265,50 +290,175 @@ async function webSocketStop(event) {
 function webSocketRcvMessage(event) {
 
     // --- Process message. ---
-    var myObj = JSON.parse(event.data);
+    let jsonObj = JSON.parse(event.data);
     let response = 'browser <-- ' + event.data
     wsNumBytesThisMessage  = event.data.length;     // Bytes per message.
     if (sessionStorage.getItem("displayJsConsoleMessages") == 'on') {
         console.log(response);
     }
 
-    // --- Loop objects. ---
+    // -- Page header. --
+    if (undefined !== jsonObj["0"]) {
+        versionRoverId.innerHTML = jsonObj["0"];
+    }
+    if (undefined !== jsonObj["1"]) {
+        switch (jsonObj["1"]) {
+            case 'meter':
+                statusUnitDisplayId.innerHTML = 'Meter';
+                break;
+            case 'feet':
+                statusUnitDisplayId.innerHTML = 'Feet';
+                convert = 3.2808399;
+                break;
+            default:
+                statusUnitDisplayId.innerHTML = jsonObj["1"];
+                break;
+        }
+    }
+
+    // -- Config page. --
+    if ((window.location.pathname.includes('config') && (Object.keys(jsonObj).length > 1))) {
+
+        // - "1". -
+        prfUnt = jsonObj["1"];
+        document.querySelector('input[name="switch-unit"][value="' + jsonObj["1"] + '"]').checked = true;
+        if ('feet' === prfUnt) {
+            heightUnits = 'in';
+        };
+
+        // - "2". -
+        prfRtcIn = jsonObj["2"];
+        document.querySelector('input[name="switch-rtcm-in"][value="' + jsonObj["2"] + '"]').checked = true;
+
+        // - "3". -
+        prfNmeOut = jsonObj["3"];
+        document.querySelector('input[name="switch-nmea-out"][value="' + jsonObj["3"] + '"]').checked = true;
+
+        // - "4". -
+        prfGnsMsrInt              = jsonObj["4"];
+        gnssMeasureInterval.value = jsonObj["4"];
+        outputInterval.textContent = gnssMeasureInterval.value * gnssNavRate.value ;
+
+        // - "5". -
+        prfGnsNavRat      = jsonObj["5"];
+        gnssNavRate.value = jsonObj["5"];
+        outputInterval.textContent = gnssMeasureInterval.value * gnssNavRate.value ;
+
+        // - "6". -
+        prfHotSsi         = jsonObj["6"];
+        hotspotSsid.value = jsonObj["6"];
+
+        // - "7. -
+        prfHotPas             = jsonObj["7"];
+        hotspotPassword.value = jsonObj["7"];
+
+        // - "36". -
+        prfInstrHght = jsonObj["36"];
+        setHeights('init');
+
+        // - "39. -
+        ntripCasterAttributes[1] = jsonObj["39"];
+
+        // - "40". -
+        ntripCasterAttributes[2] = jsonObj["40"];
+
+        // - "41". -
+        ntripCasterAttributes[3] = jsonObj["41"];
+
+        // - "42". -
+        document.querySelector('input[name="switch-ntrip-caster-active"][value="' + jsonObj["42"] + '"]').checked = true;
+        prfNtripCasterAct = jsonObj["42"];
+        ntripCaster.value = jsonObj["42"]; // Display the caster that matches the saved preference.
+
+        // - Load caster array. ntripAttributes() uses caster array values to set UI fields.
+        for (let i = 1; i < ntripCasterAttributes.length; i++) {  // Array element 0 is not used. All alpha values.
+            let jsonObj = JSON.parse(ntripCasterAttributes[i]);
+            caster[i].id      = (undefined == jsonObj["43"]) ? '' : jsonObj["43"];
+            caster[i].name    = (undefined == jsonObj["44"]) ? '' : jsonObj["44"];
+            caster[i].url     = (undefined == jsonObj["45"]) ? '' : jsonObj["45"];
+            caster[i].mount   = (undefined == jsonObj["46"]) ? '' : jsonObj["46"];
+            caster[i].port    = (undefined == jsonObj["47"]) ? '' : jsonObj["47"];
+            caster[i].version = (undefined == jsonObj["48"]) ? '' : jsonObj["48"];
+            caster[i].user    = (undefined == jsonObj["49"]) ? '' : jsonObj["49"];
+            caster[i].pass    = (undefined == jsonObj["50"]) ? '' : jsonObj["50"];
+            caster[i].sendGga = ntripSendGGA.checked = Boolean(jsonObj["51"]);
+        }
+
+        // - Load UI fields. =
+        ntripAttributes('load');
+    }
+
+    // --- Deprecated. // ToDo: Replace & dump. ---
     if ('null' !== event.data) {
-        Object.entries(myObj).forEach(([key, value]) => {
-
-            switch (key) {
-
-                // --- Header. ---
-                case wsKey.WS_VERSION:
-                    versionRoverId.innerHTML = value;
-                    break;
-                case wsKey.WS_PREF_UNIT:
-                    switch (value) {
-                        case 'meter':
-                            statusUnitDisplayId.innerHTML = 'Meter';
-                            break;
-                        case 'feet':
-                            statusUnitDisplayId.innerHTML = 'Feet';
-                            convert = 3.2808399;
-                            break;
-                        default:
-                            statusUnitDisplayId.innerHTML = value;
-                            break;
-                    }
-            }
+        Object.entries(jsonObj).forEach(([key, value]) => {
 
             // -- Route each message to its page. --
             if (window.location.pathname.includes('operate')) {
                 operateMessage(key, value);         // operate.js.
             } else if (window.location.pathname.includes('files')) {
                 filesMessage(key, value);           // files.js
-            } else if (window.location.pathname.includes('config')) {
-                prefsMessage(key, value);           // config.js
             } else if (window.location.pathname.includes('nmea')) {
                 nmeaMessage(key, value);            // nmea.js
             }
         });
     }
+}
+
+/**
+ * -------------------------------------------------------------------------
+ *  WebSocket: Encode values into JSON.
+ * -------------------------------------------------------------------------
+ *
+ * @param  which Group of prefs to apply.
+ * @return void  No output is returned.
+ * @since  3.1.2  [2026-07-25-04:15pm] New.
+ * @see    webSocketRcvMessage() in global.js.
+ * @see    ntripAttributes() in config.js.
+ * @see    updateConfigBtn.addEventListener() in config.js.
+ * @see    global vars in global.js.
+ */
+function toJson(which) {
+    let jsonString;
+    switch (which) {
+        case 'uiToPrefs':
+            const switchUnits             = document.querySelector('input[name="switch-unit"]:checked')?.value;
+            const switchRtcmIn            = document.querySelector('input[name="switch-rtcm-in"]:checked')?.value;
+            const switchNtripCasterActive = document.querySelector('input[name="switch-ntrip-caster-active"]:checked')?.value;
+            const switchNmeaOut           = document.querySelector('input[name="switch-nmea-out"]:checked')?.value;
+            jsonString = JSON.stringify( {
+                "setPrefs" : "", 
+                       "1" : switchUnits,                                         // prfUnt.
+                       "2" : switchRtcmIn,                                        // prfRtcIn.
+                       "3" : switchNmeaOut,                                       // prfNmeOut.
+                       "4" : gnssMeasureInterval.value,                           // prfGnsMsrInt
+                       "5" : gnssNavRate.value,                                   // prfGnsNavRat.
+                       "6" : hotspotSsid.value,                                   // prfHotSsi.
+                       "7" : hotspotPassword.value,                               // prfHotPas.
+                      "36" : instrumentHeightMm.textContent.replace(',', ''),     // prfInstrHght.
+                      "39" : ntripCasterAttributes[1],                            // ntripCasterAttributes[1].
+                      "40" : ntripCasterAttributes[2],                            // ntripCasterAttributes[2].
+                      "41" : ntripCasterAttributes[3],                            // ntripCasterAttributes[3].
+                      "42" : switchNtripCasterActive                              // prfNtripCasterAct.
+            } )
+            break;
+        case 'ntripAttributes':
+            jsonString = JSON.stringify( {
+                            "config" : "setNtripCasterPref",
+                "setNtripCasterPref" : JSON.stringify( {
+                                "43" : ntripCaster.value,
+                                "44" : ntripName.value,
+                                "45" : ntripUrl.value,
+                                "46" : ntripMount.value,                                             
+                                "47" : ntripPort.value,                                                      
+                                "48" : ntripVersion.value,                                                     
+                                "49" : ntripUser.value,                                                
+                                "50" : ntripPassword.value,                       
+                                "51" : Number(ntripSendGGA.checked).toString()  // Send "0"/"1", not false/true.                    
+                })
+            });
+            break;
+    }
+    return jsonString;
 }
 
 /**

@@ -18,6 +18,8 @@
  * @since  3.1.2  [2026-07-05-08:30pm] General cleanup.
  * @since  3.1.2  [2026-07-07-01:00pm] Instrument height only in mm.
  * @since  3.1.2  [2026-07-14-09:45am] Add NTRIP.
+ * @since  3.1.2  [2026-07-16-01:30pm] Add .divider.
+ * @since  3.1.2  [2026-07-20-10:00pm] Remove .divider, NTRIP active caster from select to switch.
  * @link   http://dougfoster.me.
 */
 
@@ -140,6 +142,16 @@ form#config {
 #config .checkmark {
     background-color: white;
 }
+#config .divider {
+    grid-column: 1 / -1;
+    width: 95%;
+    margin-bottom: 10px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-bottom: 10px;
+    line-height: 0;
+    border-bottom: 1px solid var(--gray-2);
+}
 
 /* -- Checkbox - https://www.w3schools.com/howto/tryit.asp?filename=tryhow_css_custom_checkbox. -- */
 /* - Checkbox: container. - */
@@ -241,7 +253,6 @@ form#config {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
 }
 #config #ntrip #ntrip-caster,
-#config #ntrip #ntrip-caster-active,
 #config #ntrip #ntrip-version {
     width: 40px;
 }

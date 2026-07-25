@@ -15,6 +15,11 @@
  * @since  3.1.2  [2026-07-03-06:15pm] New, task taskRtcmRelay() replaced relaySerial1toSerial2() in loop().
  * @since  3.1.2  [2026-07-03-07:30pm] Address rtcmSentence buffer overflow.
  * @since  3.1.2  [2026-07-15-04:45pm] Add NTRIP preferences.
+ * @since  3.1.2  [2026-07-16-09:00am] Changed int16_t prfInstrHgt to uint16_t.
+ * @since  3.1.2  [2026-07-18-03:00pm] NTRIP.
+ * @since  3.2.1  [2026-07-24-03:30pm] Refactor JSON.
+ * @since  3.2.1  [2026-07-25-11:00am] Removed wsKey().
+ * @since  3.2.1  [2026-07-25-05:00pm] Convert NTRIP keys from alpha to numeric.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover_BT_relay.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
@@ -33,7 +38,6 @@
  * --- Code operation. ---
  * --- Board LED status. ---
  * --- ESP32 (Arduino framework) data types. ---
- * --- WebSocket exchange protocol and data. ---
  */
 
 /**
@@ -145,7 +149,6 @@
  *      -- Declaration.
  *      -- Test.
  *  --- General functions. ---
- *      -- wsKey()                     - Replace [wsKey(WS_PREF_UNIT)] with ["1"], etc.
  *      -- statusLedOn()               - Turn on status LED.
  *      -- prefUtility()               - Preference utility.
  *      -- operDataToJsonDoc()         - Load "operate" page data into JSON doc.
@@ -243,7 +246,7 @@
  *   ws2812LedColor = RED, YELLOW, GREEN, BLUE, WHITE.
  *   ws2812LedBlink = true, false.
  * 
- * --- GRMCU1 ----
+ * --- GR-MCU1 ----
  *     -- setup(). --
  *        - solid YELLOW: startup delay.
  *        - solid  WHITE: setup() started & running ok.
@@ -255,7 +258,7 @@
  *        - solid  GREEN: loop running ok with onWebSocketEvent(WS_EVT_CONNECT) connection.
  *        - blink  GREEN: relaySerial1toSerial2() RTCM in Serial1 out Serial2.
  *        - solid    RED: DevUBLOXGNSS::processNMEA() GRMCU1 <--> GRMCU2 I2C (NMEAout) error.
- * --- GRMCU1 ----
+ * --- GR-MCU2 ----
  * 
  * --- GNSS ----
  *     -- https://learn.sparkfun.com/tutorials/gps-rtk2-hookup-guide#hardware-overview. --
@@ -299,85 +302,6 @@
  *     void                        n/a.
  *     array                       n/a.
  *     string                      %s
- */
-
-/**
- * -------------------------------------------------------------------------
- *  WebSocket exchange protocol and data.
- * -------------------------------------------------------------------------
- *
- * @since 3.0.12 [2026-02-20-09:00am] New.
- *
- *  --- Exchange protocol for all pages. ---
- *      -- Hello. --
- *         browser --> [{"page":"menu/nmea/files/config/operate"}].
- *         browser <-- {"0":"3.0.12 - Feb 28 2026 @ 09:40:15","1":"meter","2":"radio","3":"on","4":100,"5":2,"6":"ssid","7":"pass","35":10}
- *      -- Echo. --
- *         browser --> [{"echo":"hello/etc"}].
- *         browser <-- {"echo":"hello/etc"}.
- *
- *  --- Exchange protocol for menu.html page. ---
- *      -- Hello. --
- *         browser --> [{"page":"menu"}].
- *         browser <-- {"0":"3.0.12 - Feb 28 2026 @ 09:40:15","1":"meter","2":"radio","3":"on","4":100,"5":2,"6":"ssid","7":"pass","35":10}
- *      -- Restart. --
- *         browser --> [{"mcu":"restart"}].
- *         browser <-- No reply.
- *
- *  --- Exchange protocol for nema.html page. ---
- *      -- Hello. --
- *         browser --> [{"page":"nmea"}].
- *         browser <-- {"0":"3.0.12 - Feb 28 2026 @ 09:40:15","1":"meter","2":"radio","3":"on","4":100,"5":2,"6":"ssid","7":"pass","35":10}
- *      -- NMEA sentences. --
- *        browser <-- {"nmea":"$GLGSV,1,1,01,77,06,333,10,3*4F\r\n"}.
- *
- * --- Exchange protocol for files.html page. ---
- *     -- Hello. --
- *        browser --> [{"page":"files"}].
- *        browser <-- {"page":"files", "0":"3.0.12 - Feb 19 2026 @ 12:46:28","1":"meter","2":"radio","3":"on","4":"50","5":"2","6":"xxxx","7":"xxxx"}
- *     -- List files. --
- *        browser --> [{"listFiles":""}].
- *        browser <-- {"listFiles":"/index.html,/config.css,/config.html,/config.js,/upload-image-icon.png,/files.css,/files.html,
- *                     /files.js,/global.css,/global.js,/menu.css,/menu.html,/menu.js,/operate.css,/operate.js,/junk.txt,/operate.html,"}.
- *     -- Delete files. --
- *        browser --> [{"deleteFile":"filename"}].
- *        browser <-- {"deleteFile":"fileDeleted/fileNOTdeleted"}.
- *
- * --- Exchange protocol for config.html page. ---
- *     -- Hello. --
- *        browser --> [{"page":"config"}].
- *        browser <-- {"0":"3.0.12 - Feb 28 2026 @ 09:40:15","1":"meter","2":"radio","3":"on","4":100,"5":2,"6":"ssid","7":"pass","35":10,"36":0}
- * 
- *  // ToDO: add NTRIP.
- *  WS_NTRIP_CASTER_1                                                           39 - jsonDocToClient[wsKey(WS_NTRIP_CASTER_1].
- *  WS_NTRIP_CASTER_2,                      // new                              40 - jsonDocToClient[wsKey(WS_NTRIP_CASTER_2].
- *  WS_NTRIP_CASTER_3,                      // new                              41 - jsonDocToClient[wsKey(WS_NTRIP_CASTER_3].
- *  WS_NTRIP_CASTER_ACTIVE                  // new                              42 - jsonDocToClient[wsKey(WS_NTRIP_CASTER_ACTIVE].
- *
- *     -- Set preferences. --
- *        browser --> [{"config":"set"},{"1":"meter","2":"radio","3":"on","4":"50","5":"2","6":"xxxx","7":"xxxx", "8":"0"}]
- *        prefUtility(PREF_INIT, PREF_READ, PREF_SAVE, PREF_RESTART, PREF_PRINT, PREF_TO_JSON).
- *        browser <-- {"config":"Preference values updated."}
- *     -- Reset preferences. --
- *        browser --> [{"config":"reset"}].
- *        browser <-- browser {"config":"message"}     message="Preferences reset to defaults."
- *
- * 
- * 
- * 
- * --- Exchange protocol for operate.html page. ---
- *     -- Hello. --
- *        browser --> [{"page":"operate"}].
- *        browser <-- {"0":"3.0.12 - Feb 28 2026 @ 09:40:15","1":"meter","2":"radio","3":"on","4":100,"5":2,"6":"ssid","7":"pass","35":10,"36":1201}
- *     -- GNSS & status values. --
- *        browser <-- {"8":1,"9":10,"10":"-40.68","11":"-4.62","12":"35.44418163","13":"-76.92332881","14":"8.464","15":"10.229","16":"d","17":"u","18":"101.30",
- *                     "19":"2.5","20":"4h 29m 52s","30":526389,"31":160768,"23":77545,"24":77545,"25":129240,"26":216211,"27":25848,"28":0,"29":0,"32":"r",
- *                     "33":"192.168.23.1","34":"172.20.10.2","35":30,"37":12,"38":89}
- *        checkZedUpdateOperate() calls operDataToJsonDoc() which uses jsonDocToClient[wsKey(WS_GNSS_FIX)] ... to generate numeric WebSocket keys with values.
- *
- *     -- Lock/unlock buttons. --
- *        browser --> [{"laser"/height/position:"lock/unlock"}].
- *        browser <-- {"laser"/height/position:"locked/unlocked"}. jsonDocToClient[key] = echo value + 'ed'
  */
 
 /**
@@ -428,6 +352,10 @@
  * @since 3.0.12 [2026-02-14-06:15pm] Remove prfRqsPvtInt.
  * @since 3.0.12 [2026-02-28-02:15pm] Add WS_SOCKET_NUM.
  * @since 3.1.0  [2026-03-20-11:45am] Add pole height preference.
+ * @since 3.1.2  [2026-07-16-09:00am] Increase jsonBuffer[768] to 1024.
+ * @since 3.1.2  [2026-07-16-09:00am] Changed int16_t prfInstrHgt to uint16_t.
+ * @since 3.1.2  [2026-07-16-10:00am] Moved MAJOR, MINOR, PATCH from showBuild() to "Operation" section.
+ * @since 3.2.1  [2026-07-24-03:30pm] Refactor JSON.
  */
 
 // --- Pin assignments. ---
@@ -460,204 +388,118 @@ AsyncWebServer httpServer(80);              // HTTP AsyncWebServer object on por
 AsyncWebSocket ws(WEBSOCKET_SERVER_NAME);   // HTTP WebSocket object.
 
 // --- WebSocket. ---
-char         JSONbuffer[768];               // @see onWebSocketMessage() & DevUBLOXGNSS::processNMEA().
+char         jsonBuffer[1024];              // @see onWebSocketMessage() & DevUBLOXGNSS::processNMEA().
 size_t       jsonPairNum;                   // Track number of JSON KV pairs.
-JsonDocument jsonDocToClient;               // JSON document sent to client.
-JsonDocument jsonDocFromClient;             // JSON document received from client.
-enum wsKeyID {                              // Readable index for WebSocket keys. @see Global vars. - WebSockets in global.js.
-                                            // 
-                                            //      Alpha type key was:             Numeric type key is now:
-    WS_VERSION,                             // 0 - Was an NVS preference, now created as "buildString" in showBuild().
-    WS_PREF_UNIT,                           // jsonDocToClient["prfUnt"]         1 - jsonDocToClient[wsKey(WS_PREF_UNIT)].
-    WS_PREF_RTCM_IN,                        // jsonDocToClient["prfRtcIn"]       2 - jsonDocToClient[wsKey(WS_PREF_RTCM_IN)].
-    WS_PREF_NMEA_OUT,                       // jsonDocToClient["prfNmeOut"]      3 - jsonDocToClient[wsKey(WS_PREF_NMEA_OUT)].
-    WS_PREF_GNSS_MESASURE_INTERVAL,         // jsonDocToClient["prfGnsMsrInt"]   4 - jsonDocToClient[wsKey(WS_PREF_GNSS_MESASURE_INTERVAL)].
-    WS_PREF_GNSS_NAV_RATE,                  // jsonDocToClient["prfGnsNavRat"]   5 - jsonDocToClient[wsKey(WS_PREF_GNSS_NAV_RATE)].
-    WS_PREF_HOT_SPOT_SSID,                  // jsonDocToClient["prfHotSsi"]      6 - jsonDocToClient[wsKey(WS_PREF_HOT_SPOT_SSID)].
-    WS_PREF_HOT_SPOT_PASS,                  // jsonDocToClient["prfHotPas"]      7 - jsonDocToClient[wsKey(WS_PREF_HOT_SPOT_PASS)].
-    WS_GNSS_FIX,                            // jsonDocToClient["fix"]            8 - jsonDocToClient[wsKey(WS_GNSS_FIX)].
-    WS_GNSS_SAT_IN_VIEW,                    // jsonDocToClient["siv"]            9 - jsonDocToClient[wsKey(WS_GNSS_SAT_IN_VIEW)].
-    WS_GNSS_HEIGHT_ELLIPSOID,               // jsonDocToClient["hgt-elip"]      10 -jsonDocToClient[wsKey(WS_GNSS_HEIGHT_ELLIPSOID)].
-    WS_GNSS_HEIGHT_ORTHOMETRIC,             // jsonDocToClient["hgt-orth"]      11 - jsonDocToClient[wsKey(WS_GNSS_HEIGHT_ORTHOMETRIC)].
-    WS_GNSS_LATITUDE,                       // jsonDocToClient["lat"]           12 - jsonDocToClient[wsKey(WS_GNSS_LATITUDE)].
-    WS_GNSS_LONGITUDE,                      // jsonDocToClient["lon"]           13 - jsonDocToClient[wsKey(WS_GNSS_LONGITUDE)].
-    WS_GNSS_HORIZONTAL_ACCURACY,            // jsonDocToClient["hac"]           14 - jsonDocToClient[wsKey(WS_GNSS_HORIZONTAL_ACCURACY)].
-    WS_GNSS_VERTICAL_ACCURACY,              // jsonDocToClient["vac"]           15 - jsonDocToClient[wsKey(WS_GNSS_VERTICAL_ACCURACY)].
-    WS_ROVER_RTCM_UP_DOWN,                  // jsonDocToClient["rtcm"]          16 - jsonDocToClient[wsKey(WS_ROVER_RTCM_UP_DOWN)].
-    WS_ROVER_BT_NMEA_UP_DOWN,               // jsonDocToClient["bt"]            17 - jsonDocToClient[wsKey(WS_ROVER_BT_NMEA_UP_DOWN)].
-    WS_ROVER_BATTERY_SOC,                   // jsonDocToClient["bat"]           18 - jsonDocToClient[wsKey(WS_ROVER_BATTERY_SOC)].
-    WS_ROVER_BATTERY_CHANGE_RATE,           // jsonDocToClient["batc"]          19 - jsonDocToClient[wsKey(WS_ROVER_BATTERY_CHANGE_RATE)].
-    WS_ROVER_UP_TIME,                       // jsonDocToClient["up-tm"]         20 - jsonDocToClient[wsKey(WS_ROVER_UP_TIME)].
-    WS_RTCM_IN_COUNT_ALL,                   // jsonDocToClient["rtcm-cnt-all"]  21 - jsonDocToClient[wsKey(WS_RTCM_IN_COUNT_ALL)].
-    WS_RTCM_IN_RATE,                        // jsonDocToClient["rtcm-rate"]     22 - jsonDocToClient[wsKey(WS_RTCM_IN_RATE)].
-    WS_NMEA_OUT_COUNT_GGA,                  // jsonDocToClient["nmea-cnt-gga"]  23 - jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_GGA)].
-    WS_NMEA_OUT_COUNT_RMC,                  // jsonDocToClient["nmea-cnt-rmc"]  24 - jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_RMC)].
-    WS_NMEA_OUT_COUNT_GSA,                  // jsonDocToClient["nmea-cnt-gsa"]  25 - jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_GSA)].
-    WS_NMEA_OUT_COUNT_GSV,                  // jsonDocToClient["nmea-cnt-gsv"]  26 - jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_GSV)].
-    WS_NMEA_OUT_COUNT_GST,                  // jsonDocToClient["nmea-cnt-gst"]  27 - jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_GST)].
-    WS_NMEA_OUT_COUNT_TXT,                  // jsonDocToClient["nmea-cnt-txt"]  28 - jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_TXT)].
-    WS_NMEA_OUT_COUNT_OTHR,                 // jsonDocToClient["nmea-cnt-othr"] 29 - jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_OTHR)].
-    WS_NMEA_OUT_COUNT_ALL,                  // jsonDocToClient["nmea-cnt-all"]  30 - jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_ALL)].
-    WS_NMEA_OUT_RATE,                       // jsonDocToClient["nmea-rate"]     31 - jsonDocToClient[wsKey(WS_NMEA_OUT_RATE)].
-    WS_OPERATIONAL_MODE,                    // jsonDocToClient["mode"]          32 - jsonDocToClient[wsKey(WS_OPERATIONAL_MODE)].
-    WS_WIFI_LOCAL_NETWORK_IP,               // jsonDocToClient["l-ip"]          33 - jsonDocToClient[wsKey(WS_WIFI_LOCAL_NETWORK_IP)].
-    WS_WIFI_HOT_SPOT_IP,                    // jsonDocToClient["h-ip"]          34 - jsonDocToClient[wsKey(WS_WIFI_HOT_SPOT_IP)].
-    WS_SOCKET_NUM,                          // jsonDocToClient["socketNum"]     35 - jsonDocToClient[wsKey(WS_SOCKET_NUM)].
-    WS_INSTRUMENT_HEIGHT,                   // new                              36 - jsonDocToClient[wsKey(WS_INSTRUMENT_HEIGHT)].
-    WS_RTCM_SENTENCE_COUNT,                 // new                              37 - jsonDocToClient[wsKey(WS_RTCM_SENTENCE_COUNT)].
-    WS_RTCM_KBPS,                           // new                              38 - jsonDocToClient[wsKey(WS_RTCM_KBPS].
-    WS_NTRIP_CASTER_1,                      // new                              39 - jsonDocToClient[wsKey(WS_NTRIP_CASTER_1].
-    WS_NTRIP_CASTER_2,                      // new                              40 - jsonDocToClient[wsKey(WS_NTRIP_CASTER_2].
-    WS_NTRIP_CASTER_3,                      // new                              41 - jsonDocToClient[wsKey(WS_NTRIP_CASTER_3].
-    WS_NTRIP_CASTER_ACTIVE                  // new                              42 - jsonDocToClient[wsKey(WS_NTRIP_CASTER_ACTIVE].
-};
-const char* const WS_KEY_NUMS[] = {         // see enum wsKeyID{} above for corresponding alpha.    
-    "0",
-    "1",
-    "2",
-    "3",
-    "4",
-    "5",
-    "6",
-    "7",
-    "8",
-    "9",
-    "10",
-    "11",
-    "12",
-    "13",
-    "14",
-    "15",
-    "16",
-    "17",
-    "18",
-    "19",
-    "20",
-    "21",
-    "22",
-    "23",
-    "24",
-    "25",
-    "26",
-    "27",
-    "28",
-    "29",
-    "30",
-    "31",
-    "32",
-    "33",
-    "34",
-    "35",
-    "36",
-    "37",
-    "38",
-    "39",
-    "40",
-    "41",
-    "42"
-};
+JsonDocument jsonDocToBrowser;              // JSON document - send to browser. Used in onWebSocketMessage(), operDataToJsonDoc(), & DevUBLOXGNSS::processNMEA().
+JsonDocument jsonDocFromBrowser;            // JSON document - received from browser. Used in onWebSocketMessage(). 
+JsonDocument JsonDocNtrip;                  // JSON document - JSON NTRIP data inside jsonDocToBrowser or jsonDocFromBrowser.
 
 // --- GNSS. ---
-SFE_UBLOX_GNSS roverGNSS;                   // GNSS object (uses I2C-1).
+SFE_UBLOX_GNSS roverGNSS;                                 // GNSS object (uses I2C-1).
 
 // --- Task handles. ---
-TaskHandle_t taskLoopStatusLedHandle;       // Task: Loop status LED.
-TaskHandle_t taskRtcmRelayHandle;           // Task: RTCM relay, Serial1 -> Serial2.
+TaskHandle_t taskLoopStatusLedHandle;                     // Task: Loop status LED.
+TaskHandle_t taskRtcmRelayHandle;                         // Task: RTCM relay, Serial1 -> Serial2.
 
 // --- Operation. ---
-enum CommandIndex {                         //  Readable index for command array.
-    TEST_RAD = 0,                           //  0.
-    DEBUG_RTCM,                             //  1.
-    DEBUG_GNSS,                             //  2.
-    DEBUG_NMEA,                             //  3.
-    DEBUG_BTN,                              //  4.
-    DEBUG_SER,                              //  5.
-    DEBUG_WIFI,                             //  6.
-    DEBUG_WS,                               //  7.
-    DEBUG_LIPO,                             //  8.
-    SHOW_UPTIME,                            //  9.
-    RESTART,                                // 10.
-    CHECK_WIRE1,                            // 11.
-    DEBUG_TEMP,                             // 12.
-    DEBUG_NMEA_HEX,                         // 13.
-    DEBUG_NMEA_COUNTS,                      // 14.
-    DEBUG_PREFS,                            // 15.
-    NUM_COMMANDS                            // 16 = automatic array length.
-};      
-const char* COMMAND[NUM_COMMANDS] = {       // Command strings; match CommandIndex.
-    "testRad",                              // TEST_RAD.
-    "debugRTCM",                            // DEBUG_RTCM.
-    "debugGNSS",                            // DEBUG_GNSS.
-    "debugNMEA",                            // DEBUG_NMEA.
-    "debugBtn",                             // DEBUG_BTN.
-    "debugSer",                             // DEBUG_SER.
-    "debugWiFi",                            // DEBUG_WIFI.
-    "debugWs",                              // DEBUG_WS.
-    "debugLiPo",                            // DEBUG_LIPO.
-    "showUpTime",                           // SHOW_UPTIME.
-    "restart",                              // RESTART.
-    "checkWire1",                           // CHECK_WIRE1.
-    "debugTemp",                            // DEBUG_TEMP.
-    "debugNMEAhex",                         // DEBUG_NMEA_HEX.
-    "debugNMEAcounts",                      // DEBUG_NMEA_COUNTS.
-    "debugPrefs"                            // DEBUG_PREFS.
-};      
-const bool RW_MODE = false;                     // Open preference name space as read/write.
-const bool RO_MODE = true;                      // Open preference name space as read only.
-bool      ghostMode                 = false;    // Flag, in Ghost mode (i.e. locked coordinates).
-bool      i2cUp                     = false;    // Status: true if both Wire & Wire1 up, else false.
-bool      inLoop                    = false;    // In loop() indicator.
-bool      RTCMin                    = false;    // RTCM received from NTRIP or radio within RTCM_TIMEOUT.
-bool      NMEAout                   = false;    // NMEA sent OUT to MCU #2?
-bool      zeroStatusCounters        = false;    // Flag to zero status counters.
-bool      buttonGnssLock;                       // UI - // ToDo: implement.
-bool      buttonAltitudeLock;                   // UI - // ToDo: implement.
-bool      buttonPositionLock;                   // UI - // ToDo: implement.
-bool      buttonLaser;                          // UI button to turn laser pointer on/off.
-bool      buttonUnlockAll;                      // UI - // ToDo: implement.
-bool      commandFlag[NUM_COMMANDS] = {false};  // Command flags.
-char      operMode[2]               = {'\0'};   // Operation mode (r=rover, b=base).
-char      debugTemp[250]            = {'\0'};   // Various debug scenarios.
-char      whichPage[10]             = {'\0'};   // Current browser page served by startHttpServer().
-char      buildString[40]           = {'\0'};   // Build string (build version on date at time). e.g. 3.0.12 - Feb 19 2026 @ 12:23:13
-char      serialState[4];                       // Serial state: [USB] [S0] [S1] [S2]; value = u, d, or -.
-size_t    wsSendCount               = 0;        // # of WebSocket messages sent.
-size_t    rtcmSentenceCount         = 0;        // # of RTCM sentences in.
-int64_t   startTime;                            // Boot time.
-float     rtcmKbps                  = 0;        // RTCM kbps (average).
+enum CommandIndex {                                       //  Readable index for command array.
+    TEST_RAD = 0,                                         //  0.
+    DEBUG_RTCM,                                           //  1.
+    DEBUG_GNSS,                                           //  2.
+    DEBUG_NMEA,                                           //  3.
+    DEBUG_BTN,                                            //  4.
+    DEBUG_SER,                                            //  5.
+    DEBUG_WIFI,                                           //  6.
+    DEBUG_WS,                                             //  7.
+    DEBUG_LIPO,                                           //  8.
+    SHOW_UPTIME,                                          //  9.
+    RESTART,                                              // 10.
+    CHECK_WIRE1,                                          // 11.
+    DEBUG_TEMP,                                           // 12.
+    DEBUG_NMEA_HEX,                                       // 13.
+    DEBUG_NMEA_COUNTS,                                    // 14.
+    DEBUG_PREFS,                                          // 15.
+    NUM_COMMANDS                                          // 16 = automatic array length.
+};     
+const char* COMMAND[NUM_COMMANDS] = {                     // Command strings; match CommandIndex.
+    "testRad",                                            // TEST_RAD.
+    "debugRTCM",                                          // DEBUG_RTCM.
+    "debugGNSS",                                          // DEBUG_GNSS.
+    "debugNMEA",                                          // DEBUG_NMEA.
+    "debugBtn",                                           // DEBUG_BTN.
+    "debugSer",                                           // DEBUG_SER.
+    "debugWiFi",                                          // DEBUG_WIFI.
+    "debugWs",                                            // DEBUG_WS.
+    "debugLiPo",                                          // DEBUG_LIPO.
+    "showUpTime",                                         // SHOW_UPTIME.
+    "restart",                                            // RESTART.
+    "checkWire1",                                         // CHECK_WIRE1.
+    "debugTemp",                                          // DEBUG_TEMP.
+    "debugNMEAhex",                                       // DEBUG_NMEA_HEX.
+    "debugNMEAcounts",                                    // DEBUG_NMEA_COUNTS.
+    "debugPrefs"                                          // DEBUG_PREFS.
+};     
+const bool    RW_MODE                   = false;          // Open preference name space as read/write.
+const bool    RO_MODE                   = true;           // Open preference name space as read only.
+const uint8_t MAJOR_VERSION             = 3;              // Current major build version (@see showBuild()).
+const uint8_t MINOR_VERSION             = 2;              // Current minor build version (@see showBuild()).
+const uint8_t PATCH_VERSION             = 1;              // Current patch build version (@see showBuild()).        
+bool          ghostMode                 = false;          // Flag, in Ghost mode (i.e. locked coordinates).
+bool          i2cUp                     = false;          // Status: true if both Wire & Wire1 up, else false.
+bool          inLoop                    = false;          // In loop() indicator.
+bool          RTCMin                    = false;          // RTCM received from NTRIP or radio within RTCM_TIMEOUT.
+bool          NMEAout                   = false;          // NMEA sent OUT to MCU #2?
+bool          zeroStatusCounters        = false;          // Flag to zero status counters.
+bool          buttonGnssLock;                             // UI - // ToDo: implement.
+bool          buttonAltitudeLock;                         // UI - // ToDo: implement.
+bool          buttonPositionLock;                         // UI - // ToDo: implement.
+bool          buttonLaser;                                // UI button to turn laser pointer on/off.
+bool          buttonUnlockAll;                            // UI - // ToDo: implement.
+bool          commandFlag[NUM_COMMANDS] = {false};        // Command flags.
+char          operMode[2]               = {'\0'};         // Operation mode (r=rover, b=base).
+char          debugTemp[250]            = {'\0'};         // Various debug scenarios.
+char          whichPage[10]             = {'\0'};         // Current browser page served by startHttpServer().
+char          buildString[40]           = {'\0'};         // Build string (build version on date at time). e.g. 3.0.12 - Feb 19 2026 @ 12:23:13
+char          serialState[4];                             // Serial state: [USB] [S0] [S1] [S2]; value = u, d, or -.
+size_t        wsSendCount               = 0;              // # of WebSocket messages sent.
+size_t        rtcmSentenceCount         = 0;              // # of RTCM sentences in.
+int64_t       startTime;                                  // Boot time.
+float         rtcmKbps                  = 0;              // RTCM kbps (average).
 
 // --- Preferences. ---
-char           prfUnt[6];                       // Distance units: meter/feet (used only in browser).
-char           prfRtcIn[6];                     // Control RTCM in: off/radio/ntrip.
-char           prfNmeOut[4];                    // Control NMEA out: off/on.
-char           prfHotSsi[20];                   // WiFi hotspot client: network SSID.
-char           prfHotPas[30];                   // WiFi hotspot client: password.
-uint8_t        prfGnsNavRat;                    // ZED: OUTPUT every X (e.g. 5) MEASURE intervals every (e.g. 5*100=500) ms.
-uint16_t       prfGnsMsrInt;                    // ZED: MEASURE every Y (e.g. 100) ms.
-int16_t        prfInstrHgt;                     // Instrument height (includes rover height + pole height).
-Preferences    roverPrefs;                      // Rover's NVS preferences namespace.
-enum           prefAction {                     // Readable index for preference actions.
-    PREF_INIT,                                  // 0.
-    PREF_READ,                                  // 1.
-    PREF_SAVE,                                  // 2.
-    PREF_RESTART,                               // 3.
-    PREF_PRINT,                                 // 4.
-    PREF_TO_JSON                                // 5.
+const uint16_t NTRIP_CAST_ATTR_LEN      = 512;            // Length of character array for NTRIP caster attibute profile.
+char           prfUnt[6];                                 // Distance units: meter/feet (used only in browser).
+char           prfRtcIn[6];                               // Control RTCM in: off/radio/ntrip.
+char           prfNmeOut[4];                              // Control NMEA out: off/on.
+char           prfHotSsi[20];                             // WiFi hotspot client: network SSID.
+char           prfHotPas[30];                             // WiFi hotspot client: password.
+char           prfNtripCastAttr[3][NTRIP_CAST_ATTR_LEN];  // 2D Array of (3) NTRIP caster attribute profiles (each is in JSON format).
+char           prfNtripCastAct[2];                        // Which # NTRIP caster attribute profile is being used.
+uint8_t        prfGnsNavRat;                              // ZED: OUTPUT every X (e.g. 5) MEASURE intervals every (e.g. 5*100=500) ms.
+
+uint16_t       prfGnsMsrInt;                              // ZED: MEASURE every Y (e.g. 100) ms.
+uint16_t       prfInstrHgt;                               // Instrument height (includes rover height + pole height).
+Preferences    roverPrefs;                                // Rover's NVS preferences namespace.
+enum           prefAction {                               // Readable index for preference actions.
+    PREF_INIT,                                            // 0.
+    PREF_READ,                                            // 1.
+    PREF_SET,                                             // 2.
+    PREF_RESET,                                           // 3.
+    PREF_PRINT,                                           // 4.
+    PREF_SET_NTRIP                                        // 5.
 };
-struct         ntripCasterProfile {             // NTRIP profile template.  // ToDo: not needed?
-    bool     sendGGA;
+struct         ntripCasterProfile {                       // NTRIP caster attribute template.
+    bool     sendGga;
     char     name[48];
     char     url[48];
-    char     mountpoint[24];
-    char     username[48];
-    char     password[48];
+    char     mount[24];
+    char     user[48];
+    char     pass[48];
     uint8_t  id;
     uint8_t  version;
     uint16_t port;
 };
-ntripCasterProfile ntripCaster = {};            // NTRIP caster attribute profile being used.   // ToDo: not needed?
-JsonDocument       jsonDocToNVS;                // JSON document: NTRIP caster profile saved to NVS.
-JsonDocument       jsonDocFromNVS;              // JSON document: NTRIP caster profile read from NVS.
+ntripCasterProfile ntripCaster = {};                      // NTRIP caster attribute profile being used.
 
 // --- Oper status. ---
 size_t  nmeaCountAll       = 0;
@@ -681,84 +523,11 @@ int64_t nmeaSentenceLength = 0;
  * =========================================================================
  *
  * @since 3.0.12 [2026-02-06-04:00pm] New.
- * @see   wsKey()             - Replace [wsKey(WS_PREF_UNIT)] with ["1"], etc.
+ * @since 3.2.1  [2026-07-25-11:00am] Removed wsKey().
  * @see   statusLedOn()       - Turn on status LED.
  * @see   prefUtility()       - Preference utility.
  * @see   operDataToJsonDoc() - Load "operate" page data into JSON doc.
  */
-
-/**
- * -------------------------------------------------------------------------
- *  Replace [wsKey(WS_PREF_UNIT)] with ["1"], etc.
- * -------------------------------------------------------------------------
- *
- * Example, given:  jsonDocToClient[wsKey(WS_PREF_UNIT)] = someValue;
- *          yields: jsonDocToClient["0"].
- *
- * @param  int id Key ID #.
- * @return char* const Key ID #.
- * @since  03.0.12 [2026-02-19] New.
- */
-#line 701 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-const char * wsKey(int id);
-#line 714 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void statusLedOn();
-#line 994 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void operDataToJsonDoc();
-#line 1154 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void showBuild();
-#line 1205 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void startSerial();
-#line 1237 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void initPins();
-#line 1263 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void startI2C();
-#line 1300 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void startLiPo();
-#line 1324 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void startWiFi();
-#line 1423 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void startSD();
-#line 1485 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void startHttpServer();
-#line 1540 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void startWebSocketServer();
-#line 1575 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void startAndConfigGNSS();
-#line 1654 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void startTasks();
-#line 1677 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void preLoop();
-#line 1716 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void taskLoopStatusLed(void * pvParameters);
-#line 1750 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-uint16_t rtcm3GetMessageType(const char* rtcmSentence);
-#line 1787 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void taskRtcmRelay(void *pvParameters);
-#line 1871 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void onWiFiEvent(arduino_event_id_t event);
-#line 1903 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void onHttpFileUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final);
-#line 1949 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void onWebSocketEvent(AsyncWebSocket *httpServer, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len);
-#line 2004 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void onWebSocketMessage(void *arg, uint8_t *data, size_t len);
-#line 2347 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void checkZedUpdateOperate();
-#line 2398 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void checkSerialUSB();
-#line 2471 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void debug();
-#line 2643 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void checkGnssLockButton();
-#line 2671 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void setup();
-#line 2697 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-void loop();
-#line 701 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
-const char* wsKey(int id) {
-    return WS_KEY_NUMS[id];
-}
 
 /**
  * -------------------------------------------------------------------------
@@ -769,6 +538,61 @@ const char* wsKey(int id) {
  * @since  3.0.12 [2026-02-10-10:45pm] New.
  * @see showBuild(), startWiFi(), startSD(), startAndConfigGNSS(), taskLoopStatusLed().
  */
+#line 540 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void statusLedOn();
+#line 760 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void operDataToJsonDoc();
+#line 921 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void showBuild();
+#line 969 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void startSerial();
+#line 1001 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void initPins();
+#line 1027 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void startI2C();
+#line 1064 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void startLiPo();
+#line 1088 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void startWiFi();
+#line 1187 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void startSD();
+#line 1249 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void startHttpServer();
+#line 1304 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void startWebSocketServer();
+#line 1339 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void startAndConfigGNSS();
+#line 1418 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void startTasks();
+#line 1441 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void preLoop();
+#line 1480 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void taskLoopStatusLed(void * pvParameters);
+#line 1514 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+uint16_t rtcm3GetMessageType(const char* rtcmSentence);
+#line 1551 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void taskRtcmRelay(void *pvParameters);
+#line 1634 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void onWiFiEvent(arduino_event_id_t event);
+#line 1666 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void onHttpFileUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final);
+#line 1712 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void onWebSocketEvent(AsyncWebSocket *httpServer, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len);
+#line 1961 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void onWebSocketMessage(void *arg, uint8_t *data, size_t len);
+#line 2424 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void checkZedUpdateOperate();
+#line 2475 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void checkSerialUSB();
+#line 2548 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void debug();
+#line 2720 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void checkGnssLockButton();
+#line 2748 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void setup();
+#line 2774 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+void loop();
+#line 540 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void statusLedOn() {
     switch (ws2812LedColor) {
         case RED:
@@ -795,9 +619,8 @@ void statusLedOn() {
  * -------------------------------------------------------------------------
  * 
  * Keys for preference values are sent in WebSocket as "1", "2", etc. but stored in NVS as "prfUnt", "prfRtcIn", ... .
- * Refer to enum wsKeyID and char array WS_KEY_NUMS[] in WebSocket sertion of Global Vars to decode.
  * 
- * @param  object  prefAction PREF_INIT, PREF_READ, PREF_SAVE, PREF_RESTART, PREF_PRINT, PREF_TO_JSON.
+ * @param  enum    prefAction PREF_INIT, PREF_READ, PREF_SET, PREF_RESET, PREF_PRINT, PREF_SET_NTRIP.
  * @param  array   key WebSocket JSON key.
  * @param  array   value WebSocket JSON value.
  * @return void    No output is returned.
@@ -805,10 +628,14 @@ void statusLedOn() {
  * @since  3.0.12 [2026-02-14-06:15pm] Remove prfRqsPvtInt.
  * @since  3.0.12 [2026-02-18-06:00pm] Add buildString.
  * @since  3.0.12 [2026-02-23-01:00pm] Shorten RTCM & NMEA status.
- * @since  3.0.12 [2026-02-28-02:45pm] Fix bugs: prfRtcIn, jsonDocToClient.clear().
+ * @since  3.0.12 [2026-02-28-02:45pm] Fix bugs: prfRtcIn, jsonDocToBrowser.clear().
  * @since  3.1.0  [2026-03-20-11:45am] Add pole height preference.
  * @since  3.1.2  [2026-07-09-09:00pm] Add (3) NTRIP caster profiles.
  * @since  3.1.2  [2026-07-15-04:45pm] Refactor: NTRIP & cleanup.
+ * @since  3.1.2  [2026-07-16-09:00am] Changed int16_t prfInstrHgt to uint16_t.
+ * @since  3.1.2  [2026-07-20-03:15pm] NTRIP.
+ * @since  3.2.1  [2026-07-24-03:30pm] Refactor JSON.
+ * 
  * @see    Global vars: Preference defaults, setup().
  * @link   https://docs.espressif.com/projects/arduino-esp32/en/latest/tutorials/preferences.html.
  * @link   https://github.com/espressif/arduino-esp32/tree/master/libraries/Preferences/.
@@ -817,24 +644,23 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
 
     // --- Local vars. ---
     const char      NAMESPACE[]             = "config";         // The preference namespace. 
-    const char      DEF_UNT[]               = "meter";          // Default distance units: meter/feet (used only in browser).                       Matching global var: char     prfUnt[6].
-    const char      DEF_RTC_IN[]            = "radio";          // Default control RTCM in: off/radio/ntrip.                                        Matching global var: char     prfRtcIn[6].
-    const char      DEF_NME_OUT[]           = "on";             // Default control NMEA out: off/on.                                                Matching global var: char     prfNmeOut[4].
-    const char      DEF_HOT_SSI[]           = "ssid";           // Default WiFi hotspot client: network SSID.                                       Matching global var: char     prfHotSsi[20].
-    const char      DEF_HOT_PASS[]          = "pass";           // Default WiFi hotspot client: password.                                           Matching global var: char     prfHotPas[30].
-    const char      DEF_NTRIP_CAST_ATTR_1[] = "";               // Default NTRIP caster attribute profile 1.                                        Matching global var: char     prfNtripCastAttr[0].
-    const char      DEF_NTRIP_CAST_ATTR_2[] = "";               // Default NTRIP caster attribute profile 2.                                        Matching global var: char     prfNtripCastAttr[1].
-    const char      DEF_NTRIP_CAST_ATTR_3[] = "";               // Default NTRIP caster attribute profile 3.                                        Matching global var: char     prfNtripCastAttr[2].
-    const uint8_t   DEF_GNS_NAV_RAT         = 2;                // Default ZED rate (times/interval): OUTPUT a new solution.                        Matching global var: uint8_t  prfGnsNavRat.
-    const uint8_t   DEF_NTRIP_CAST_ACT      = 1;                // Default NTRIP caster profile being used.                                         Matching global var: uint8_t  prfNtripCastAct.
-    const uint16_t  DEF_GNS_MSR_INT         = 100;              // Default ZED interval (ms): CREATE a new solution.                                Matching global var: uint16_t prfGnsMsrInt.
-    const uint16_t  DEF_INSTR_HGT           = 128;              // Default Instrument height (mm - includes rover height [128] + pole height [0]).  Matching global var: uint16_t prfInstrHgt.
-    const uint16_t  NUM_PREFS               = 15;               // Number of preferences being used.
-    const uint16_t  NTRIP_CAST_ATTR_LEN     = 512;              // Length of character array for NTRIP caster attibute profile.
+    const char      DEF_UNT[]               = "meter";          // Default distance units: meter/feet (used only in browser).                        1 - Matching global var: char     prfUnt[6].
+    const char      DEF_RTC_IN[]            = "radio";          // Default control RTCM in: off/radio/ntrip.                                         2 - Matching global var: char     prfRtcIn[6].
+    const char      DEF_NME_OUT[]           = "on";             // Default control NMEA out: off/on.                                                 3 - Matching global var: char     prfNmeOut[4].
+    const char      DEF_HOT_SSI[]           = "ssid";           // Default WiFi hotspot client: network SSID.                                        4 - Matching global var: char     prfHotSsi[20].
+    const char      DEF_HOT_PASS[]          = "pass";           // Default WiFi hotspot client: password.                                            5 - Matching global var: char     prfHotPas[30].
+    const char      DEF_NTRIP_CAST_ATTR_1[] = "{\"43\":\"1\",\"44\":\"name 1\",\"45\":\"x.com\",\"46\":\"ABC\",\"47\":\"2101\",\"48\":\"1\",\"49\":\"user1\",\"50\":\"pass1\",\"51\":\"1\"}";
+    const char      DEF_NTRIP_CAST_ATTR_2[] = "{\"43\":\"2\",\"44\":\"name 2\",\"45\":\"y.com\",\"46\":\"DEF\",\"47\":\"2101\",\"48\":\"1\",\"49\":\"user2\",\"50\":\"pass2\",\"51\":\"1\"}";
+    const char      DEF_NTRIP_CAST_ATTR_3[] = "{\"43\":\"3\",\"44\":\"name 3\",\"45\":\"z.com\",\"46\":\"GHI\",\"47\":\"2101\",\"48\":\"1\",\"49\":\"user3\",\"50\":\"pass3\",\"51\":\"1\"}";
+                                                                // Default NTRIP caster attribute profile 1.                                         6 - Matching global var: char     prfNtripCastAttr[0].
+                                                                // Default NTRIP caster attribute profile 2.                                         7 - Matching global var: char     prfNtripCastAttr[1].
+                                                                // Default NTRIP caster attribute profile 3.                                         8 - Matching global var: char     prfNtripCastAttr[2].
+    const char      DEF_NTRIP_CAST_ACT[]    = "1";              // Default NTRIP caster profile being used.                                         10 - Matching global var: char     prfNtripCastAct.
+    const uint8_t   DEF_GNS_NAV_RAT         = 2;                // Default ZED rate (times/interval): OUTPUT a new solution.                         9 - Matching global var: uint8_t  prfGnsNavRat.
+    const uint16_t  DEF_GNS_MSR_INT         = 100;              // Default ZED interval (ms): CREATE a new solution.                                11 - Matching global var: uint16_t prfGnsMsrInt.
+    const uint16_t  DEF_INSTR_HGT           = 128;              // Default instrument height (mm - includes rover height [128] + pole height [0]).  12 - Matching global var: uint16_t prfInstrHgt.
+    const uint16_t  NUM_PREFS               = 12;               // Number of preferences being used.
     bool            hasKey                  = false;
-    char            prfNtripCastAttr[3][NTRIP_CAST_ATTR_LEN];   // 2D Array of (3) NTRIP caster attribute profiles (each is in JSON format).
-    uint8_t         prfNtripCastAct;                            // Which # NTRIP caster attribute profile is being used.
-    JsonObject      JSONdata                = jsonDocFromClient[1].as<JsonObject>();     // Second array element is JSON data
 
     // --- Which action? ---
     switch (action) {
@@ -842,17 +668,15 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
 
             // -- Check namespace. --
             roverPrefs.begin(NAMESPACE, RW_MODE);                   // Open NAMESPACE object for read/write. If it doesn't exist, create it.
-            hasKey = roverPrefs.isKey("prfUnt");                    // Check for preferences (stored as "prfUnt", "prfRtcIn", etc.).
-            roverPrefs.end();                                       // Close NAMESPA   
-
-            // -- Read or reset? --
-            if(hasKey) {
+            if(roverPrefs.isKey("prfUnt")) {
                 prefUtility(PREF_READ);                             // Test preference exists, so they all should. Read values from NVS & set global vars.
+                prefUtility(PREF_PRINT);
             } else {
-                prefUtility(PREF_RESTART);                          // If the test preference doesn't exist, none of them do.
+                prefUtility(PREF_RESET);                            // If the test preference doesn't exist, none of them do.
             }
 
-            // -- Wrap up. --
+            // -- Close name space. --
+            roverPrefs.end();
             Serial.printf("NVS namespace %s using %u entries with %u available.\n", NAMESPACE, NUM_PREFS, roverPrefs.freeEntries());
             break;
 
@@ -861,7 +685,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             // -- Open name space. --
             roverPrefs.begin(NAMESPACE, RO_MODE);
 
-            // -- Set local vars from NVS preferences. --
+            // -- Set global vars from NVS preferences. --
             roverPrefs.getString("prfUnt",          prfUnt,              sizeof(prfUnt));    // Preference stored as "prfUnt".
             roverPrefs.getString("prfRtcIn",        prfRtcIn,            sizeof(prfRtcIn));
             roverPrefs.getString("prfNmeOut",       prfNmeOut,           sizeof(prfNmeOut));
@@ -870,101 +694,43 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             roverPrefs.getString("prfNtripCaster1", prfNtripCastAttr[0], NTRIP_CAST_ATTR_LEN);
             roverPrefs.getString("prfNtripCaster2", prfNtripCastAttr[1], NTRIP_CAST_ATTR_LEN);
             roverPrefs.getString("prfNtripCaster3", prfNtripCastAttr[2], NTRIP_CAST_ATTR_LEN);
-            prfGnsNavRat    = roverPrefs.getUShort("prfGnsNavRat");
-            prfNtripCastAct = roverPrefs.getUShort("prfNtripCastAct");            
+            roverPrefs.getString("prfNtripCastAct", prfNtripCastAct,     sizeof(prfNtripCastAct));
+            prfGnsNavRat    = roverPrefs.getUShort("prfGnsNavRat");           
             prfGnsMsrInt    = roverPrefs.getUShort("prfGnsMsrInt");
             prfInstrHgt     = roverPrefs.getUShort("prfInstrHgt");
 
             // -- Close name space. --
             roverPrefs.end();
             Serial.println("Preferences read.");
-
-            // ToDo start: remove once WebSockets is done. Using dummy values.
-            strlcpy(                                                                    // Dummy value for caster 1.
-                prfNtripCastAttr[0],
-                "[{\"id\":\"1\",\"name\":\"PointPerfect (SparkPNT)\",\"url\":\"ppntrip.services.u-blox.com\",\"mount\":\"NEAR-RTCM\",\"port\":\"2101\",\"version\":\"1\",\"user\":\"Af8PE4947bVB\",\"pass\":\"a*2KCExb%L\",\"sendGga\":true}]",
-                NTRIP_CAST_ATTR_LEN
-            );
-            strlcpy(                                                                    // Dummy value for caster 2.
-                prfNtripCastAttr[1],
-                "[{\"id\":\"2\",\"name\":\"name 2\",\"url\":\"\",\"mount\":\"\",\"port\":\"\",\"version\":\"1\",\"user\":\"\",\"pass\":\"\",\"sendGga\":true}]",
-                NTRIP_CAST_ATTR_LEN
-            );
-            strlcpy(                                                                    // Dummy value for caster 3.
-                prfNtripCastAttr[2],
-                "[{\"id\":\"3\",\"name\":\"name 3\",\"url\":\"\",\"mount\":\"\",\"port\":\"\",\"version\":\"1\",\"user\":\"\",\"pass\":\"\",\"sendGga\":true}]",
-                NTRIP_CAST_ATTR_LEN
-            );
-                        prfNtripCastAct = DEF_NTRIP_CAST_ACT;
-            // ToDo end: remove once WebSockets is done. Using dummy values.
-
-            // ToDo: set global struct values (used by NTRIP client code TBD) - decode prfNtripCastAttr[prfNtripCastAct] JSON string.
-            // ntripCaster.sendGGA = true;
-            // strlcpy(ntripCaster.name,       "PointPerfect (SparkPNT)",     sizeof(ntripCaster1.name));
-            // strlcpy(ntripCaster.url,        "ppntrip.services.u-blox.com", sizeof(ntripCaster1.url));
-            // strlcpy(ntripCaster.mountpoint, "NEAR-RTCM",                   sizeof(ntripCaster1.mountpoint));
-            // strlcpy(ntripCaster.username,   "Af8PE4947bVB",                sizeof(ntripCaster1.username));
-            // strlcpy(ntripCaster.password,   "a*2KCExb%L",                  sizeof(ntripCaster1.password));
-            // ntripCaster.id      = 1;
-            // ntripCaster.version = 1;
-            // ntripCaster.port    = 2101;
-
-            // -- Wrap up. --
-            prefUtility(PREF_PRINT);
             break;
 
-        case PREF_SAVE:
-
-            // -- Copy WebSocket values to local vars. --
-            strlcpy(prfUnt,    JSONdata[wsKey(WS_PREF_UNIT)],          sizeof(prfUnt));
-            strlcpy(prfRtcIn,  JSONdata[wsKey(WS_PREF_RTCM_IN)],       sizeof(prfRtcIn));
-            strlcpy(prfNmeOut, JSONdata[wsKey(WS_PREF_NMEA_OUT)],      sizeof(prfNmeOut));
-            strlcpy(prfHotSsi, JSONdata[wsKey(WS_PREF_HOT_SPOT_SSID)], sizeof(prfHotSsi));
-            strlcpy(prfHotPas, JSONdata[wsKey(WS_PREF_HOT_SPOT_PASS)], sizeof(prfHotPas));
-            // strlcpy(prfNtripCastAttr[0], JSONdata[wsKey(WS_NTRIP_CASTER_1)], NTRIP_CAST_ATTR_LEN); // ToDo: Remove comments.
-            // strlcpy(prfNtripCastAttr[1], JSONdata[wsKey(WS_NTRIP_CASTER_2)], NTRIP_CAST_ATTR_LEN);
-            // strlcpy(prfNtripCastAttr[2], JSONdata[wsKey(WS_NTRIP_CASTER_3)], NTRIP_CAST_ATTR_LEN);
-            prfGnsNavRat    = (uint8_t) atoi(JSONdata[wsKey(WS_PREF_GNSS_NAV_RATE)]);   // KV values are stored in NVS as int, but set to C-string in onWebSocketMessage() for code clarity.
-            // prfNtripCastAct = (uint8_t) atoi(JSONdata[wsKey(WS_NTRIP_CAST_ACT)]);  // ToDo: Remove comment.
-            prfGnsMsrInt    = (uint16_t) atoi(JSONdata[wsKey(WS_PREF_GNSS_MESASURE_INTERVAL)]);
-            prfInstrHgt     = (int16_t) atoi(JSONdata[wsKey(WS_INSTRUMENT_HEIGHT)]);    // KV values are stored in NVS as int, but set to C-string in onWebSocketMessage() for code clarity.
+        case PREF_SET:
 
             // -- Open name space. --
             roverPrefs.begin("config", RW_MODE);
 
-            // -- Write local vars to NVS preferences. --
-            roverPrefs.putString("prfUnt",          prfUnt);                // Store preference as "prfUnt"          (sent/rcvd as "1").
-            roverPrefs.putString("prfRtcIn",        prfRtcIn);              // Store preference as "prfRtcIn"        (sent/rcvd as "2").
-            roverPrefs.putString("prfNmeOut",       prfNmeOut);             // Store preference as "prfNmeOut"       (sent/rcvd as "3").
-            roverPrefs.putString("prfHotSsi",       prfHotSsi);             // Store preference as "prfHotSsi"       (sent/rcvd as "6").
-            roverPrefs.putString("prfHotPas",       prfHotPas);             // Store preference as "prfHotPas"       (sent/rcvd as "7").
-            roverPrefs.putString("prfNtripCaster1", prfNtripCastAttr[0]);   // Store preference as "prfNtripCaster1" (sent/rcvd as "39").
-            roverPrefs.putString("prfNtripCaster2", prfNtripCastAttr[1]);   // Store preference as "prfNtripCaster2" (sent/rcvd as "40").
-            roverPrefs.putString("prfNtripCaster3", prfNtripCastAttr[2]);   // Store preference as "prfNtripCaster3" (sent/rcvd as "41").
-            roverPrefs.putUShort("prfGnsNavRat",    prfGnsNavRat);          // Store preference as "prfGnsNavRat"    (sent/rcvd as "5").
-            roverPrefs.putUShort("prfNtripCastAct", prfNtripCastAct);       // Store preference as "prfNtripCastAct" (sent/rcvd as "42").
-            roverPrefs.putUShort("prfGnsMsrInt",    prfGnsMsrInt);          // Store preference as "prfGnsMsrInt"    (sent/rcvd as "4").
-            roverPrefs.putUShort("prfInstrHgt",     prfInstrHgt);           // Store preference as "prfInstrHgt"     (sent/rcvd as "36" with value in mm, e.g. "165").
+            // - Set NVS preferences from global vars. -
+            roverPrefs.putString("prfUnt",          prfUnt);                // Store as "prfUnt"              (sent/rcvd as "1").
+            roverPrefs.putString("prfRtcIn",        prfRtcIn);              // Store as "prfRtcIn"            (sent/rcvd as "2").
+            roverPrefs.putString("prfNmeOut",       prfNmeOut);             // Store as "prfNmeOut"           (sent/rcvd as "3").
+            roverPrefs.putString("prfHotSsi",       prfHotSsi);             // Store as "prfHotSsi"           (sent/rcvd as "6").
+            roverPrefs.putString("prfHotPas",       prfHotPas);             // Store as "prfHotPas"           (sent/rcvd as "7").
+            roverPrefs.putString("prfNtripCaster1", prfNtripCastAttr[0]);   // Store as "prfNtripCastAttr[0]" (sent/rcvd as "39").
+            roverPrefs.putString("prfNtripCaster2", prfNtripCastAttr[1]);   // Store as "prfNtripCastAttr[1]" (sent/rcvd as "40").
+            roverPrefs.putString("prfNtripCaster3", prfNtripCastAttr[2]);   // Store as "prfNtripCastAttr[2]" (sent/rcvd as "41").
+            roverPrefs.putString("prfNtripCastAct", prfNtripCastAct);       // Store as "prfNtripCastAct"     (sent/rcvd as "42").
+            roverPrefs.putUShort("prfGnsNavRat",    prfGnsNavRat);          // Store as "prfGnsNavRat"        (sent/rcvd as "5").
+            roverPrefs.putUShort("prfGnsMsrInt",    prfGnsMsrInt);          // Store as "prfGnsMsrInt"        (sent/rcvd as "4").
+            roverPrefs.putUShort("prfInstrHgt",     prfInstrHgt);           // Store as "prfInstrHgt"         (sent/rcvd as "36" with value in mm, e.g. "165").
 
             // -- Close name space. --
             roverPrefs.end();
-
-            // -- Wrap up. --
-            jsonDocToClient["config"] = "Preference values updated.";
             Serial.println("Preferences saved.");
-
-            // -- Rerun dependent functions. --
-            if (inLoop) {
-                startAndConfigGNSS();                                       // Uses prfGnsNavRat, prfGnsMsrInt.
-                if (strcmp(prfRtcIn, "ntrip") == 0) {
-                    startWiFi();                                            // NTRIP uses prfHotSsi & prfHotPas.
-                } 
-            }
             break;
 
-        case PREF_RESTART:
+        case PREF_RESET:
 
-            // -- Copy default values to local vars. --
+            // -- Copy default values to global vars. --
             strlcpy(prfUnt,              DEF_UNT,               sizeof(prfUnt));
             strlcpy(prfRtcIn,            DEF_RTC_IN,            sizeof(prfRtcIn));
             strlcpy(prfNmeOut,           DEF_NME_OUT,           sizeof(prfNmeOut));
@@ -973,13 +739,14 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             strlcpy(prfNtripCastAttr[0], DEF_NTRIP_CAST_ATTR_1, NTRIP_CAST_ATTR_LEN);
             strlcpy(prfNtripCastAttr[1], DEF_NTRIP_CAST_ATTR_2, NTRIP_CAST_ATTR_LEN);
             strlcpy(prfNtripCastAttr[2], DEF_NTRIP_CAST_ATTR_3, NTRIP_CAST_ATTR_LEN);
+            strlcpy(prfNtripCastAct,     DEF_NTRIP_CAST_ACT,    sizeof(prfNtripCastAct));
             prfGnsNavRat               = DEF_GNS_NAV_RAT;
-            prfNtripCastAct            = DEF_NTRIP_CAST_ACT;
             prfGnsMsrInt               = DEF_GNS_MSR_INT;
             prfInstrHgt                = DEF_INSTR_HGT;
 
-            // -- Write local vars to NVS preferences. --
-            prefUtility(PREF_SAVE);
+            // -- Close name space. --
+            roverPrefs.end();
+            Serial.println("Resetting all preferences.");
             break;
 
         case PREF_PRINT:
@@ -988,54 +755,51 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             roverPrefs.begin(NAMESPACE, RO_MODE);
 
             // -- Print values. --
-            Serial.println("---                     Default, Global, NVS. ---");
-            Serial.printf( "prfUnt                  \"%s\", \"%s\", \"%s\"\n", DEF_UNT,            prfUnt,              roverPrefs.getString("prfUnt"));
-            Serial.printf( "prfRtcIn                \"%s\", \"%s\", \"%s\"\n", DEF_RTC_IN,         prfRtcIn,            roverPrefs.getString("prfRtcIn"));
-            Serial.printf( "prfNmeOut               \"%s\", \"%s\", \"%s\"\n", DEF_NME_OUT,        prfNmeOut,           roverPrefs.getString("prfNmeOut"));
-            Serial.printf( "prfHotSsi               \"%s\", \"%s\", \"%s\"\n", DEF_HOT_SSI,        prfHotSsi,           roverPrefs.getString("prfHotSsi"));
-            Serial.printf( "prfHotPas               \"%s\", \"%s\", \"%s\"\n", DEF_HOT_PASS,       prfHotPas,           roverPrefs.getString("prfHotPas"));
-            Serial.printf( "prfGnsNavRat            %u, %u, %u\n",             DEF_GNS_NAV_RAT,    prfGnsNavRat,        roverPrefs.getUShort("prfGnsNavRat"));
-            Serial.printf( "prfGnsMsrInt            %u, %u, %u\n",             DEF_GNS_MSR_INT,    prfGnsMsrInt,        roverPrefs.getUShort("prfGnsMsrInt"));
-            Serial.printf( "prfNtripCastAct         %u, %u, %u\n",             DEF_NTRIP_CAST_ACT, prfNtripCastAct,     roverPrefs.getUShort("prfNtripCastAct"));
-            Serial.printf( "DEF_NTRIP_CAST_ATTR_1   \"%s\"\n", DEF_NTRIP_CAST_ATTR_1);
-            Serial.printf( "prfNtripCastAttr[0]     \"%s\"\n", prfNtripCastAttr[0]);
-            Serial.printf( "prfNtripCaster1         \"%s\"\n", roverPrefs.getString("prfNtripCaster1"));
-            Serial.printf( "DEF_NTRIP_CAST_ATTR_2   \"%s\"\n", DEF_NTRIP_CAST_ATTR_2);
-            Serial.printf( "prfNtripCastAttr[1]     \"%s\"\n", prfNtripCastAttr[1]);
-            Serial.printf( "prfNtripCaster2         \"%s\"\n", roverPrefs.getString("prfNtripCaster2"));
-            Serial.printf( "DEF_NTRIP_CAST_ATTR_3   \"%s\"\n", DEF_NTRIP_CAST_ATTR_3);
-            Serial.printf( "prfNtripCastAttr[2]     \"%s\"\n", prfNtripCastAttr[2]);
-            Serial.printf( "prfNtripCaster3         \"%s\"\n", roverPrefs.getString("prfNtripCaster3"));
+            Serial.println("---                    Default, Global, NVS. ---");
+            Serial.printf( "prfUnt                 \"%s\", \"%s\", \"%s\"\n", DEF_UNT,            prfUnt,          roverPrefs.getString("prfUnt"));
+            Serial.printf( "prfRtcIn               \"%s\", \"%s\", \"%s\"\n", DEF_RTC_IN,         prfRtcIn,        roverPrefs.getString("prfRtcIn"));
+            Serial.printf( "prfNmeOut              \"%s\", \"%s\", \"%s\"\n", DEF_NME_OUT,        prfNmeOut,       roverPrefs.getString("prfNmeOut"));
+            Serial.printf( "prfHotSsi              \"%s\", \"%s\", \"%s\"\n", DEF_HOT_SSI,        prfHotSsi,       roverPrefs.getString("prfHotSsi"));
+            Serial.printf( "prfHotPas              \"%s\", \"%s\", \"%s\"\n", DEF_HOT_PASS,       prfHotPas,       roverPrefs.getString("prfHotPas"));
+            Serial.printf( "prfGnsNavRat           %u, %u, %u\n",             DEF_GNS_NAV_RAT,    prfGnsNavRat,    roverPrefs.getUShort("prfGnsNavRat"));
+            Serial.printf( "prfGnsMsrInt           %u, %u, %u\n",             DEF_GNS_MSR_INT,    prfGnsMsrInt,    roverPrefs.getUShort("prfGnsMsrInt"));
+            Serial.printf( "prfNtripCastAct        \"%s\", \"%s\", \"%s\"\n", DEF_NTRIP_CAST_ACT, prfNtripCastAct, roverPrefs.getString("prfNtripCastAct"));
+            Serial.printf( "DEF_NTRIP_CAST_ATTR_1  \"%s\"\n", DEF_NTRIP_CAST_ATTR_1);
+            Serial.printf( "DEF_NTRIP_CAST_ATTR_2  \"%s\"\n", DEF_NTRIP_CAST_ATTR_2);
+            Serial.printf( "DEF_NTRIP_CAST_ATTR_3  \"%s\"\n", DEF_NTRIP_CAST_ATTR_3);
+            Serial.printf( "prfNtripCastAttr[0]    \"%s\"\n", prfNtripCastAttr[0]);
+            Serial.printf( "prfNtripCastAttr[1]    \"%s\"\n", prfNtripCastAttr[1]);
+            Serial.printf( "prfNtripCastAttr[2]    \"%s\"\n", prfNtripCastAttr[2]);
+            Serial.printf( "prfNtripCaster1        \"%s\"\n", roverPrefs.getString("prfNtripCaster1"));
+            Serial.printf( "prfNtripCaster2        \"%s\"\n", roverPrefs.getString("prfNtripCaster2"));
+            Serial.printf( "prfNtripCaster3        \"%s\"\n", roverPrefs.getString("prfNtripCaster3"));
 
             // -- Close name space. --
-            roverPrefs.end();                                           // Close NAMESPACE object.
-
-            // -- Wrap up. --
+            roverPrefs.end();
             break;
+        
+        case PREF_SET_NTRIP:
 
-        case PREF_TO_JSON:
+            // -- Open name space. --
+            roverPrefs.begin("config", RW_MODE);
 
-            // -------------------------------------------------------------------------
-            //  browser --> {"page":"menu/nmea/files/config/operate"}.
-            //  browser <-- {"0":"3.0.12 - Feb 19 2026 @ 12:46:28","1":"meter","2":"radio","3":"on","4":"50","5":"2","6":"xxx","7":"xxxx","35":30,"36":0}}.
-            // ToDO: update example reponse.
-            //  Value of each global var preference will always match value stored in NVS.
-            // -------------------------------------------------------------------------
-            jsonDocToClient.clear();
-            jsonDocToClient[wsKey(WS_VERSION)]                     = buildString;           //  0. Was an NVS preference, now created "on the fly" in showBuild().
-            jsonDocToClient[wsKey(WS_PREF_UNIT)]                   = prfUnt;                //  1.
-            jsonDocToClient[wsKey(WS_PREF_RTCM_IN)]                = prfRtcIn;              //  2.
-            jsonDocToClient[wsKey(WS_PREF_NMEA_OUT)]               = prfNmeOut;             //  3.
-            jsonDocToClient[wsKey(WS_PREF_GNSS_MESASURE_INTERVAL)] = prfGnsMsrInt;          //  4.
-            jsonDocToClient[wsKey(WS_PREF_GNSS_NAV_RATE)]          = prfGnsNavRat;          //  5.
-            jsonDocToClient[wsKey(WS_PREF_HOT_SPOT_SSID)]          = prfHotSsi;             //  6.
-            jsonDocToClient[wsKey(WS_PREF_HOT_SPOT_PASS)]          = prfHotPas;             //  7.
-            jsonDocToClient[wsKey(WS_SOCKET_NUM)]                  = clientId;              // 35.
-            jsonDocToClient[wsKey(WS_INSTRUMENT_HEIGHT)]           = prfInstrHgt;           // 36.
-            jsonDocToClient[wsKey(WS_NTRIP_CASTER_1)]              = prfNtripCastAttr[0];   // 39.
-            jsonDocToClient[wsKey(WS_NTRIP_CASTER_2)]              = prfNtripCastAttr[1];   // 40.
-            jsonDocToClient[wsKey(WS_NTRIP_CASTER_3)]              = prfNtripCastAttr[2];   // 41.
-            jsonDocToClient[wsKey(WS_NTRIP_CASTER_ACTIVE)]         = prfNtripCastAct;       // 42.
+            // - Set NVS preference from global var. -
+            switch (ntripCaster.id) {
+                case 1:
+                    roverPrefs.putString("prfNtripCaster1", prfNtripCastAttr[0]);   // Store as "prfNtripCastAttr[0]" (sent/rcvd as "39").
+                    break;
+                case 2:
+                    roverPrefs.putString("prfNtripCaster2", prfNtripCastAttr[1]);   // Store as "prfNtripCastAttr[1]" (sent/rcvd as "40").
+                    break;
+                case 3:
+                    roverPrefs.putString("prfNtripCaster3", prfNtripCastAttr[2]);   // Store as "prfNtripCastAttr[2]" (sent/rcvd as "41").
+                    break;
+            }
+
+            // -- Close name space. --
+            roverPrefs.end();
+            Serial.println("NTRIP preference set.");
+            break;
     }
 }
 
@@ -1055,20 +819,20 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
     const  int8_t MIN_SATELLITE_THRESHHOLD =  2;  // Minimum SIV for reliable coordinate information.
     char numberbuffer[64];
 
-    // --- Fill jsonDocToClient. ---
-    jsonDocToClient.clear();
+    // --- Fill jsonDocToBrowser. ---
+    jsonDocToBrowser.clear();
     if (roverGNSS.getSIV() > MIN_SATELLITE_THRESHHOLD) {            // Enough satellites?
         // -- Fix type. --
         if (roverGNSS.getFixType() == 3) {
-            jsonDocToClient[wsKey(WS_GNSS_FIX)] = 1;                // Single.
+            jsonDocToBrowser["8"] = 1;                // Single.
         } else if (roverGNSS.getCarrierSolutionType() == 1 ) {
-            jsonDocToClient[wsKey(WS_GNSS_FIX)] = 2;                // RTK-float.
+            jsonDocToBrowser["8"] = 2;                // RTK-float.
         } else if (roverGNSS.getCarrierSolutionType() == 2 ) {
-            jsonDocToClient[wsKey(WS_GNSS_FIX)] = 3;                // RTK-fix.
+            jsonDocToBrowser["8"] = 3;                // RTK-fix.
         }
 
         // -- Satellites in view. --
-        jsonDocToClient[wsKey(WS_GNSS_SAT_IN_VIEW)] = roverGNSS.getSIV();
+        jsonDocToBrowser["9"] = roverGNSS.getSIV();
 
         /**
          * -- Heights: --
@@ -1086,7 +850,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
         float heightEllipsoid = (ellipsoid * 10 + ellipsoidHp) / 10000.0;   // Convert to meters.
         memset(numberbuffer, '\0', sizeof(numberbuffer));
         sprintf(numberbuffer, "%.2f", heightEllipsoid);
-        jsonDocToClient[wsKey(WS_GNSS_HEIGHT_ELLIPSOID)] = numberbuffer;
+        jsonDocToBrowser["10"] = numberbuffer;
 
         // -- Height - orthometric (H). --
         int32_t msl               = roverGNSS.getMeanSeaLevel();            // a.k.a getAltitudeMSL()?
@@ -1094,7 +858,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
         float   heightOrthometric = (msl * 10 + mslHp) / 10000.0;
         memset(numberbuffer, '\0', sizeof(numberbuffer));
         sprintf(numberbuffer, "%.2f", heightOrthometric);
-        jsonDocToClient[wsKey(WS_GNSS_HEIGHT_ORTHOMETRIC)] = numberbuffer;
+        jsonDocToBrowser["11"] = numberbuffer;
 
         // -- Latitude. --
         int32_t latitude   = roverGNSS.getHighResLatitude();                // Degrees * 10^-7.
@@ -1103,7 +867,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
         lat += latitudeHp / 1000000000.0;                                   // Add high precision component.
         memset(numberbuffer, '\0', sizeof(numberbuffer));
         sprintf(numberbuffer, "%.8f", lat);
-        jsonDocToClient[wsKey(WS_GNSS_LATITUDE)] = numberbuffer;
+        jsonDocToBrowser["12"] = numberbuffer;
 
         // -- Longitude. --
         int32_t longitude   = roverGNSS.getHighResLongitude();
@@ -1112,29 +876,29 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
         lon += longitudeHp / 1000000000.0;
         memset(numberbuffer, '\0', sizeof(numberbuffer));
         sprintf(numberbuffer, "%.8f", lon);
-        jsonDocToClient[wsKey(WS_GNSS_LONGITUDE)] = numberbuffer;
+        jsonDocToBrowser["13"] = numberbuffer;
 
         // -- Horizontal accuracy. --
         memset(numberbuffer, '\0', sizeof(numberbuffer));
         sprintf(numberbuffer, "%.3f", (roverGNSS.getHorizontalAccuracy() / 10000.0));
-        jsonDocToClient[wsKey(WS_GNSS_HORIZONTAL_ACCURACY)] = numberbuffer;
+        jsonDocToBrowser["14"] = numberbuffer;
 
         // -- Vertical accuracy. --
         memset(numberbuffer, '\0', sizeof(numberbuffer));
         sprintf(numberbuffer, "%.3f", (roverGNSS.getVerticalAccuracy() / 10000.0));
-        jsonDocToClient[wsKey(WS_GNSS_VERTICAL_ACCURACY)] = numberbuffer;
+        jsonDocToBrowser["15"] = numberbuffer;
 
         // -- RTCM & BT status. --
-        jsonDocToClient[wsKey(WS_ROVER_RTCM_UP_DOWN)]    = (RTCMin)  ? "u" : "d";                    // Up, down. @see relaySerial1toSerial2().
-        jsonDocToClient[wsKey(WS_ROVER_BT_NMEA_UP_DOWN)] = (NMEAout) ? "u" : "d";                    // Up, down. @see DevUBLOXGNSS::processNMEA().
+        jsonDocToBrowser["16"] = (RTCMin)  ? "u" : "d";                     // Up, down. @see relaySerial1toSerial2().
+        jsonDocToBrowser["17"] = (NMEAout) ? "u" : "d";                     // Up, down. @see DevUBLOXGNSS::processNMEA().
 
         // -- Battery. --
         memset(numberbuffer, '\0', sizeof(numberbuffer));
         sprintf(numberbuffer, "%.2f", lipo.getSOC());
-        jsonDocToClient[wsKey(WS_ROVER_BATTERY_SOC)] = numberbuffer;
+        jsonDocToBrowser["18"] = numberbuffer;
         memset(numberbuffer, '\0', sizeof(numberbuffer));
         sprintf(numberbuffer, "%.1f", lipo.getChangeRate());
-        jsonDocToClient[wsKey(WS_ROVER_BATTERY_CHANGE_RATE)] = numberbuffer;   
+        jsonDocToBrowser["19"] = numberbuffer;   
 
         // -- Status. --
         int32_t seconds = (esp_timer_get_time() - startTime)/1000000;
@@ -1142,33 +906,33 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
         int32_t hours = minutes / 60;
         char uptime[15] = {'\0'};                                               // 0h 3m 8s.
         sprintf(uptime, "%uh %um %us", hours % 24, minutes % 60, seconds % 60);
-        jsonDocToClient[wsKey(WS_ROVER_UP_TIME)] = uptime;
+        jsonDocToBrowser["20"] = uptime;
         // WebSocket status items are calculated in operate.js. All prefs use global vars.
-        jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_ALL)]      = 1;
-        jsonDocToClient[wsKey(WS_NMEA_OUT_RATE)]           = 4;
-        jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_GGA)]      = nmeaCountGGA;
-        jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_RMC)]      = nmeaCountRMC;
-        jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_GSA)]      = nmeaCountGSA;
-        jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_GSV)]      = nmeaCountGSV;
-        jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_GST)]      = nmeaCountGST;
-        jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_TXT)]      = nmeaCountTXT;
-        jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_OTHR)]     = nmeaCountOther;
-        jsonDocToClient[wsKey(WS_NMEA_OUT_COUNT_ALL)]      = nmeaCountAll;
-        jsonDocToClient[wsKey(WS_NMEA_OUT_RATE)]           = nmeaRate;
-        jsonDocToClient[wsKey(WS_OPERATIONAL_MODE)]        = operMode;
-        jsonDocToClient[wsKey(WS_WIFI_LOCAL_NETWORK_IP)]   = localIp;
-        jsonDocToClient[wsKey(WS_RTCM_SENTENCE_COUNT)]     = rtcmSentenceCount;
-        jsonDocToClient[wsKey(WS_RTCM_KBPS)]               = rtcmKbps;
+        // jsonDocToBrowser[wsKey(WS_NMEA_OUT_COUNT_ALL)]      = 1;
+        // jsonDocToBrowser[wsKey(WS_NMEA_OUT_RATE)]           = 4;
+        jsonDocToBrowser["23"] = nmeaCountGGA;
+        jsonDocToBrowser["24"] = nmeaCountRMC;
+        jsonDocToBrowser["25"] = nmeaCountGSA;
+        jsonDocToBrowser["26"] = nmeaCountGSV;
+        jsonDocToBrowser["27"] = nmeaCountGST;
+        jsonDocToBrowser["28"] = nmeaCountTXT;
+        jsonDocToBrowser["29"] = nmeaCountOther;
+        jsonDocToBrowser["30"] = nmeaCountAll;
+        jsonDocToBrowser["31"] = nmeaRate;
+        jsonDocToBrowser["32"] = operMode;
+        jsonDocToBrowser["33"] = localIp;
+        jsonDocToBrowser["37"] = rtcmSentenceCount;
+        jsonDocToBrowser["38"] = rtcmKbps;
     } else {
-        jsonDocToClient[wsKey(WS_GNSS_FIX)]                = 0;                 // GNSS down. 
-        jsonDocToClient[wsKey(WS_GNSS_SAT_IN_VIEW)]        = 0;
-        jsonDocToClient[wsKey(WS_GNSS_LATITUDE)]           = 0;
-        jsonDocToClient[wsKey(WS_GNSS_LONGITUDE)]          = 0;
-        jsonDocToClient[wsKey(WS_GNSS_HEIGHT_ELLIPSOID)]   = 0;
-        jsonDocToClient[wsKey(WS_GNSS_HEIGHT_ORTHOMETRIC)] = 0;
-        jsonDocToClient[wsKey(WS_GNSS_VERTICAL_ACCURACY)]  = 0;
-        jsonDocToClient[wsKey(WS_PREF_RTCM_IN)]            = 0;
-        jsonDocToClient[wsKey(WS_PREF_NMEA_OUT)]           = 0;
+        jsonDocToBrowser["8"]  = 0;                // GNSS down. 
+        jsonDocToBrowser["9"]  = 0;
+        jsonDocToBrowser["12"] = 0;
+        jsonDocToBrowser["13"] = 0;
+        jsonDocToBrowser["10"] = 0;
+        jsonDocToBrowser["11"] = 0;
+        jsonDocToBrowser["15"] = 0;
+        jsonDocToBrowser["2"]  = 0;
+        jsonDocToBrowser["3"]  = 0;
     }
 }
 
@@ -1206,15 +970,13 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
  * @since  3.0.10 [2025-12-30-02:00pm].
  * @since  3.0.10 [2026-01-07-09:45am] Local vars.
  * @since  3.1.1  [2026-06-25-01:00pm] Updated version, added startup delay, transition LED YELLOW->WHITE.
+ * @since  3.1.2  [2026-07-16-10:00am] Moved MAJOR, MINOR, PATCH from showBuild() to "Operation" section.
  * @see    Global vars: Version, setup().
  * @link   https://github.com/pycom/pycom-esp-idf.
  */
 void showBuild() {
 
     // --- Local vars. ---
-    const uint8_t   MAJOR_VERSION    = 3;
-    const uint8_t   MINOR_VERSION    = 1;
-    const uint8_t   PATCH_VERSION    = 2;
     const char      NAME[]           = "Ghost Rover 3";
     const uint32_t  SERIAL_USB_SPEED = 115200;   // Serial USB speed.
     const uint64_t  START_DELAY      = 4000000;  // 4 second startup delay.
@@ -1643,7 +1405,7 @@ void startAndConfigGNSS() {
 
         // -- Software reset. --
         roverGNSS.softwareResetGNSSOnly();
-        Serial.println("Reset roverGNSS. Restarting and re-enumerating.");
+        Serial.println("RoverGNSS started.\nEnumerating satellite constellations.");
         delay(1000); // Short delay to allow the module to complete the reset process.
 
         // uint16_t    prfGnsMsrInt;  // ZED: MEASURE every Y (e.g. 100) ms.
@@ -1651,7 +1413,7 @@ void startAndConfigGNSS() {
         // roverGNSS.setNavigationFrequency(2) will produce 1 solution every 500ms, but only uses 2 (not 5) measurements per second.
         roverGNSS.setNavigationRate(prfGnsNavRat, VAL_LAYER_RAM);
         roverGNSS.setMeasurementRate(prfGnsMsrInt, VAL_LAYER_RAM);
-        Serial.printf("roverGNSS started.\nroverGNSS solution output every (%u * %u) ms.\n", prfGnsNavRat, prfGnsMsrInt);
+        Serial.printf("Solution output every (%u * %u) ms.\n", prfGnsNavRat, prfGnsMsrInt);
     }
 
     // --- New config template. ---
@@ -1682,7 +1444,7 @@ void startAndConfigGNSS() {
     roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_GST_I2C, 3);    // I2C messages - Enable GSA to 1 per 3 solutions  (default is 1 per 1 solution).
                                                                     // ZDA & GNS sentences are off by default.
     // --- Send the config. ---
-    roverGNSS.sendCfgValset() ? Serial.println("roverGNSS configured using valset keys.") : Serial.println("roverGNSS config failed.");
+    roverGNSS.sendCfgValset() ? Serial.println("roverGNSS configured using valset keys.") : Serial.println("roverGNSS config failed!");
 
     // --- Not used. ---
     // roverGNSS.newCfgValset(VAL_LAYER_RAM_BBR);
@@ -1897,7 +1659,6 @@ void taskRtcmRelay(void *pvParameters) {
                 byteCount++;
             }
         }
-
         vTaskDelay(1);                                                  // Yield 1 tick when idle - keeps watchdog/other tasks fed.
     }
 }
@@ -2009,7 +1770,7 @@ void onWebSocketEvent(AsyncWebSocket *httpServer, AsyncWebSocketClient *client, 
     switch (type) {
         case WS_EVT_CONNECT:
             Serial.printf("WS #%u: %s connected to server.\n", clientId, client->remoteIP().toString().c_str());
-            ws2812LedColor = GREEN;                          // Loop status indicator LED.
+            ws2812LedColor = GREEN;                         // Loop status indicator LED.
             ws2812LedBlink = false;
             wsSendCount    = 0;                             // Reset counter.
             break;
@@ -2020,7 +1781,7 @@ void onWebSocketEvent(AsyncWebSocket *httpServer, AsyncWebSocketClient *client, 
             wsSendCount    = 0;                             // Reset counter.
             break;
         case WS_EVT_DATA:
-            onWebSocketMessage(arg, data, len);             // Register WebSocket message handler.
+            onWebSocketMessage(arg, data, len);             // WebSocket message handler.
             break;
         case WS_EVT_PONG:
         case WS_EVT_ERROR:
@@ -2035,8 +1796,198 @@ void onWebSocketEvent(AsyncWebSocket *httpServer, AsyncWebSocketClient *client, 
  *  Event - WebSocket message.
  * -------------------------------------------------------------------------
  * 
- * serializeJson(jsonDocToClient, Serial); // Debug.
- * Serial.println();
+ *  --- Notes. --- 
+ *      1) NTRIP CASTER PREFERENCE is an embedded JSON string. Attributes for each NTRIP caster are sent/received (and stored in NVS) as a single JSON string.
+ *      2) GNSS STATUS - checkZedUpdateOperate() calls operDataToJsonDoc() which uses jsonDocToBrowser[].
+ *      3) Numeric JSON keys are used to reduce JSON string length.
+ * 
+ * --- JSON key index. ---
+ *     0  = Build info                      (buildString).
+ *     1  = Units                           (prfUnt).
+ *     2  = RTCM in source                  (prfRtcIn).
+ *     3  = NMEA out - on/off               (prfNmeOut).
+ *     4  = GNSS measure interval           (prfGnsMsrInt).
+ *     5  = GNSS navigation rate            (prfGnsNavRat).
+ *     6  = WiFi hot spot SSID              (prfHotSsi).
+ *     7  = WiFi hot spot password          (prfHotPas).
+ *     8  = GNSS fix.
+ *     9  = GNSS satellites in view.
+ *     10 = GNSS ellipsoid height           (numberbuffer).
+ *     11 = GNSS orthometric height         (numberbuffer).
+ *     12 = GNSS latitude                   (numberbuffer).
+ *     13 = GNSS longitude                  (numberbuffer).
+ *     14 = GNSS horizontal accuracy        (numberbuffer).
+ *     15 = GNSS vertical accuracy          (numberbuffer).
+ *     16 = RTCM in status - up/down.
+ *     17 = NMEA out status - up/down.
+ *     18 = Battery State Of Charge (SOC)   (numberbuffer).
+ *     19 = Battery change rate             (numberbuffer).
+ *     20 = Up time                         (uptime).
+ *     21 = RTCM in count all               Not used?
+ *     22 = RTCM in rate                    Not used?
+ *     23 = NMEA GGA out sentence count     (nmeaCountGGA).
+ *     24 = NMEA RMC out sentence count     (nmeaCountRMC).
+ *     25 = NMEA GSA out sentence count     (nmeaCountGSA).
+ *     26 = NMEA GSV out sentence count     (nmeaCountGSV).
+ *     27 = NMEA GST out sentence count     (nmeaCountGST).
+ *     28 = NMEA TXT out sentence count     (nmeaCountTXT).
+ *     29 = NMEA other out sentence count   (nmeaCountOther).
+ *     30 = NMEA total out sentence count   (nmeaCountAll).
+ *     31 = NMEA out rate                   (nmeaRate).
+ *     32 = Operational mode                (operMode).
+ *     33 = WiFi local network IP address   (localIp).
+ *     34 = WiFi hot spot address           Not used?
+ *     35 = WebSocket client/session id     (clientId).
+ *     36 = Instrument height               (prfInstrHgt).
+ *     37 = RTCM sentence count             (rtcmSentenceCount).
+ *     38 = RTCM rate                       (rtcmKbps).
+ *     39 = NTRIP caster #1 attributes      (prfNtripCastAttr[0]).
+ *     40 = NTRIP caster #2 attributes      (prfNtripCastAttr[1]).
+ *     41 = NTRIP caster #3 attributes      (prfNtripCastAttr[2]).
+ *     42 = NTRIP caster active [1/2/3]     (prfNtripCastAct).
+ *     43 = NTRIP caster id                 (caster[1/2/3].id).
+ *     44 = NTRIP caster name               (caster[1/2/3].name).
+ *     45 = NTRIP caster url                (caster[1/2/3].url).
+ *     46 = NTRIP caster mount point        (caster[1/2/3].mount).
+ *     47 = NTRIP caster port               (caster[1/2/3].port).
+ *     48 = NTRIP caster version            (caster[1/2/3].version).
+ *     49 = NTRIP caster user               (caster[1/2/3].user).
+ *     50 = NTRIP caster password           (caster[1/2/3].pass).
+ *     51 = NTRIP caster sendGga            (caster[1/2/3].sendGga).
+ *
+ *  --- Description of exchange protocol. ---
+ *
+ *  -- ALL PREFERENCES. --
+ *       "0":"3.1.2 - Jul 15 2026 @ 17:20:35",
+ *       "1":"meter",
+ *       "2":"radio",
+ *       "3":"on",
+ *       "4":100,
+ *       "5":2,
+ *       "6":"ssid",
+ *       "7":"pass",
+ *       "35":22,
+ *       "36":1596,
+ *       "39":"{\"43\":\"1\",\"44\":\"PointPerfect (SparkPNT)\",\"45\":\"ppntrip.services.u-blox.com\",\"46\":\"NEAR-RTCM\",\"47\":\"2101\",\"48\":\"1\",\"49\":\"abcdefghijkl\",\"50\":\"abcdefghij\",\"51\":\"1\"}",
+ *       "40":"{\"43\":\"2\",\"44\":\"name 2\",\"45\":\"\",\"46\":\"\",\"47\":\"\",\"48\":\"1\",\"49\":\"\",\"50\":\"\",\"51\":\"1\"}",
+ *       "41":"{\"43\":\"3\",\"44\":\"name 3\",\"45\":\"\",\"46\":\"\",\"47\":\"\",\"48\":\"1\",\"49\":\"\",\"50\":\"\",\"51\":\"1\"}",
+ *       "42":"1".
+ *
+ *  -- NTRIP CASTER PREFERENCE. --
+ *       "setNtripCasterPref":"{\\"43\\":\\"1\\",\\"44\\":\\"name 1\\",\\"45\\":\\"x.com\\",\\"46\\":\\"ABC\\",\\"47\\":\\"2101\\",\\"48\\":\\"1\\",\\"49\\":\\"user1\\",\\"50\\":\\"pass1\\",\\"51\\":\\"1\\"}".
+ *
+ *  -- GNSS STATUS. --
+ *       "8":1,
+ *       "9":10,
+ *       "10":"-40.68",
+ *       "11":"-4.62",
+ *       "12":"35.44418163",
+ *       "13":"-76.92332881",
+ *       "14":"8.464",
+ *       "15":"10.229",
+ *       "16":"d",
+ *       "17":"u",
+ *       "18":"101.30",
+ *       "19":"2.5",
+ *       "20":"4h 29m 52s",
+ *       "30":526389,
+ *       "31":160768,
+ *       "23":77545,
+ *       "24":77545,
+ *       "25":129240,
+ *       "26":216211,
+ *       "27":25848,
+ *       "28":0,
+ *       "29":0,
+ *       "32":"r",
+ *       "33":"192.168.23.1",
+ *       "34":"172.20.10.2",
+ *       "35":30,
+ *       "37":12,
+ *       "38":89
+ * 
+ *  -- All pages. --
+ *     - Hello. -
+ *       browser (sends)    --> {"page:"menu/nmea/files/config/operate","sendPrefs":""}.
+ *       browser (receives) <-- {"sendPrefs":"Preferences sent.",ALL PREFERENCES}.
+ *
+ *  -- Config page. --
+ *     - Hello. -
+ *       browser (sends)    --> {"page":"config","sendPrefs":""}.
+ *       browser (receives) <-- {ALL PREFERENCES,"sendPrefs":"Preferences sent."}.
+ *
+ *     - Set all preferences. -
+ *       browser (sends)    --> {"page":"config","setPrefs":"",{ALL PREFERENCES}}.
+ *       browser (receives) <-- {"setPrefs":"Preferences saved."}
+ * 
+ *     - Reset all preferences. -
+ *       browser (sends)    --> {"page":"config","resetPrefs":""}.
+ *       browser (receives) <-- {"prefsReset":"Preferences reset."}.
+ *
+ *     - Set NTRIP caster preference. -
+ *       browser (sends)    --> {"page":"config",{NTRIP CASTER PREFERENCE}}.
+ *       browser (receives) <-- {"setNtripCasterPref":"Preference saved."}.
+ *
+ *  -- Files page. --
+ *     - Hello. -
+ *       browser (sends)    --> {"page":"files","sendPrefs":""}.
+ *       browser (receives) <-- {ALL PREFERENCES,"sendPrefs":"Preferences sent."}.
+ *
+ *     - List files. -
+ *       browser (sends)    --> {"page":"files","listFiles":""}.
+ *       browser (receives) <-- {"files":"/index.html,/config.css,/config.html,/config.js,/upload-image-icon.png,/files.css,/files.html,
+ *                              /files.js,/global.css,/global.js,/menu.css,/menu.html,/menu.js,/operate.css,/operate.js,/junk.txt,/operate.html,"}.
+ *     - Delete files. -
+ *       browser (sends)    --> {"deleteFile":"filename"}.
+ *       browser (receives) <-- {"deleteFile":"File deleted./File NOT deleted"}.
+ *
+ *  -- Menu page. --
+ *     - Hello. -
+ *       browser (sends)    --> {"page":"menu","sendPrefs":""}.
+ *       browser (receives) <-- {ALL PREFERENCES,"sendPrefs":"Preferences sent."}.
+ *
+ *     - Restart GRMCU-1. -
+ *       browser (sends)    --> {"page":"menu","restartGR-MCU1":""}.
+ *       browser (receives) <-- {"restartGR-MCU1":"GR-MCU1 will restart."}.
+ *
+ *  -- Operate page. --
+ *     - Hello. -
+ *       browser (sends)    --> {"page":"operate","sendPrefs":""}.
+ *       browser (receives) <-- {ALL PREFERENCES,"sendPrefs":"Preferences sent."}.
+ *
+ *     - Laser on/off button. --
+ *       browser (sends)    --> {"page":"operate",{"laserOn:""}.
+ *       browser (receives) <-- {"laserOn":"Laser on."}.
+ *       browser (sends)    --> {"page":"operate",{"laserOff:""}.
+ *       browser (receives) <-- {"laserOff":"Laser off."}.
+ *
+ *     - Height lock/unlock button. --
+ *       browser (sends)    --> {"page":"operate",{"heightLock:""}.
+ *       browser (receives) <-- {"heightLock":"Height locked"}.
+ *       browser (sends)    --> {"page":"operate",{"heightUnlock:""}.
+ *       browser (receives) <-- {"heightUnlock":"Height unlocked."}.
+ *
+ *     - Position lock/unlock button. --
+ *       browser (sends)    --> {"page":"operate",{"positionLock:""}.
+ *       browser (receives) <-- {"positionLock":"Position locked"}.
+ *       browser (sends)    --> {"page":"operate",{"positionUnlock:""}.
+ *       browser (receives) <-- {"positionUnlock":"Position unlocked."}.
+ *
+ *     - GNSS & status values. -
+ *       browser (receives) <-- {GNSS STATUS}
+ *
+ *  -- NMEA page. --
+ *      - Hello. -
+ *        browser (sends)    --> {"page":"nmea","sendPrefs":""}.
+ *        browser (receives) <-- {ALL PREFERENCES,"sendPrefs":"Preferences sent."}.
+ *
+ *      - NMEA sentences. - //ToDo: merge in.
+ *        browser (receives) <-- {"nmea":"$GLGSV,1,1,01,77,06,333,10,3*4F\r\n"}.
+ *
+ *  -- Test. Echo. --
+ *      - Hello. -
+ *         browser (sends)    --> {"page":"TBD","echo":"some text"}.
+ *         browser (receives) <-- {"echo":"some text","echo":"Message echoed."}.
  *
  * @return void  No output is returned.
  * @since  3.0.7  [2025-11-10-12:00pm].
@@ -2047,6 +1998,9 @@ void onWebSocketEvent(AsyncWebSocket *httpServer, AsyncWebSocketClient *client, 
  * @since  3.0.12 [2026-02-06-06:15pm] Add preferences.
  * @since  3.0.12 [2026-02-07-07:30am] Check for {"page":"opr/cfg/menu/nmea"}.
  * @since  3.0.12 [2026-02-19-04:00pm] Removed leaving message.
+ * @since  3.1.2  [2026-07-20-11:00am] Change jsonObjFromBrowser kv pair branching from "if" to "else if."
+ * @since  3.2.1  [2026-07-24-03:30pm] Refactor JSON.
+ * @since  3.2.1  [2026-07-25-05:00pm] Convert NTRIP keys from alpha to numeric.
  * @see    Global vars: GNSS, prefUtility(), onWebSocketEvent(), startWebSocketServer().
  * @link   https://randomnerdtutorials.com/esp32-websocket-server-arduino/.
  * @link   https://randomnerdtutorials.com/esp32-websocket-server-sensor/.
@@ -2057,14 +2011,19 @@ void onWebSocketEvent(AsyncWebSocket *httpServer, AsyncWebSocketClient *client, 
  * @link   https://github.com/espressif/arduino-esp32/blob/master/libraries/SD/examples/SD_Test/SD_Test.ino.
  * @link   https://docs.espressif.com/projects/arduino-esp32/en/latest/tutorials/preferences.html.
  * @link   https://github.com/espressif/arduino-esp32/tree/master/libraries/Preferences/.
+ *
  */
 
 void onWebSocketMessage(void *arg, uint8_t *data, size_t len) {
 
+    // --- Debug. ---
+    // serializeJson(jsonDocToBrowser, Serial); // Debug.
+    // Serial.println();
+
     // --- Local vars. ---
     AwsFrameInfo *info = (AwsFrameInfo*)arg;
-    // jsonDocFromClient is a global var.
-    // jsonDocToClient   is a global var.
+    // jsonDocFromBrowser, jsonDocToBrowser, &  JsonDocNtrip are global vars.
+    char response[128];
 
     // --- WebSocket message. ---
     if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {   // Full message has been received.
@@ -2074,80 +2033,126 @@ void onWebSocketMessage(void *arg, uint8_t *data, size_t len) {
             Serial.printf("WS #%u: browser --> %s\n", clientId, data);
         }
 
-        // -- WebSocket message - deserialize the JSON data into a JSON object: jsonDocFromClient. --
-        jsonDocFromClient.clear();
-        DeserializationError error = deserializeJson(jsonDocFromClient, data);
+        // -- WebSocket message - deserialize the JSON data into a JSON document (jsonDocFromBrowser). --
+        jsonDocFromBrowser.clear();
+        DeserializationError error = deserializeJson(jsonDocFromBrowser, data);
         if (error) {
             Serial.printf("JSON deserialize failed: %s\n", error.f_str());
             return;
         }
 
-        // -- WebSocket message - validate data is an array with either a one or two elements. --
-        if (!jsonDocFromClient.is<JsonArray>() || jsonDocFromClient.as<JsonArray>().size() > 2) {
-            Serial.println("Invalid Websocket message format");
-            return;
-        }
-
-        // -- WebSocket message - process the JSON array based on (term, subTerm) in the first element and (data) in the second element. --
-        jsonDocToClient.clear();
-        JsonObject instruction = jsonDocFromClient[0].as<JsonObject>();     // Convert each array element into JSON object.
-        const char* term       = nullptr;
-        const char* subTerm    = nullptr;
-        for (JsonPair kv : instruction) {                                   // Iterate kv pairs in the first array element since "term" will vary.
-            term = kv.key().c_str();
-            subTerm = kv.value().as<const char*>();
-        }
+        // -- Begin JSON processing. --
+        memset(response, '\0', sizeof(response));
+        jsonDocToBrowser.clear();
 
         // -------------------------------------------------------------------------
-        //  browser --> {"mcu":"restart"}.
-        //  browser <-- No reply.
+        // -- All pages. Send all preferences to browser. --
         // -------------------------------------------------------------------------
-        if ((strcmp(term, "mcu") == 0) && (strcmp(subTerm, "restart") == 0 )) {
-            Serial.println("Restarting ...\n");
-            esp_restart();  // Restart.
-        }
+        if (jsonDocFromBrowser["sendPrefs"].is<JsonVariant>()) {                            // Does key exist?
 
-        // -------------------------------------------------------------------------
-        //  browser --> {"echo":"hello/etc"}.
-        //  browser <-- {"echo":"hello/etc"}.
-        // -------------------------------------------------------------------------
-        if (strcmp(term, "echo") == 0) {
-            jsonDocToClient[term] = subTerm;
-        }
+            // - Set global vars from preferences. -
+            prefUtility(PREF_READ);
+            
+            // - Set JSON values from global vars. -
+            jsonDocToBrowser["0"]  = buildString;
+            jsonDocToBrowser["1"]  = prfUnt;
+            jsonDocToBrowser["2"]  = prfRtcIn;
+            jsonDocToBrowser["3"]  = prfNmeOut;
+            jsonDocToBrowser["4"]  = prfGnsMsrInt;
+            jsonDocToBrowser["5"]  = prfGnsNavRat;
+            jsonDocToBrowser["6"]  = prfHotSsi;
+            jsonDocToBrowser["7"]  = prfHotPas;
+            jsonDocToBrowser["35"] = clientId;
+            jsonDocToBrowser["36"] = prfInstrHgt;
+            jsonDocToBrowser["39"] = prfNtripCastAttr[0];
+            jsonDocToBrowser["40"] = prfNtripCastAttr[1];
+            jsonDocToBrowser["41"] = prfNtripCastAttr[2];
+            jsonDocToBrowser["42"] = prfNtripCastAct;
 
-        // -------------------------------------------------------------------------
-        //   browser --> {"page":"menu/nmea/files/config/operate"}.
-        //   browser <-- {"0":"3.0.12 - Feb 19 2026 @ 12:46:28","1":"meter","2":"radio","3":"on","4":"50","5":"2","6":"xxx","7":"xxxx"}.
-        // -------------------------------------------------------------------------
-        if ((strcmp(term, "page") == 0)) {
-            memset(whichPage, '\0', sizeof(whichPage));
-            strcpy(whichPage, subTerm);     // Set the page name from the kv value.
-            prefUtility(PREF_TO_JSON, term, subTerm);
+            // - Set response. -
+            strcpy(response, "Preferences sent.");
+            jsonDocToBrowser["sendPrefs"] = response;
         }
 
         // -------------------------------------------------------------------------
-        //  browser --> {"config":"set"}.
-        //  browser <-- browser {"config":"message"}.
+        // -- Config page. Set all preferences. --
         // -------------------------------------------------------------------------
-        if ((strcmp(term, "config") == 0) && (strcmp(subTerm, "set") == 0)) {
-            prefUtility(PREF_SAVE, term, subTerm);
-        } 
+        if (jsonDocFromBrowser["setPrefs"].is<JsonVariant>()) {
 
-        // -------------------------------------------------------------------------
-        //  browser --> {"config":"reset"}.
-        //  browser <-- browser {"config":"message"}.
-        // -------------------------------------------------------------------------
-        if ((strcmp(subTerm, "reset") == 0)) {
-            prefUtility(PREF_RESTART);     // Reset preferences to defaults.
-            prefUtility(PREF_TO_JSON);   // Send new preference values back to browser.
-            jsonDocToClient["config"] = "Preferences reset to defaults.";
+            // - Set global vars from JSON values. -
+            strlcpy(prfUnt,          jsonDocFromBrowser["1"],  sizeof(prfUnt));  // dst, src, sizeof(dest)
+            strlcpy(prfRtcIn,        jsonDocFromBrowser["2"],  sizeof(prfRtcIn));
+            strlcpy(prfNmeOut,       jsonDocFromBrowser["3"],  sizeof(prfNmeOut));
+            strlcpy(prfHotSsi,       jsonDocFromBrowser["6"],  sizeof(prfHotSsi));
+            strlcpy(prfHotPas,       jsonDocFromBrowser["7"],  sizeof(prfHotPas));
+            strlcpy(prfNtripCastAct, jsonDocFromBrowser["42"], sizeof(prfNtripCastAct));
+            prfGnsNavRat    = (uint8_t)  atoi(jsonDocFromBrowser["5"]);   // KV values are stored in NVS as int, but set to C-string in onWebSocketMessage() for code clarity.
+            prfGnsMsrInt    = (uint16_t) atoi(jsonDocFromBrowser["4"]);
+            prfInstrHgt     = (uint16_t) atoi(jsonDocFromBrowser["36"]);
+
+            // - Set new preferences from global vars. -
+            prefUtility(PREF_SET);
+
+            // - Set response. -
+            strcpy(response, "Preferences saved.");
+            jsonDocToBrowser["setPrefs"] = response;
         }
 
         // -------------------------------------------------------------------------
-        //  browser --> {"listFiles":""}.
-        //  browser <-- {"listFiles":"file1.ext, file2.ext, ..."}.
+        // -- Config page. Reset all preferences to defaults. --
         // -------------------------------------------------------------------------
-        if (strcmp(term, "listFiles") == 0) {
+        if (jsonDocFromBrowser["resetPrefs"].is<JsonVariant>()) {
+
+            // - Set global vars to defaults. -
+            prefUtility(PREF_RESET);
+
+            // - Set response. -
+            strcpy(response, "Preferences reset.");
+            jsonDocToBrowser["resetPrefs"] = response;
+        }
+
+        // -------------------------------------------------------------------------
+        // -- Config page. Set NTRIP preference. --
+        // -------------------------------------------------------------------------
+        if (jsonDocFromBrowser["setNtripCasterPref"].is<JsonVariant>()) {
+
+            // - Create NTRIP caster JSON doc from embedded JSON string. -
+            // Embedded JSON string allows attributes for an NTRIP caster to be stored as a single preference. 
+            JsonDocNtrip.clear();
+            DeserializationError error = deserializeJson(JsonDocNtrip, jsonDocFromBrowser["setNtripCasterPref"]);
+            if (error) {
+                Serial.printf("JSON deserialize failed: %s\n", error.f_str());
+                return;
+            }
+
+            // - Set global vars to JSON values from browser. -
+            strlcpy(ntripCaster.name,  JsonDocNtrip["44"],  sizeof(ntripCaster.name));
+            strlcpy(ntripCaster.url,   JsonDocNtrip["45"],   sizeof(ntripCaster.url));
+            strlcpy(ntripCaster.mount, JsonDocNtrip["46"], sizeof(ntripCaster.mount));
+            strlcpy(ntripCaster.user,  JsonDocNtrip["49"],  sizeof(ntripCaster.user));
+            strlcpy(ntripCaster.pass,  JsonDocNtrip["50"],  sizeof(ntripCaster.pass));
+            ntripCaster.id      = atoi(JsonDocNtrip["43"]);
+            ntripCaster.port    = atoi(JsonDocNtrip["47"]);
+            ntripCaster.version = atoi(JsonDocNtrip["48"]);
+            ntripCaster.sendGga = JsonDocNtrip["51"].as<bool>();
+
+            // Set set global var for JSON NTRIP caster (e.g. prfNtripCastAttr[1]).
+            strlcpy(prfNtripCastAttr[ntripCaster.id-1], jsonDocFromBrowser["setNtripCasterPref"], NTRIP_CAST_ATTR_LEN);
+
+            // - Set new NTRIP preference. -
+            prefUtility(PREF_SET_NTRIP);
+
+            // - Set response. -
+            strcpy(response, "Preference updated.");
+            jsonDocToBrowser["setNtripCasterPref"] = response;
+        }
+
+        // -------------------------------------------------------------------------
+        // -- Files page. List files. --
+        // -------------------------------------------------------------------------
+        if (jsonDocFromBrowser["listFiles"].is<JsonVariant>()) {
+
+            // - Set JSON value: list of files. -
             char output[2048];
             memset(output, '\0', sizeof(output));
             File root = SD.open("/");
@@ -2163,77 +2168,147 @@ void onWebSocketMessage(void *arg, uint8_t *data, size_t len) {
                 }
                 file = root.openNextFile();
             }
-            jsonDocToClient[term] = output;
+            jsonDocToBrowser["files"] = output;
+
+            // - Set response. -
+            strcpy(response, "Files listed.");
+            jsonDocToBrowser["listFiles"] = response;
         }
 
         // -------------------------------------------------------------------------
-        //  browser --> {"deleteFile":"filename"}.
-        //  browser <-- {"deleteFile":"fileDeleted/fileNOTdeleted"}.
+        // -- Files page. Delete file. --
         // -------------------------------------------------------------------------
-        if (strcmp(term, "deleteFile") == 0) {
-            if (SD.remove(subTerm)) {  // Delete file.
-                jsonDocToClient["fileDeleted"] = subTerm;
-            } else {
-                jsonDocToClient["fileNOTdeleted"] =                     jsonDocToClient["fileDeleted"] = subTerm;
+        if (jsonDocFromBrowser["deleteFile"].is<JsonVariant>()) {
+
+            // - Delete file. -
+            const char* fileName = jsonDocFromBrowser["deleteFile"];
+            if (SD.remove(fileName)) {  // Delete file.
+                strcpy(response, "File deleted.");
+            }  else {
+                strcpy(response, "File NOT deleted.");
+            }
+
+            // - Set response. -
+            jsonDocToBrowser["deleteFile"] = response;
+        }
+
+        // -------------------------------------------------------------------------
+        // -- Menu page. Restart GRMCU-1. --
+        // -------------------------------------------------------------------------
+        if (jsonDocFromBrowser["restartGR-MCU1"].is<JsonVariant>()) {
+
+            // - Set response. -
+            strcpy(response, "GR-MCU1 will restart.");
+            jsonDocToBrowser["restartGR-MCU1"] = response;
+            Serial.println(response);
+        }
+
+        // -------------------------------------------------------------------------
+        // -- Operate page. Laser on/off button. --
+        // -------------------------------------------------------------------------
+        //   @link https://www.build-electronic-circuits.com/arduino-laser-module-ky-008/.
+        //   @link https://docs.sparkfun.com/SparkFun_Thing_Plus_ESP32-S3/arduino_example/#rgb-led.
+        if (jsonDocFromBrowser["laserOn"].is<JsonVariant>()) {
+            digitalWrite(LSR_TRIGGER, HIGH);        // Turn laser on.
+
+            // - Set response. -
+            strcpy(response, "Laser on.");
+            jsonDocToBrowser["laserOn"] = response;
+            Serial.println(response);
+        }
+        if (jsonDocFromBrowser["laserOff"].is<JsonVariant>()) {
+            digitalWrite(LSR_TRIGGER, LOW);         // Turn laser off.
+
+            // - Set response. -
+            strcpy(response, "Laser off.");
+            jsonDocToBrowser["laserOff"] = response;
+            Serial.println(response);
+        }
+
+        // -------------------------------------------------------------------------
+        // -- Operate page. Height lock/unlock button. --
+        // -------------------------------------------------------------------------
+        if (jsonDocFromBrowser["heightLock"].is<JsonVariant>()) {
+            // ToDo: the work.
+
+            // - Set response. -
+            strcpy(response, "Height locked.");
+            jsonDocToBrowser["heightLock"] = response;
+            Serial.println(response);
+        }
+        if (jsonDocFromBrowser["heightUnlock"].is<JsonVariant>()) {
+            // ToDo: the work.
+
+            // - Set response. -
+            strcpy(response, "Height unlocked.");
+            jsonDocToBrowser["heightUnlock"] = response;
+            Serial.println(response);
+        }
+
+        // -------------------------------------------------------------------------
+        // -- Operate page. Position lock/unlock button. --
+        // -------------------------------------------------------------------------
+        if (jsonDocFromBrowser["positionLock"].is<JsonVariant>()) {
+            // ToDo: the work.
+
+            // - Set response. -
+            strcpy(response, "Position locked.");
+            jsonDocToBrowser["positionLock"] = response;
+            Serial.println(response);
+        }
+        if (jsonDocFromBrowser["positionUnlock"].is<JsonVariant>()) {
+            // ToDo: the work.
+
+            // - Set response. -
+            strcpy(response, "Position unlocked.");
+            jsonDocToBrowser["positionUnlock"] = response;
+            Serial.println(response);
+        }
+
+        // -------------------------------------------------------------------------
+        // -- Test. Echo. --
+        // -------------------------------------------------------------------------
+        if (jsonDocFromBrowser["echo"].is<JsonVariant>()) {
+
+            // - Set JSON value. -
+            jsonDocToBrowser["echo"] = jsonDocFromBrowser["echo"];
+
+            // - Set response. -
+            strcpy(response, "Message echoed.");
+            jsonDocToBrowser["echo"] = response;
+        }
+
+        // -- Wrap up JSON processing. --
+        if (inLoop) {
+            if ((jsonDocFromBrowser["setPrefs"].is<JsonVariant>()) ||
+                (jsonDocFromBrowser["resetPrefs"].is<JsonVariant>()) ||
+                (jsonDocFromBrowser["setNtripCasterPref"].is<JsonVariant>())) {
+
+                    // -- Rerun dependent functions. --
+                    if (!jsonDocFromBrowser["setPrefs"].is<JsonVariant>()) {
+                        prefUtility(PREF_SET);
+                    }
+                    Serial.println("Restarting dependent processes.");
+                    startAndConfigGNSS();                                       // Uses prfGnsNavRat, prfGnsMsrInt.
+                    if (strcmp(prfRtcIn, "ntrip") == 0) {
+                        startWiFi();                                            // NTRIP uses prfHotSsi & prfHotPas.
+                        // ToDo: // if NTRIP switch is on, start/restart NTRIP client
+                    } 
             }
         }
 
-        // -------------------------------------------------------------------------
-        //  browser --> {"laser"/height/position:"lock/unlock"}.
-        //  browser <-- {"laser"/height/position:"locked/unlocked"}.
-        // -------------------------------------------------------------------------
-        if ((strcmp(term, "laser") == 0) || (strcmp(term, "height") == 0) || (strcmp(term, "position") == 0)) {
-            if ((strcmp(subTerm, "lock") == 0) || (strcmp(subTerm, "unlock") == 0)) {
-                    
-                // - Laser pointer button. -
-                //   @link https://www.build-electronic-circuits.com/arduino-laser-module-ky-008/.
-                //   @link https://docs.sparkfun.com/SparkFun_Thing_Plus_ESP32-S3/arduino_example/#rgb-led.
-                if (strcmp(term, "laser") == 0) {
-                    if (strcmp(subTerm, "lock") == 0) {                          
-                        digitalWrite(LSR_TRIGGER, HIGH);        // Turn laser on.
-                    }
-                    if (strcmp(subTerm, "unlock") == 0) { 
-                        digitalWrite(LSR_TRIGGER, LOW);         // Turn laser off.
-                    }
-                }
-
-                // - Height button. -
-                if (strcmp(term, "height") == 0) {
-                    if (strcmp(subTerm, "lock") == 0) {  
-                        // ToDo: the work.
-                    }
-                    if (strcmp(subTerm, "unlock") == 0) {  
-                        // ToDo: the work.
-                    }
-                }
-
-                // - Position button. -
-                if (strcmp(term, "height") == 0) {
-                    if (strcmp(subTerm, "lock") == 0) {  
-                        // ToDo: the work.
-                    }
-                    if (strcmp(subTerm, "unlock") == 0) {  
-                        // ToDo: the work.
-                    }
-                }
-                    
-                // - Reply with value sent + "ed". -
-                if ((strcmp(term, "laser") == 0) || (strcmp(term, "height") == 0) || (strcmp(term, "position") == 0)) {
-                    memset(JSONbuffer, '\0', sizeof(JSONbuffer));
-                    strcpy(JSONbuffer, subTerm);
-                    strcat(JSONbuffer, "ed");
-                    jsonDocToClient[term] = JSONbuffer;
-                }
-            }
+        memset(jsonBuffer, '\0', sizeof(jsonBuffer));
+        serializeJson(jsonDocToBrowser, jsonBuffer, sizeof(jsonBuffer));
+        ws.textAll(jsonBuffer);                         // Send WebSocket message.
+        wsSendCount++;
+        if (commandFlag[DEBUG_WS]) {                    // Debug.
+            Serial.printf("WS #%u: browser <-- %s\n", clientId, jsonBuffer);
+        } else {
+            Serial.println(response);
         }
-    }
-
-    memset(JSONbuffer, '\0', sizeof(JSONbuffer));
-    serializeJson(jsonDocToClient, JSONbuffer, sizeof(JSONbuffer));
-    ws.textAll(JSONbuffer);                         // Send WebSocket message.
-    wsSendCount++;
-    if (commandFlag[DEBUG_WS]) {                    // Debug.
-        Serial.printf("WS #%u: browser <-- %s\n", clientId, JSONbuffer);
+        if (jsonDocFromBrowser["restartGR-MCU1"].is<JsonVariant>()) {
+            esp_restart();  // Restart.
+        }
     }
 }
 
@@ -2278,7 +2353,7 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
     if (inLoop) {
         strncat(nmeaBuffer, &incoming, 1);                                  // Add NMEA byte from RTK-SMA to outbound buffer.
         if ((incoming == '\n') && (nmeaBuffer[0] == '$')) {                 // We have a full sentence.
-            // Here is where the NMEA sentence should get modified for instrument hieght and lock button.
+            // TODo: Here is where the NMEA sentence should get modified for instrument hieght and lock button.
             if (i2cUp) {                                                    // Slave is up.
                 Wire1.beginTransmission(8);                                 // Prepare to send on I2C1.
                 for (int i = 0; i < strlen(nmeaBuffer); i++) {              // Add bytes to output queue.
@@ -2341,13 +2416,13 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
                         Serial.println('\n');
                     }
                     if (strcmp(whichPage, "nmea") == 0) {                   // If on NMEA page, send NMEA sentence out via websocket.
-                        jsonDocToClient.clear();
-                        jsonDocToClient["nmea"] = nmeaBuffer;
-                        memset(JSONbuffer, '\0', sizeof(JSONbuffer));
-                        serializeJson(jsonDocToClient, JSONbuffer, sizeof(JSONbuffer));
-                        ws.textAll(JSONbuffer);                             // Send WebSocket message.
+                        jsonDocToBrowser.clear();
+                        jsonDocToBrowser["nmea"] = nmeaBuffer;
+                        memset(jsonBuffer, '\0', sizeof(jsonBuffer));
+                        serializeJson(jsonDocToBrowser, jsonBuffer, sizeof(jsonBuffer));
+                        ws.textAll(jsonBuffer);                             // Send WebSocket message.
                         if (commandFlag[DEBUG_WS]) {                        // Debug.
-                            Serial.printf("WS #%u: browser <-- %s\n", clientId, JSONbuffer);
+                            Serial.printf("WS #%u: browser <-- %s\n", clientId, jsonBuffer);
                         }
                     }
                     i2cUp = true;
@@ -2430,11 +2505,11 @@ void checkZedUpdateOperate() {
         operDataToJsonDoc();
 
         // -- Send update. --
-        memset(JSONbuffer, '\0', sizeof(JSONbuffer));
-        serializeJson(jsonDocToClient, JSONbuffer, sizeof(JSONbuffer));
-        ws.textAll(JSONbuffer);                                                     // Send WebSocket message.
+        memset(jsonBuffer, '\0', sizeof(jsonBuffer));
+        serializeJson(jsonDocToBrowser, jsonBuffer, sizeof(jsonBuffer));
+        ws.textAll(jsonBuffer);                                                     // Send WebSocket message.
         if (commandFlag[DEBUG_WS]) {                                                // Debug.
-            Serial.printf("WS #%u: browser <-- %s\n", clientId, JSONbuffer);
+            Serial.printf("WS #%u: browser <-- %s\n", clientId, jsonBuffer);
         }
     }
 }
@@ -2553,7 +2628,7 @@ void debug() {
         while (Serial1.available() > 0) {
             Serial1.read();                          
         }
-        Serial.println("\nHC-12 command mode enabled (! to exit)"); // Display instructions.
+        Serial.println("\nHC-12 command mode enabled (! to exit)"); // Display jsonObjFromBrowsers.
         Serial.println("Don't forget, the HC-12 needs LiPo power!");
         Serial.println("  AT, AT+Bxxxx, AT+Cxxx, AT+FUx, AT+Px,");
         Serial.println("  AT+Ry (AT+RB, AT+RC, AT+RF, AT+RP, AT+RX),");
