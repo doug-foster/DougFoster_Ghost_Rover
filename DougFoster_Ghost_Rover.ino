@@ -247,6 +247,7 @@
  * -------------------------------------------------------------------------
  *
  * @since 3.1.1 [2026-06-25-01:00pm] New.
+ * @since 3.2.1 [2026-06-25-01:00pm] Updated GR-MCU2 LED status.
  *
  *   ws2812LedColor = RED, YELLOW, GREEN, BLUE, WHITE.
  *   ws2812LedBlink = true, false.
@@ -264,6 +265,7 @@
  *        - blink  GREEN: relaySerial1toSerial2() RTCM in Serial1 out Serial2.
  *        - solid    RED: DevUBLOXGNSS::processNMEA() GRMCU1 <--> GRMCU2 I2C (NMEAout) error.
  * --- GR-MCU2 ----
+ * @see DougFoster_Ghost_Rover_BT_relay.ino. 
  * 
  * --- GNSS ----
  *     -- https://learn.sparkfun.com/tutorials/gps-rtk2-hookup-guide#hardware-overview. --
@@ -782,7 +784,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
 
 /**
  * -------------------------------------------------------------------------
- *  BUild data for operate page.
+ *  Build data for operate page.
  * -------------------------------------------------------------------------
  *
  * @return void  No output is returned.
@@ -952,7 +954,6 @@ void sendDataToBrowser() {
         }
     }
 }
-
 
 /**
  * =========================================================================
