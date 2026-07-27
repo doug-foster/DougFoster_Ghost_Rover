@@ -10,7 +10,7 @@
  * @since  3.0.11 [2026-01-21-10:00am] Altitude to height, lock to lock-unlock.
  * @since  3.0.11 [2026-01-22-11:00am] Websocket tweaks.
  * @since  3.0.11 [2026-01-28-12:00pm] UI tweaks.
- * @since  3.0.12 [2026-02-08-02:00pm] Add THIS_PAGE, change heights.
+ * @since  3.0.12 [2026-02-08-02:00pm] Add SEND_PREFS, change heights.
  * @since  3.0.12 [2026-02-09-03:45pm] Add WS message transfer rate.
  * @since  3.0.12 [2026-02-17-10:00am] Change location to position.
  * @since  3.0.12 [2026-02-17-09:15pm] Add RTCM & NMEA status.
@@ -35,7 +35,7 @@
  * @since  3.0.7  [2025-11-14-09:30am].
  * @since  3.0.11 [2026-01-20-07:00pm] Change altitude to height.
  * @since  3.0.13 [2026-01-28-08:45pm] Add status section.
- * @since  3.0.12 [2026-02-08-02:00pm] Add THIS_PAGE, change heights.
+ * @since  3.0.12 [2026-02-08-02:00pm] Add SEND_PREFS, change heights.
  * @since  3.0.12 [2026-02-09-03:45pm] Add WS message transfer rate.
  * @since  3.0.12 [2026-02-17-09:15pm] Add RTCM & NMEA status.
  * @since  3.0.12 [2026-02-18-11:00pm] Shorten RTCM & NMEA status.
@@ -113,7 +113,7 @@ const statusInstrumentHeight       = document.querySelector('.status #instrument
 
 
 // --- General. ---
-const THIS_PAGE                    = '[{"page":"operate"}]';
+const SEND_PREFS                   = '{"page":"operate","sendPrefs":""}';
 const wsMessageWindowMaxCount      = 10;    // WebSocket message status tracking window (# messages).
 let prfGnsMsrInt                   = 0;
 let prfGnsNavRat                   = 0;
@@ -130,7 +130,7 @@ let convert                        = 1;     // Conversion for default units pref
  *
  * @since 3.0.3  [2025-10-16-01:45pm] New.
  * @since 3.0.12 [2026-01-28-06:00pm] Refactor for status section.
- * @since 3.0.12 [2026-02-07-07:30am] Add THIS_PAGE.
+ * @since 3.0.12 [2026-02-07-07:30am] Add SEND_PREFS.
  * @since 3.1.2  [2026-07-05-05:45pm] Remove clearOperateUi().
  * @see   update()         - Update server.
  * @see   fix()            - Fix - set state.
@@ -152,14 +152,14 @@ let convert                        = 1;     // Conversion for default units pref
  * @since  3.0.11 [2026-01-21-09:00am] Check websocket.readyState.
  * @since  3.0.11 [2026-01-21-10:00am] Changed "update" to "?".
  * @since  3.0.12 [2026-01-31-03:30pm] Used UPDATE.
- * @since  3.0.12 [2026-02-07-07:30am] Add THIS_PAGE.
+ * @since  3.0.12 [2026-02-07-07:30am] Add SEND_PREFS.
  * @see    webSocketOpened() in global.js.
  */
 function update() {
 
-    // --- Send THIS_PAGE message. ---
-    websocket.send(THIS_PAGE);
-    console.log('browser --> ' + THIS_PAGE);
+    // --- Send SEND_PREFS message. ---
+    websocket.send(SEND_PREFS);
+    console.log('browser --> ' + SEND_PREFS);
 }
 
 /**
@@ -372,7 +372,7 @@ function battery(which, info) {
  * @since  3.0.11 [2026-01-21-03:30pm] Add comm(key, value).
  * @since  3.0.12 [2026-01-28-04:30pm] Add status section. Change "mode" to "RTCM".
  * @since  3.0.12 [2026-02-07-05:00pm] Add preferences.
- * @since  3.0.12 [2026-02-08-01:45pm] Add THIS_PAGE, change heights.
+ * @since  3.0.12 [2026-02-08-01:45pm] Add SEND_PREFS, change heights.
  * @since  3.0.12 [2026-02-09-03:45pm] Add WS message transfer rate.
  * @since  3.0.12 [2026-02-15-03:00pm] Add RTCM & NMEA status.
  * @since  3.0.12 [2026-02-15-03:45pm] Check wsLastMessageDate for undefined.
@@ -391,9 +391,9 @@ function operateMessage(key, value) {
                 HEADER_H1.classList.remove('red');
             }
             break;
-        case wsKey.WS_PREF_UNIT:                            // {"1":"meter"}. Set in global.js.
+        case "1":                            // {"1":"meter"}. Set in global.js.
             break;
-        case wsKey.WS_PREF_RTCM_IN:                         // {"2":"radio}.
+        case "2":                         // {"2":"radio}.
             switch (value) {
                 case 'radio':
                     statusRtcmInId.innerHTML = 'Radio';
@@ -409,50 +409,50 @@ function operateMessage(key, value) {
                     break;
             }
             break;
-        case wsKey.WS_PREF_NMEA_OUT:                        // {"3":"on"}.
+        case "3":                        // {"3":"on"}.
             break;
-        case wsKey.WS_PREF_GNSS_MEASURE_INTERVAL:           // {"4":100}
+        case "4":           // {"4":100}
             prfGnsMsrInt = value;
             statusSolutionIntervalId.innerHTML = prfGnsNavRat + ' x ' + prfGnsMsrInt;
             break;
-        case wsKey.WS_PREF_GNSS_NAV_RATE:                   // {"5":2}
+        case "5":                   // {"5":2}
             prfGnsNavRat = value;
             statusSolutionIntervalId.innerHTML = prfGnsNavRat + ' x ' + prfGnsMsrInt;
             break;
-        case wsKey.WS_PREF_HOT_SPOT_SSID:                   // {"6":"ssid"}.
+        case "6":                   // {"6":"ssid"}.
             statusHotspotSsidId.innerHTML   = value;
             break;
-        case wsKey.WS_PREF_HOT_SPOT_PASS:                   // {"7":"pass"}.
+        case "7":                   // {"7":"pass"}.
             statusHotspotPassId.innerHTML   = value;
             break;
-        case wsKey.WS_GNSS_FIX:                             // {"8":1}.
+        case "8":                             // {"8":1}.
             fix(value);
             break;
-        case wsKey.WS_GNSS_SAT_IN_VIEW:                     // {"9":24}.
+        case "9":                     // {"9":24}.
             numSIV.innerHTML = value;
             break;
-        case wsKey.WS_GNSS_HEIGHT_ELLIPSOID:                // {"10":"xx.xx"}. 3 posn = 10 mm.
+        case "10":                // {"10":"xx.xx"}. 3 posn = 10 mm.
             numHeightElip.innerHTML = (Math.round(value * 100) / 100 * convert).toFixed(3);
             break;
-        case wsKey.WS_GNSS_HEIGHT_ORTHOMETRIC:              // {"11":"127.05"}. 3 posn = 10 mm.
+        case "11":              // {"11":"127.05"}. 3 posn = 10 mm.
             numHeightOrth.innerHTML = (Math.round(value * 100) / 100 * convert).toFixed(3);
             break;
-        case wsKey.WS_GNSS_LATITUDE:                        // {"12":"35.60599395,"} 8 posn = 1.11 mm.
+        case "12":                        // {"12":"35.60599395,"} 8 posn = 1.11 mm.
             numLatitude.innerHTML = (Math.round(value * 100000000) / 100000000).toFixed(8);
             break;
-        case wsKey.WS_GNSS_LONGITUDE:                       // {"13":"-78.79439717"} 8 posn = 1.11 mm.
+        case "13":                       // {"13":"-78.79439717"} 8 posn = 1.11 mm.
             numLongitude.innerHTML = (Math.round(value * 100000000) / 100000000).toFixed(8);
             break;
-        case wsKey.WS_GNSS_HORIZONTAL_ACCURACY:             // {"14":"0.016"}.
+        case "14":             // {"14":"0.016"}.
             numHAC.forEach(hac => {
                 hac.innerHTML = (Math.round(value * 10000) / 10000 * convert).toFixed(3);
             });
             break;
-        case wsKey.WS_GNSS_VERTICAL_ACCURACY:                // {"15":"0.014"}.
+        case "15":                // {"15":"0.014"}.
             numVAC.forEach(vac => {
                 vac.innerHTML = (Math.round(value * 10000) / 10000 * convert).toFixed(3);
             });
-        case wsKey.WS_ROVER_RTCM_UP_DOWN:                   // {"16":"u"}.
+        case "16":                   // {"16":"u"}.
             if (value == 'u') {
                 commRtcm.classList.add('up');
                 flashRtcm();
@@ -460,7 +460,7 @@ function operateMessage(key, value) {
                 commRtcm.classList.remove('up');
             }
             break;
-        case wsKey.WS_ROVER_BT_NMEA_UP_DOWN:                // {"17":"u"}.
+        case "17":                // {"17":"u"}.
             if (value == 'u') {
                 commBt.classList.add('up');
                 flashBt();
@@ -468,64 +468,64 @@ function operateMessage(key, value) {
                 commBt.classList.remove('up');
             }
             break;
-        case wsKey.WS_ROVER_BATTERY_SOC:                    // {"18":"83.75"}.
+        case "18":                    // {"18":"83.75"}.
             battery('soc', value);
             break;
-        case wsKey.WS_ROVER_BATTERY_CHANGE_RATE:            // {"19":"-1.2"}.
+        case "19":            // {"19":"-1.2"}.
             battery('change', value);
             break;
-        case wsKey.WS_ROVER_UP_TIME:                        // {"20":"0h 3m 8s"}.
+        case "20":                        // {"20":"0h 3m 8s"}.
             statusUptimeRoverId.textContent          = value;
             break;
-        case wsKey.WS_RTCM_IN_COUNT_ALL:                    // {"21":"1234"}.
+        case "21":                    // {"21":"1234"}.
             statusRtcmSentenceCountAllId.textContent = value.toLocaleString()
             break;
-        case wsKey.WS_RTCM_IN_RATE:                         // {"22":"1234"}.
+        case "22":                         // {"22":"1234"}.
             statusRtcmSentenceRateId.textContent     = value.toLocaleString();
             break;
-        case wsKey.WS_NMEA_OUT_COUNT_GGA:                   // {"23":15271}.
+        case "23":                   // {"23":15271}.
             statusNmeaCountGgaId.textContent         = value.toLocaleString()
             break;
-        case wsKey.WS_NMEA_OUT_COUNT_RMC:                   // {"24":15271}.
+        case "24":                   // {"24":15271}.
             statusNmeaCountRmcId.textContent         = value.toLocaleString();
             break;
-        case wsKey.WS_NMEA_OUT_COUNT_GSA:                   // {"25":25450}.
+        case "25":                   // {"25":25450}.
             statusNmeaCounGsatId.textContent         = value.toLocaleString();
             break;
-        case wsKey.WS_NMEA_OUT_COUNT_GSV:                   // {"26":72946}.
+        case "26":                   // {"26":72946}.
             statusNmeaCountGsvId.textContent         = value.toLocaleString();
             break;
-        case wsKey.WS_NMEA_OUT_COUNT_GST:                   // {"27":5090}.
+        case "27":                   // {"27":5090}.
             statusNmeaCountGstId.textContent         = value.toLocaleString();
             break;
-        case wsKey.WS_NMEA_OUT_COUNT_TXT:                   // {"28":0}.
+        case "28":                   // {"28":0}.
             statusNmeaCountTxtId.textContent         = value.toLocaleString();
             break; 
-        case wsKey.WS_NMEA_OUT_COUNT_OTHR:                  // {"29":3541857088}.
+        case "29":                  // {"29":3541857088}.
             statusNmeaCountOthrId.textContent        = value.toLocaleString();
             break;
-        case wsKey.WS_NMEA_OUT_COUNT_ALL:                   // {"30":154010}.
+        case "30":                   // {"30":154010}.
             statusNmeaSentenceCountAllId.textContent = value.toLocaleString();
             break;
-        case wsKey.WS_NMEA_OUT_RATE:                        // {"31":81920}
+        case "31":                        // {"31":81920}
             statusNmeaRateId.textContent             = (value / 1000.0).toFixed();
             break;
-        case wsKey.WS_WIFI_LOCAL_NETWORK_IP:                // {"33":"192.168.23.1"}.
+        case "33":                // {"33":"192.168.23.1"}.
             statusLocalIpId.textContent              = value;
             break;
-        case wsKey.WS_WIFI_HOT_SPOT_IP:                     // {"34":"172.20.10.3"}.
+        case "34":                     // {"34":"172.20.10.3"}.
             statusHotspotIpId.textContent            = value;
             break;
-        case wsKey.WS_SOCKET_NUM:                           // {"35":137}.
+        case "35":                           // {"35":137}.
             statusWebSocketNumId.textContent         = value.toLocaleString();
             break;
-        case wsKey.WS_INSTRUMENT_HEIGHT:                    // {"36":1201}.
+        case "36":                    // {"36":1201}.
             statusInstrumentHeight.textContent       = value.toLocaleString();
             break;
-        case wsKey.WS_RTCM_SENTENCE_COUNT:                  // {"37":659}.
+        case "37":                  // {"37":659}.
             statusRtcmSentenceCountAllId.textContent = value.toLocaleString();
             break;
-        case wsKey.WS_RTCM_KBPS:                            // {"38":0}.
+        case "38":                            // {"38":0}.
             statusRtcmSentenceRateId.textContent     = value.toFixed(2);
             break;
         case 'laser':                                       // {"laser":"locked"}.

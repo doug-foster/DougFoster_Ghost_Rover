@@ -7,13 +7,15 @@
  *
  * @author D. Foster <doug@dougfoster.me>.
  * @since  3.0.7 [2025-11-11-05:30pm].
- * @since  3.0.12 [2026-02-07-07:30am] Add THIS_PAGE.
+ * @since  3.0.12 [2026-02-07-07:30am] Add SEND_PREFS.
  * @since  3.0.12 [2026-02-25-10:30pm] Websocket send - preserve KV pair order by changing JSON data to array.
  * @since  3.0.12 [2026-02-26-11:00am] Check download/upload for host 127.0.0.x.
  * @since  3.1.0  [2026-03-02-05:00pm] Stable 3.0 version.
  * @since  3.1.0  [2026-03-20-11:15am] Update var names.
  * @since  3.1.1  [2026-06-25-02:00pm] Regroup: upload to SD card.
  * @since  3.1.2  [2026-07-05-08:30pm] General cleanup.
+ * @since  3.2.1  [2026-07-25-08:45pm] Update JSON messages.
+ * @since  3.2.1  [2026-07-27-10:00am] Removed filesMessage(), moved to webSocketRcvMessage() in global.js.
  * @link   http://dougfoster.me.
 */
 
@@ -23,7 +25,7 @@
  * =========================================================================
  *
  * @since 3.0.7 [2025-11-11-03:30pm].
- * @since 3.0.12 [2026-02-07-07:30am] Add THIS_PAGE.
+ * @since 3.0.12 [2026-02-07-07:30am] Add SEND_PREFS.
  * @since 3.0.12 [2026-02-25-10:30pm] Websocket send - preserve KV pair order by changing JSON data to array. 
  */
 
@@ -36,8 +38,8 @@ let droppedFiles     = null;
 const listUrl        = '/list';
 const uploadUrl      = '/upload';
 const fileList       = document.querySelector('#file-list');
-const THIS_PAGE      = '[{"page":"files"}]';
-const LIST_FILES     = '[{"listFiles":""}]';
+const SEND_PREFS     = '{"page":"files","sendPrefs":""}';
+const LIST_FILES     = '{"page":"files","listFiles":""}';
 
 
 /**
@@ -46,9 +48,8 @@ const LIST_FILES     = '[{"listFiles":""}]';
  * =========================================================================
  *
  * @since 3.0.7 [2025-11-11-03:30pm].
- * @since 3.0.12 [2026-02-07-07:30am] Add THIS_PAGE.
+ * @since 3.0.12 [2026-02-07-07:30am] Add SEND_PREFS.
  * @see   update()             - Update server.
- * @see   filesMessage()       - Execute WebSocket message.
  * @see   fileListRequest()    - File list - request.
  * @see   fileListBuild()      - File list - build.
  * @see   uploadDroppedFiles() - Drop area - upload files.
@@ -61,44 +62,12 @@ const LIST_FILES     = '[{"listFiles":""}]';
  * 
  * @return void  No output is returned.
  * @since  3.0.12 [2026-01-31-03:30pm] New.
- * @since  3.0.12 [2026-02-07-07:30am] Add THIS_PAGE.
+ * @since  3.0.12 [2026-02-07-07:30am] Add SEND_PREFS.
  * @see    webSocketOpened() in global.js.
  */
 function update() {
-    websocket.send(THIS_PAGE);  // Send THIS_PAGE message.
-    console.log('browser --> ' + THIS_PAGE);
-}
-
-/**
- * -------------------------------------------------------------------------
- *  Execute WebSocket message.
- * -------------------------------------------------------------------------
- *
- * @return void  No output is returned.
- * @since  3.0.7 [2025-11-11-05:30pm].
- * @see    webSocketRcvMessage() in global.js.
- */
-function filesMessage(key, value) {
-    switch (key) {     
-        case 'listFiles':  // {"listFiles":"/index.html\n/upload-image-icon.png\n"}
-            fileListBuild(value);
-            break;
-        case 'fileDeleted':  // {"fileDeleted":"/menu.html"}
-            document.querySelectorAll('#files .selected').forEach(file => {
-                if ( value === file.textContent) {
-                    file.remove();  // Update list.
-                }
-            });
-            break;
-        case 'fileNOTdeleted':  // {"fileNOTdeleted":"/menu.html"}
-            alert( 'NOT DELETED: ' + value);
-            document.querySelectorAll('#files .file').forEach(file => {
-                if ( value === file.textContent) {
-                    file.classList.toggle('selected');  // Unselect all files.
-                }
-            });
-            break;
-    }
+    websocket.send(SEND_PREFS);  // Send SEND_PREFS message.
+    console.log('browser --> ' + SEND_PREFS);
 }
 
 /**
@@ -318,7 +287,7 @@ document.querySelector('#download').addEventListener('click', (event) => {
 document.querySelector('#delete').addEventListener('click', (event) => {
     document.querySelectorAll('#files .selected').forEach(file => {
         if (confirm('delete "' + file.textContent + '"')) {
-            let message = '[{"deleteFile":"' + file.innerText + '"}]';
+            let message = '[{"deleteFileResp":"' + file.innerText + '"}]';
             websocket.send(message);
             console.log('browser --> ' + message);
         }

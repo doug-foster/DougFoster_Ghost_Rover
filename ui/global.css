@@ -14,6 +14,7 @@
  * @since  3.1.1  [2026-06-25-02:00pm] Regroup: upload to SD card.
  * @since  3.1.1  [2026-06-26-09:30pm] .hide {display: none !important;}.
  * @since  3.1.2  [2026-07-05-08:30pm] General cleanup.
+ * @since  3.2.1  [2026-07-27-08:30am] Add webSocketNum.
  * @link   http://dougfoster.me.
 */
 
@@ -77,6 +78,9 @@ header h1.red {
     color: var(--red-1);
     animation: blink-animation 1s infinite; /* 1s duration, infinite loop */
 }
+header  {
+    color: white;
+}
 @keyframes blink-animation {
     0%, 49% {
     opacity: 1; /* Visible */
@@ -87,7 +91,8 @@ header h1.red {
 }
 
 header #version-rover,
-header #unit-display {
+header #unit-display,
+header #ws-num {
     font-size: 12px;
     margin-top: 5px;
     padding: 4px 8px;
