@@ -24,6 +24,7 @@
  * @since  3.1.2  [2026-07-05-05:45pm] Adjust decimal places for status items.
  * @since  3.1.2  [2026-07-05-05:45pm] Remove clearOperateUi().
  * @since  3.1.2  [2026-07-05-08:45pm] General cleanup.
+ * @since  3.2.1  [2026-07-28-10:00am] Move webSocket # & units to status items.
  * @link   http://dougfoster.me.
 */
 
@@ -82,6 +83,7 @@ const batteryStatus                = document.querySelector('.info #battery-stat
 const batteryBars                  = document.querySelectorAll('.info #battery .bar');
 
 // --- Section: Status. ---
+const statusUnitDisplayId          = document.querySelector('#unit-display');
 const stuffStatus                  = document.querySelector('.status #status-stuff');
 const btnStatus                    = document.querySelector('.status #status');
 const tblStatus                    = document.querySelector('.status table');
@@ -109,8 +111,8 @@ const statusLocalIpId              = document.querySelector('.status #local-ip')
 const statusHotspotIpId            = document.querySelector('.status #hotspot-ip');
 const statusHotspotSsidId          = document.querySelector('.status #hotspot-ssid');
 const statusHotspotPassId          = document.querySelector('.status #hotspot-pass');
+const statusWifiMode               = document.querySelector('.status #wifi-mode');
 const statusInstrumentHeight       = document.querySelector('.status #instrument-height');
-
 
 // --- General. ---
 const SEND_PREFS                   = '{"page":"operate","sendPrefs":""}';
@@ -380,6 +382,7 @@ function battery(which, info) {
  * @since  3.0.12 [2026-02-25-09:45pm] Refactor, move into statusItem().
  * @since  3.0.12 [2026-02-28-02:15pm] Add WS_SOCKET_NUM.
  * @since  3.1.2  [2026-07-05-05:45pm] Remove clearOperateUi().
+ * @since  3.1.2  [2026-07-28-10:30am] Refaactor JSON.
  * @see    webSocketRcvMessage() in global.js.
  */
 function operateMessage(key, value) {
@@ -392,6 +395,22 @@ function operateMessage(key, value) {
             }
             break;
         case "1":                            // {"1":"meter"}. Set in global.js.
+            prfUnt = value;
+            if ('feet' === prfUnt) {
+                heightUnits = 'in';
+            };
+            switch (value) {
+                case 'meter':
+                    statusUnitDisplayId.innerHTML = 'Meter';
+                    break;
+                case 'feet':
+                    statusUnitDisplayId.innerHTML = 'Feet';
+                    convert = 3.2808399;
+                    break;
+                default:
+                    statusUnitDisplayId.innerHTML = value;
+                    break;
+            }
             break;
         case "2":                         // {"2":"radio}.
             switch (value) {
@@ -468,69 +487,75 @@ function operateMessage(key, value) {
                 commBt.classList.remove('up');
             }
             break;
-        case "18":                    // {"18":"83.75"}.
+        case "18":                      // {"18":"83.75"}.
             battery('soc', value);
             break;
-        case "19":            // {"19":"-1.2"}.
+        case "19":                      // {"19":"-1.2"}.
             battery('change', value);
             break;
-        case "20":                        // {"20":"0h 3m 8s"}.
+        case "20":                      // {"20":"0h 3m 8s"}.
             statusUptimeRoverId.textContent          = value;
             break;
-        case "21":                    // {"21":"1234"}.
+        case "21":                      // {"21":"1234"}.
             statusRtcmSentenceCountAllId.textContent = value.toLocaleString()
             break;
-        case "22":                         // {"22":"1234"}.
+        case "22":                      // {"22":"1234"}.
             statusRtcmSentenceRateId.textContent     = value.toLocaleString();
             break;
-        case "23":                   // {"23":15271}.
+        case "23":                      // {"23":15271}.
             statusNmeaCountGgaId.textContent         = value.toLocaleString()
             break;
-        case "24":                   // {"24":15271}.
+        case "24":                      // {"24":15271}.
             statusNmeaCountRmcId.textContent         = value.toLocaleString();
             break;
-        case "25":                   // {"25":25450}.
+        case "25":                      // {"25":25450}.
             statusNmeaCounGsatId.textContent         = value.toLocaleString();
             break;
-        case "26":                   // {"26":72946}.
+        case "26":                      // {"26":72946}.
             statusNmeaCountGsvId.textContent         = value.toLocaleString();
             break;
-        case "27":                   // {"27":5090}.
+        case "27":                      // {"27":5090}.
             statusNmeaCountGstId.textContent         = value.toLocaleString();
             break;
-        case "28":                   // {"28":0}.
+        case "28":                      // {"28":0}.
             statusNmeaCountTxtId.textContent         = value.toLocaleString();
             break; 
-        case "29":                  // {"29":3541857088}.
+        case "29":                      // {"29":3541857088}.
             statusNmeaCountOthrId.textContent        = value.toLocaleString();
             break;
-        case "30":                   // {"30":154010}.
+        case "30":                      // {"30":154010}.
             statusNmeaSentenceCountAllId.textContent = value.toLocaleString();
             break;
-        case "31":                        // {"31":81920}
+        case "31":                      // {"31":81920}
             statusNmeaRateId.textContent             = (value / 1000.0).toFixed();
             break;
-        case "33":                // {"33":"192.168.23.1"}.
+        case "33":                      // {"33":"192.168.23.1"}.
             statusLocalIpId.textContent              = value;
+            if (value.length > 0) {     // Set WiFi status mode.
+                statusWifiMode.textContent = 'server';
+            }
             break;
-        case "34":                     // {"34":"172.20.10.3"}.
+        case "34":                      // {"34":"172.20.10.3"}.
             statusHotspotIpId.textContent            = value;
+            if (value.length > 0) {     // Set WiFi status mode.
+                statusWifiMode.textContent += '/client';
+            }
             break;
-        case "35":                           // {"35":137}.
+        case "35":                      // {"35":137}.
             statusWebSocketNumId.textContent         = value.toLocaleString();
             break;
-        case "36":                    // {"36":1201}.
+        case "36":                      // {"36":1201}.
             statusInstrumentHeight.textContent       = value.toLocaleString();
             break;
-        case "37":                  // {"37":659}.
+        case "37":                      // {"37":659}.
             statusRtcmSentenceCountAllId.textContent = value.toLocaleString();
             break;
-        case "38":                            // {"38":0}.
+        case "38":                      // {"38":0}.
             statusRtcmSentenceRateId.textContent     = value.toFixed(2);
             break;
-        case 'laser':                                       // {"laser":"locked"}.
-        case 'height':                                      // {"height":"locked"}.
-        case 'position':                                    // {"position":"locked"}.
+        case 'laser':                   // {"laser":"locked"}.
+        case 'height':                  // {"height":"locked"}.
+        case 'position':                // {"position":"locked"}.
             button(key, value);
             break;
     }
@@ -583,10 +608,12 @@ function flashRtcm() {
         let minutes = Math.floor(seconds / 60);
         let hours = Math.floor(minutes / 60);
         statusUptimeOperateId.innerHTML = (hours % 24) + 'h ' + (minutes % 60) + 'm ' + (seconds % 60) + 's';
+
     }, 1000); // Every 1000ms.
 
     // -- Console debug. --
     console.log('Show console messages is "' + sessionStorage.getItem("displayJsConsoleMessages") + '".');
+
 });
 
 // --- Buttons. ---

@@ -20,6 +20,7 @@
  * @since  3.1.2  [2026-07-14-09:45am] Add NTRIP.
  * @since  3.1.2  [2026-07-16-01:30pm] Add .divider.
  * @since  3.1.2  [2026-07-20-10:00pm] Remove .divider, NTRIP active caster from select to switch.
+ * @since  3.1.2  [2026-07-28-11:00am] Plain note, add WiFi switch.
  * @link   http://dougfoster.me.
 */
 
@@ -56,6 +57,10 @@ form#config {
     background-color: var(--gray-4);
     font-family: 'Courier New', Courier, monospace;
 }
+#config .note.plain {
+    background-color: unset;
+    padding: unset;
+}
 
 /* -- Form: button switches. -- */
 #config .config-grid-buttons {
@@ -83,7 +88,7 @@ form#config {
     border: 0;
 }
 #config .config-grid-buttons .switch-field label {
-    padding: 8px 16px;
+    padding: 7px 14px;
     margin-right: -1px;
     background-color: var(--gray-4);
     color: var(--gray-1);
@@ -103,6 +108,10 @@ form#config {
 }
 #config .switch-field label:last-of-type {
     border-radius: 0 var(--std-border-radius) var(--std-border-radius) 0;
+}
+#config .choose-caster.hide {
+    position: absolute;
+    left: -100px;
 }
 
 /* -- Form: fields. -- */

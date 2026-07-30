@@ -22,6 +22,7 @@
  * @since  3.1.2  [2026-07-07-01:00pm] Instrument height always in mm.
  * @since  3.1.2  [2026-07-21-03:30pm] Add NTRIP.
  * @since  3.2.1  [2026-07-27-08:30am] Add webSocketNum.
+ * @since  3.2.1  [2026-07-28-10:00am] Header items.
  * @link   http://dougfoster.me.
 -->
 
@@ -41,8 +42,6 @@
             <a class="new-page" href="menu.html">
                 <h1 class="red">Config</h1>
                 <div id="header-items">
-                    <div id="unit-display"></div>
-                    <div id="ws-num"></div>
                     <div id="version-rover"></div>
                 </div>
             </a>
@@ -61,6 +60,19 @@
                         <input type="radio" id="unit-feet" name="switch-unit" value="feet"/>
                         <label for="unit-feet">Feet</label>
                     </div>
+
+                    <!-- <div class="grid-item">WiFi mode</div>
+                    <div id="ntrip-caster-active" class="switch-field grid-item">
+                        <input type="radio" id="wifi-mode-off" name="wifi-mode" value="off" />
+                        <label for="ifi-mode-off">Off</label>
+                        <input type="radio" id="ifi-mode-ap" name="wifi-mode" value="ap" />
+                        <label for="ifi-mode-ap">AP</label>
+                        <input type="radio" id="ifi-mode-sta" name="wifi-mode" value="sta" />
+                        <label for="ifi-mode-sta">STA</label>
+                        <input type="radio" id="ifi-mode-both" name="wifi-mode" value="both" />
+                        <label for="ifi-mode-both">BOTH</label>
+                    </div> -->
+
                     <div class="grid-item">RTCM in</div>
                     <div id="rtcm-in-buttons" class="switch-field grid-item">
                         <input type="radio" id="rtcm-in-off" name="switch-rtcm-in" value="off" />
@@ -70,21 +82,14 @@
                         <input type="radio" id="rtcm-in-ntrip" name="switch-rtcm-in" value="ntrip" />
                         <label for="rtcm-in-ntrip">NTRIP</label>
                     </div>
-                    <div class="grid-item">NTRIP caster</div>
-                    <div id="ntrip-caster-active" class="switch-field grid-item">
+                    <div class="grid-item choose-caster hide">NTRIP caster</div>
+                    <div id="ntrip-caster-active" class="switch-field grid-item choose-caster hide">
                         <input type="radio" id="ntrip-caster-1" name="switch-ntrip-caster-active" value="1" />
                         <label for="ntrip-caster-1">1</label>
                         <input type="radio" id="ntrip-caster-2" name="switch-ntrip-caster-active" value="2" />
                         <label for="ntrip-caster-2">2</label>
                         <input type="radio" id="ntrip-caster-3" name="switch-ntrip-caster-active" value="3" />
                         <label for="ntrip-caster-3">3</label>
-                    </div>
-                    <div class="grid-item">NMEA BT out</div>
-                    <div class="switch-field grid-item">
-                        <input type="radio" id="nmea-off" name="switch-nmea-out" value="off" />
-                        <label for="nmea-off">Off</label>
-                        <input type="radio" id="nmea-on" name="switch-nmea-out" value="on"/>
-                        <label for="nmea-on">On</label>
                     </div>
                 </div>
 
@@ -105,7 +110,7 @@
                     <!-- <div id="pole-height-preset" class="hide"></div> -->
                     <div class="vcenter">Instrument height<sup>*</sup> (mm/in)</div>
                     <div id="instrument-height"><span id="instrument-height-mm"></span> / <span id="instrument-height-in"></span></div>
-                    <div class="note"><sup>*</sup>Always saved as millimeters.</div>
+                    <div class="note plain"><sup>*</sup>Always saved as millimeters.</div>
                 </div>
 
                 <div class="config-section config-grid-fields field-group" id="generate-pvt">  <!--- GNSS measure interval & nav rate. --->
@@ -143,12 +148,11 @@
                 </div>
 
                 <div class="config-section config-grid-fields field-group" id="wifi-hot-spot">  <!--- WiFi hotspot credentials. --->
-                    <div class="group-label full-row section-heading">WiFi</div>
-                    <label for="hotspot-ssid">SSID *</label>
+                    <div class="group-label full-row section-heading">WiFi (STA mode)</div>
+                    <label for="hotspot-ssid">Connect to SSID</label>
                     <input type="text" id="hotspot-ssid" />
                     <label for="hotspot-password">Password</label>
                     <input type="text" id="hotspot-password"/>
-                    <div class="note">* Connect as WIFI client.</div>
                 </div>
 
                 <div class="config-section config-grid-fields field-group" id="ntrip">  <!--- NTRIP. --->

@@ -25,6 +25,7 @@
  * @since  3.1.2  [2026-07-07-01:00pm] Instrument height always in mm.
  * @since  3.1.2  [2026-07-14-09:45am] Add NTRIP.
  * @since  3.2.1  [2026-07-25-04:00pm] Moved JSON to global.js.
+ * @since  3.2.1  [2026-07-28-04:45pm] Removed NMEA out switch & preference.
  * @link   http://dougfoster.me.
 */
 
@@ -80,6 +81,7 @@ const ntripSendGGA            = document.querySelector('#config #ntrip-send-gga 
 const ntripCasterdup          = document.querySelector('#config #ntrip-caster-dup');
 const switchRtcmInButtons     = document.querySelector('#rtcm-in-buttons');
 const ntripCasterActive       = document.querySelector('#ntrip-caster-active');
+const chooseCaster            = document.querySelectorAll('.choose-caster');
 const SEND_PREFS              = '{"page":"config","sendPrefs":""}';
 const PREF_RESET              = '{"page":"config","resetPrefs":""}';
 let   ntripCasterAttributes   = [];
@@ -291,6 +293,7 @@ function ntripAttributes(action) {
     } else {
         jsConsoleMessages.checked = false;
     }
+
 });
 
 /**
@@ -301,13 +304,37 @@ function ntripAttributes(action) {
  * @return void  No output is returned.
  * @since 3.0.12 [2026-01-31-01:30pm] New.
  * @since 3.0.12 [2026-02-01-06:00pm] Shortened names.
- * @since 3.1.2  [2026-02-21-03:45pm] Add NTRIP.
+ * @since 3.1.2  [2026-02-21-03:45pm] Add NTRIP listener.
+ * @since 3.2.1  [2026-07-28-07:30pm] Add RTCM listener.
  */
-ntripCasterActive.addEventListener('change', (event) => {
-    prfNtripCasterAct = event.target.value;
-    ntripCaster.value = prfNtripCasterAct;
+
+
+// --- RTCM in. ---
+switchRtcmInButtons.addEventListener('change', (event) => {
+    prfRtcIn = event.target.value;
+    if(prfRtcIn == 'ntrip') {
+        chooseCaster.forEach(item => {
+            item.classList.remove('hide');      // Show choose NTRIP.
+        });
+    } else {
+        chooseCaster.forEach(item => {
+            item.classList.add('hide');         // Hide choose NTRIP.
+        });
+    }
+    prfNtripCasterAct = 1;                      // Default.
+    document.querySelector('input[name="switch-ntrip-caster-active"][value="' + prfNtripCasterAct +'"]').checked = true;
+    ntripCaster.value = prfNtripCasterAct;      // Show attributes for the active caster.
     ntripAttributes('load');
 });
+
+// --- Active NTRIP caster. ---
+ntripCasterActive.addEventListener('change', (event) => {
+    prfNtripCasterAct = event.target.value;     // Choose a new active caster.
+    ntripCaster.value = prfNtripCasterAct;      // Show attributes for the active caster.
+    ntripAttributes('load');
+});
+
+
 
 /**
  * -------------------------------------------------------------------------

@@ -19,6 +19,8 @@
  * @since  3.1.1  [2026-06-25-02:00pm] Regroup: upload to SD card.
  * @since  3.1.2  [2026-07-05-08:30pm] General cleanup.
  * @since  3.2.1  [2026-07-27-08:30am] Add webSocketNum.
+ * @since  3.2.1  [2026-07-28-10:00am] Header items.
+ * @since  3.2.1  [2026-07-28-04:45pm] Removed NMEA out switch & preference.
  * @link   http://dougfoster.me.
 -->
 
@@ -40,9 +42,7 @@
             <a class="new-page" href="menu.html">
                 <h1 class="red">Ghost Rover</h1>
                 <div id="header-items">
-                    <div id="unit-display"></div>
-                    <div id="ws-num"></div>
-                    <div id="version-rover"></div>
+                    <div id="version-rover">x.x.x - Jul 28 2026 @ 09:08:32</div>
                 </div>
             </a>
         </header>
@@ -165,6 +165,11 @@
                                 <th>Rover</th>
                             </tr>
                             <tr>
+                                <td>Units</td>
+                                <td><span class="empty">-</span></td>
+                                <td><span class="pref" id="unit-display"></span></td>
+                            </tr>
+                            <tr>
                                 <td>Uptime</td>
                                 <td><span id="uptime-operate"></span></td>
                                 <td><span id="uptime-rover"></span></td>
@@ -260,12 +265,17 @@
                                 <td><span id="nmea-sentence-rate"></span></td>
                             </tr>
                             <tr>
-                                <td>Local IP</td>
+                                <td>WiFi mode</td>
+                                <td class="empty">-</td>
+                                <td><span id="wifi-mode"></span></td>
+                            </tr>
+                            <tr>
+                                <td>IP (WiFi server)</td>
                                 <td class="empty">-</td>
                                 <td><span id="local-ip"></span></td>
                             </tr>
                             <tr>
-                                <td>Hotspot IP (NTRIP)</td>
+                                <td>IP (WiFi client)</td>
                                 <td class="empty">-</td>
                                 <td><span id="hotspot-ip"></span></td>
                             </tr>

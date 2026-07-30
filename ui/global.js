@@ -24,6 +24,9 @@
  * @since  3.2.1  [2026-07-25-04:15pm] Move JSON to webSocketRcvMessage() & toJson().
  * @since  3.2.1  [2026-07-25-05:00pm] Convert NTRIP keys from alpha to numeric.
  * @since  3.2.1  [2026-07-27-08:30am] Add webSocketNum.
+ * @since  3.2.1  [2026-07-28-10:00am] Remove webSocketNum.
+ * @since  3.2.1  [2026-07-28-04:45pm] Removed NMEA out switch & preference.
+ * 
  * @link   http://dougfoster.me.
 */
 
@@ -70,8 +73,6 @@ let wsNumBytesThisMessage     = 0;       // # of bytes in this WebSocket message
 const ROVER_NAME              = 'GhostRover';
 const headerH1                = document.querySelector('header h1');
 const versionRoverId          = document.querySelector('#version-rover');
-const statusUnitDisplayId     = document.querySelector('#unit-display');
-const webSocketNum            = document.querySelector('#ws-num');
 
 // --- WebSocket. ---
 // @see "JSON key index" in webSocketRcvMessage for exchange protocol.
@@ -82,6 +83,7 @@ const caster = [
   { id:'', name:'', url:'', mount:'', port:'', version:1, user:'', pass:'', sendGga:0 },
   { id:'', name:'', url:'', mount:'', port:'', version:1, user:'', pass:'', sendGga:0 },
 ];
+let jsonObj;
 
 // --- Preferences. ---
 // let prfGnsMsrInt = 0;
@@ -229,7 +231,7 @@ async function webSocketStop(event) {
  *     0  = Build info                      (buildString).
  *     1  = Units                           (char     prfUnt[6]).
  *     2  = RTCM in source                  (char     prfRtcIn[6]).
- *     3  = NMEA out - on/off               (char     prfNmeOut[4]).
+ *     3  = Not used.
  *     4  = GNSS measure interval           (uint16_t prfGnsMsrInt).
  *     5  = GNSS navigation rate            (uint8_t  prfGnsNavRat).
  *     6  = WiFi hot spot SSID              (char     prfHotSsi[20]).
@@ -287,13 +289,15 @@ async function webSocketStop(event) {
  * @since  3.0.12 [2026-02-07-12:30pm] Add displayNmeaMessage().
  * @since  3.1.0  [2026-03-20-11:15am] Update var names.
  * @since  3.2.1  [2026-07-27-08:30am] Refactor, add webSocketNum.
+ * @since  3.2.1  [2026-07-28-10:00am] Remove webSocketNum.
+ * @since  3.2.1  [2026-07-28-04:45pm] Removed NMEA out switch & preference.
  * @see    operateMessage() in operate.js.
  * @see    filesMessage() in files.js.
  */
 function webSocketRcvMessage(event) {
 
     // --- Process message. ---
-    let jsonObj = JSON.parse(event.data);
+    jsonObj = JSON.parse(event.data);
     if (null == jsonObj) {
         return;
     }
@@ -307,27 +311,6 @@ function webSocketRcvMessage(event) {
     if (undefined !== jsonObj["0"]) {
         versionRoverId.innerHTML = jsonObj["0"];
     }
-    if (undefined !== jsonObj["1"]) {
-        prfUnt = jsonObj["1"];
-        if ('feet' === prfUnt) {
-            heightUnits = 'in';
-        };
-        switch (jsonObj["1"]) {
-            case 'meter':
-                statusUnitDisplayId.innerHTML = 'Meter';
-                break;
-            case 'feet':
-                statusUnitDisplayId.innerHTML = 'Feet';
-                convert = 3.2808399;
-                break;
-            default:
-                statusUnitDisplayId.innerHTML = jsonObj["1"];
-                break;
-        }
-    }
-    if (undefined !== jsonObj["35"]) {
-        webSocketNum.innerHTML = 'ws #' + jsonObj["35"];
-    }
 
     // -- Config page. --
     if ((window.location.pathname.includes('config') && (Object.keys(jsonObj).length > 1))) {
@@ -338,10 +321,13 @@ function webSocketRcvMessage(event) {
         if (undefined !== jsonObj["2"]) {
             prfRtcIn = jsonObj["2"];
             document.querySelector('input[name="switch-rtcm-in"][value="' + jsonObj["2"] + '"]').checked = true;
-        }
-        if (undefined !== jsonObj["3"]) {
-            prfNmeOut = jsonObj["3"];
-            document.querySelector('input[name="switch-nmea-out"][value="' + jsonObj["3"] + '"]').checked = true;
+
+            // --- Hide/show "choose caster" row. ---
+            if(prfRtcIn == 'ntrip') {
+                chooseCaster.forEach(item => {
+                    item.classList.remove('hide');
+                });
+            }
         }
         if (undefined !== jsonObj["4"]) {
             prfGnsMsrInt              = jsonObj["4"];
@@ -375,9 +361,13 @@ function webSocketRcvMessage(event) {
             ntripCasterAttributes[3] = jsonObj["41"];
         }
         if (undefined !== jsonObj["42"]) {
-            document.querySelector('input[name="switch-ntrip-caster-active"][value="' + jsonObj["42"] + '"]').checked = true;
-            prfNtripCasterAct = jsonObj["42"];
-            ntripCaster.value = jsonObj["42"]; // Display the caster that matches the saved preference.
+            if (prfRtcIn == 'ntrip') {
+                prfNtripCasterAct = jsonObj["42"];  // Preference.
+            } else {
+                prfNtripCasterAct = 1;              // Default.
+            }
+            document.querySelector('input[name="switch-ntrip-caster-active"][value="' + prfNtripCasterAct +'"]').checked = true;
+            ntripCaster.value = prfNtripCasterAct
         }
 
         // - Load caster array. ntripAttributes() uses caster array values to set UI fields.
@@ -398,6 +388,7 @@ function webSocketRcvMessage(event) {
 
         // - Load UI fields. =
         ntripAttributes('load');
+
     }
 
     // -- Files page. --
@@ -464,12 +455,10 @@ function toJson(which) {
             const switchUnits             = document.querySelector('input[name="switch-unit"]:checked')?.value;
             const switchRtcmIn            = document.querySelector('input[name="switch-rtcm-in"]:checked')?.value;
             const switchNtripCasterActive = document.querySelector('input[name="switch-ntrip-caster-active"]:checked')?.value;
-            const switchNmeaOut           = document.querySelector('input[name="switch-nmea-out"]:checked')?.value;
             jsonString = JSON.stringify( {
                 "setPrefs" : "", 
                        "1" : switchUnits,                                         // prfUnt.
                        "2" : switchRtcmIn,                                        // prfRtcIn.
-                       "3" : switchNmeaOut,                                       // prfNmeOut.
                        "4" : gnssMeasureInterval.value,                           // prfGnsMsrInt
                        "5" : gnssNavRate.value,                                   // prfGnsNavRat.
                        "6" : hotspotSsid.value,                                   // prfHotSsi.

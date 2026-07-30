@@ -15,6 +15,7 @@
  * @since  3.1.1  [2026-06-26-09:30pm] .hide {display: none !important;}.
  * @since  3.1.2  [2026-07-05-08:30pm] General cleanup.
  * @since  3.2.1  [2026-07-27-08:30am] Add webSocketNum.
+ * @since  3.2.1  [2026-07-28-10:00am] Header items.
  * @link   http://dougfoster.me.
 */
 
@@ -64,7 +65,8 @@ header {
 }
 header #header-items {
     display: flex;
-    justify-content: space-between;
+    /* justify-content: space-between; */
+    justify-content: right;
 }
 header h1 {
     margin: 0;
@@ -90,9 +92,7 @@ header  {
     }
 }
 
-header #version-rover,
-header #unit-display,
-header #ws-num {
+header #header-items * {
     font-size: 12px;
     margin-top: 5px;
     padding: 4px 8px;
