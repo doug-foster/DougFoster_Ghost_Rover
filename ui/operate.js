@@ -25,6 +25,7 @@
  * @since  3.1.2  [2026-07-05-05:45pm] Remove clearOperateUi().
  * @since  3.1.2  [2026-07-05-08:45pm] General cleanup.
  * @since  3.2.1  [2026-07-28-10:00am] Move webSocket # & units to status items.
+ * @since  3.2.1  [2026-07-31-02:00pm] Status display tweaks.
  * @link   http://dougfoster.me.
 */
 
@@ -531,14 +532,17 @@ function operateMessage(key, value) {
             break;
         case "33":                      // {"33":"192.168.23.1"}.
             statusLocalIpId.textContent              = value;
-            if (value.length > 0) {     // Set WiFi status mode.
-                statusWifiMode.textContent = 'server';
+            if (value.length > 0) {     // Status for WiFi server.
+                statusWifiMode.textContent = 'Server';
             }
             break;
         case "34":                      // {"34":"172.20.10.3"}.
             statusHotspotIpId.textContent            = value;
-            if (value.length > 0) {     // Set WiFi status mode.
-                statusWifiMode.textContent += '/client';
+            if (value.length > 0) {     // Status for WiFi client.
+                statusHotspotIpId.textContent        = value;
+                statusWifiMode.textContent += '/Client';
+            } else {
+                statusHotspotIpId.textContent        = 'N/A';
             }
             break;
         case "35":                      // {"35":137}.

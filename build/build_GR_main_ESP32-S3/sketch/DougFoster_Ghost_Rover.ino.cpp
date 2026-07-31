@@ -22,6 +22,7 @@
  * @since  3.2.1  [2026-07-25-05:00pm] Convert NTRIP keys from alpha to numeric.
  * @since  3.2.1  [2026-07-27-01:45pm] Add sendDataToBrowser(), refactor to consolidate JSON.
  * @since  3.2.1  [2026-07-28-04:45pm] Removed NMEA out switch & preference.
+ * @since  3.2.1  [2026-07-31-09:30am] Add WiFi client for NTRIP access.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover_BT_relay.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
@@ -486,6 +487,7 @@ bool          inLoop                    = false;          // In loop() indicator
 bool          RTCMin                    = false;          // RTCM received from NTRIP or radio within RTCM_TIMEOUT.
 bool          NMEAout                   = false;          // NMEA sent OUT to MCU #2?
 bool          zeroStatusCounters        = false;          // Flag to zero status counters.
+bool          restartGrMCU1             = false;          // Flag to restart GR-MCU1.
 bool          buttonGnssLock;                             // UI - // ToDo: Implement.
 bool          buttonAltitudeLock;                         // UI - // ToDo: Implement.
 bool          buttonPositionLock;                         // UI - // ToDo: Implement.
@@ -588,65 +590,65 @@ int64_t nmeaRate           = 0;
  * @since  3.0.12 [2026-02-10-10:45pm] New.
  * @see showBuild(), startWiFi(), startSD(), startAndConfigGNSS(), taskLoopStatusLed().
  */
-#line 590 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 592 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void statusLedOn();
-#line 809 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 817 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void buildOperData();
-#line 890 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 899 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void sendDataToBrowser();
-#line 990 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1005 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 uint16_t rtcm3GetMessageType(const char* rtcmSentence);
-#line 1038 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1053 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void showBuild();
-#line 1087 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1102 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startSerial();
-#line 1119 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1134 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void initPins();
-#line 1145 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1160 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startI2C();
-#line 1182 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1197 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startLiPo();
-#line 1206 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1222 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startWiFi();
-#line 1307 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1321 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startSD();
-#line 1369 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1383 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startHttpServer();
-#line 1424 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1438 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startWebSocketServer();
-#line 1459 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1473 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startAndConfigGNSS();
-#line 1533 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1547 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startQueues();
-#line 1558 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1572 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void startTasks();
-#line 1581 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1595 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void preLoop();
-#line 1620 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1634 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void taskLoopStatusLed(void * pvParameters);
-#line 1665 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1679 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void taskRtcmRelay(void *pvParameters);
-#line 1753 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1767 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void onWiFiEvent(arduino_event_id_t event);
-#line 1785 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1799 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void onHttpFileUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final);
-#line 1833 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 1847 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void onWebSocketEvent(AsyncWebSocket *httpServer, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len);
-#line 2031 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 2045 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void checkZedTriggerUpdate();
-#line 2301 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 2316 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void processJsonActivity();
-#line 2628 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 2619 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void checkSerialUSB();
-#line 2699 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 2690 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void checkGnssLockButton();
-#line 2735 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 2726 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void debug();
-#line 2901 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 2892 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void setup();
-#line 2928 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 2919 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void loop();
-#line 590 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
+#line 592 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/DougFoster_Ghost_Rover.ino"
 void statusLedOn() {
     switch (ws2812LedColor) {
         case RED:
@@ -701,11 +703,11 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
     const char      NAMESPACE[]             = "config";         // The preference namespace. 
     const char      DEF_UNT[]               = "meter";          // Default distance units: meter/feet (used only in browser).                        1 - Matching global var: char     prfUnt[6].
     const char      DEF_RTC_IN[]            = "radio";          // Default control RTCM in: off/radio/ntrip.                                         2 - Matching global var: char     prfRtcIn[6].
-    const char      DEF_HOT_SSI[]           = "ssid";           // Default WiFi hotspot client: network SSID.                                        4 - Matching global var: char     prfHotSsi[20].
-    const char      DEF_HOT_PASS[]          = "pass";           // Default WiFi hotspot client: password.                                            5 - Matching global var: char     prfHotPas[30].
-    const char      DEF_NTRIP_CAST_ATTR_1[] = "{\"43\":\"1\",\"44\":\"name 1\",\"45\":\"x.com\",\"46\":\"ABC\",\"47\":\"2101\",\"48\":\"1\",\"49\":\"user1\",\"50\":\"pass1\",\"51\":\"1\"}";
-    const char      DEF_NTRIP_CAST_ATTR_2[] = "{\"43\":\"2\",\"44\":\"name 2\",\"45\":\"y.com\",\"46\":\"DEF\",\"47\":\"2101\",\"48\":\"1\",\"49\":\"user2\",\"50\":\"pass2\",\"51\":\"1\"}";
-    const char      DEF_NTRIP_CAST_ATTR_3[] = "{\"43\":\"3\",\"44\":\"name 3\",\"45\":\"z.com\",\"46\":\"GHI\",\"47\":\"2101\",\"48\":\"1\",\"49\":\"user3\",\"50\":\"pass3\",\"51\":\"1\"}";
+    const char      DEF_HOT_SSI[]           = "";               // Default WiFi hotspot client: network SSID.                                        4 - Matching global var: char     prfHotSsi[20].
+    const char      DEF_HOT_PASS[]          = "";               // Default WiFi hotspot client: password.                                            5 - Matching global var: char     prfHotPas[30].
+    const char      DEF_NTRIP_CAST_ATTR_1[] = "{\"43\":\"1\",\"44\":\"\",\"45\":\"\",\"46\":\"\",\"47\":\"2101\",\"48\":\"1\",\"49\":\"\",\"50\":\"\",\"51\":\"1\"}";
+    const char      DEF_NTRIP_CAST_ATTR_2[] = "{\"43\":\"2\",\"44\":\"\",\"45\":\"\",\"46\":\"\",\"47\":\"2101\",\"48\":\"1\",\"49\":\"\",\"50\":\"\",\"51\":\"1\"}";
+    const char      DEF_NTRIP_CAST_ATTR_3[] = "{\"43\":\"3\",\"44\":\"\",\"45\":\"\",\"46\":\"\",\"47\":\"2101\",\"48\":\"1\",\"49\":\"\",\"50\":\"\",\"51\":\"1\"}";
                                                                 // Default NTRIP caster attribute profile 1.                                         6 - Matching global var: char     prfNtripCastAttr[0].
                                                                 // Default NTRIP caster attribute profile 2.                                         7 - Matching global var: char     prfNtripCastAttr[1].
                                                                 // Default NTRIP caster attribute profile 3.                                         8 - Matching global var: char     prfNtripCastAttr[2].
@@ -777,6 +779,8 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             // -- Close name space. --
             roverPrefs.end();
             Serial.println("Preferences saved.");
+            restartGrMCU1 = true;
+            Serial.println("GR-MCU1 will restart.");
             break;
 
         case PREF_RESET:
@@ -797,6 +801,8 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             // -- Close name space. --
             roverPrefs.end();
             Serial.println("Resetting all preferences.");
+            restartGrMCU1 = true;
+            Serial.println("GR-MCU1 will restart.");
             break;
 
         case PREF_PRINT:
@@ -851,6 +857,8 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             // -- Close name space. --
             roverPrefs.end();
             Serial.println("NTRIP preference set.");
+            restartGrMCU1 = true;
+            Serial.println("GR-MCU1 will restart.");
             break;
     }
 }
@@ -944,6 +952,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
  * @return void No output is returned.
  * @since  3.2.1 [2026-07-26-06:30pm] New.
  * @since  3.2.1 [2026-07-30-10:30am] jsonDocToBrowser["NMEA"] '= lastNmea' was '= nmeaBuffer'.
+ * @since  3.2.1 [2026-07-31-01:30pm] Moved "Wrap up" section from processJsonActivity() to here.
  * @see    checkZedTriggerUpdate(), processJsonActivity(), DevUBLOXGNSS::processNMEA().
  * @see    processJsonActivity() for description of exchange protocol.
  */
@@ -1026,6 +1035,12 @@ void sendDataToBrowser() {
         if (response[0] != '\0') {
             Serial.println(response);
         }
+    }
+
+    // -- Wrap up. Additional post processing. --
+    if (restartGrMCU1) {
+        delay(2000);
+        esp_restart();  // Restart. Prefs changed or Restart button pressed.
     }
 }
 
@@ -1258,6 +1273,7 @@ void startLiPo() {
  * @since  3.0.10 [2026-01-07-11:00am] Local vars.
  * @since  3.0.12 [2026-01-27-04:00pm] Refactor from AP mode to AP+Station mode.
  * @since  3.0.12 [2026-02-01-05:30pm] Use preferences.
+ * @since  3.2.1  [2026-07-31-12:30pm] Add WiFi client for NTRIP access. Refactor.
  * @see    setup(), prefUtility().
  * @link   https://github.com/espressif/arduino-esp32/tree/master/libraries/WiFi.
  * @link   https://docs.espressif.com/projects/arduino-esp32/en/latest/api/wifi.html.
@@ -1265,78 +1281,76 @@ void startLiPo() {
  */
 void startWiFi() {
 
-    // --- Local ESP32 Access Point (AP) network. ---
-        WiFi.mode(WIFI_AP_STA);                         // Enable dual mode
+        // --- Local Vars. ---
+        const char AP_SSID[] = "Ghost Rover";                           // Local ESP32 Access Point (AP) network.
+        const char AP_NAME[] = "ghost";                                 // AP name.
+        size_t maxTrys;                                                 // Max # of trys to connect to STA_SSID, one per second.
+        size_t numTrys;                                                 // Count connect attempts to STA_SSID.
+        const IPAddress AP_LOCAL_IP(192, 168, 23, 1);                   // AP host address.
+        const IPAddress AP_GATEWAY(192, 168, 23, 1);                    // AP gateway address.
+        const IPAddress AP_SUBNET(255, 255, 255, 0);                    // AP subnet mask.      
+        IPAddress STA_IP(172, 20, 10, 2);                               // Request to use this IP address.
 
-        // -- Local Vars. --
-        const char AP_SSID[] = "Ghost Rover";           // Local ESP32 Access Point (AP) network.
-        const char AP_NAME[] = "ghost";                 // AP name.
-        const IPAddress AP_LOCAL_IP(192, 168, 23, 1);   // AP host address.
-        const IPAddress AP_GATEWAY(192, 168, 23, 1);    // AP gateway address.
-        const IPAddress AP_SUBNET(255, 255, 255, 0);    // AP subnet mask.
+        // --- Set WiFi mode to WIFI_AP_STA for both WiFi server (WIFI_AP) & client (WIFI_STA). ---
+        WiFi.mode(WIFI_AP_STA);
 
-        // -- Global Vars. --
-        // snprintf(localIp, sizeof(localIp), "%d.%d.%d.%d", AP_LOCAL_IP[0], AP_LOCAL_IP[1], AP_LOCAL_IP[2], AP_LOCAL_IP[3]);
-
-        // -- Config & start AP (aka WiFi server). --
+        // --- Config & start WiFi server (Access Point) for easy browser access. ---
         if (!WiFi.softAPConfig(AP_LOCAL_IP, AP_GATEWAY, AP_SUBNET)) {   // Configure IP network.
             Serial.println("Soft AP - config failed.");
             while (true) {
-                ws2812LedColor = RED;
+                ws2812LedColor = RED;                                   // Indicates error during setup(). 
                 ws2812LedBlink = false;
                 statusLedOn();
             };
         }
-        if (!WiFi.softAP(AP_SSID)) {                                    // Set AP SSID & start. No password.
+        if (!WiFi.softAP(AP_SSID)) {                                    // Open access point - set SSID, omit password.
             Serial.println("Soft AP - create failed. Freezing.");
             while (true) {
-                ws2812LedColor = RED;
+                ws2812LedColor = RED;                                   // Indicates error during setup(). 
                 ws2812LedBlink = false;
                 statusLedOn();
             };
         }
         WiFi.softAPsetHostname(AP_NAME);                                // Set hostname.
-        WiFi.onEvent(onWiFiEvent);                                      // Add WiFiEvent() as event handler.
+        WiFi.onEvent(onWiFiEvent);                                      // Add event handler WiFiEvent().
         IPAddress ip = WiFi.softAPIP();                                 // Start WiFi & check status (get IP).
         snprintf(localIp, sizeof(localIp), "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
-        Serial.printf("WiFi server (AP mode) \"%s\" started @ %s.\n", AP_SSID, localIp);
+        Serial.printf("WiFi server \"%s\" started @ %s.\n", AP_SSID, localIp);
 
-    // --- Cellular hotspot client. ---
+        if ((strcmp(prfRtcIn, "ntrip") == 0) && (isalnum((unsigned char)prfHotSsi[0])) && (isalnum((unsigned char)prfHotPas[0])))  {
 
-        // -- Local Vars. --
-        size_t maxTrys = 20;                        // Max # of trys to connect to STA_SSID.
-        IPAddress STA_IP(172, 20, 10, 2);           // Request to use this IP address.
-
-        // -- Global Vars. --
-        // snprintf(hotspotIp, sizeof(hotspotIp), "%d.%d.%d.%d", STA_IP[0], STA_IP[1], STA_IP[2], STA_IP[3]);
-
-        // -- Config & start hotspot client. --
-        // - char prfHotSsi[] = "ssid";  // WiFi hotspot client: network SSID. -
-        // - char prfHotPas[] = "pass";  // WiFi hotspot client: password. -
-        if ((strcmp(prfHotSsi, "ssid") != 0) && (strcmp(prfRtcIn, "ntrip") == 0)) {  // RTCMin by NTRIP requires Internet hotspot access, RTCMin by radio does not.
-            Serial.printf("WiFi STA connecting to \"%s\" ", prfHotSsi);
-            WiFi.config (STA_IP);
+            // -- Configure & start WiFi client for RTCMin via Internet NTRIP caster. --
+            numTrys = 1;
+            maxTrys = 20;
+            Serial.printf("WiFi client connecting (RTCMin=\"%s\", prfHotSsi=\"%s\", prfHotPas=\"%s\") ...\n", prfRtcIn, prfHotSsi, prfHotPas);
+            Serial.print("Attempt 00/20.");
             WiFi.begin(prfHotSsi, prfHotPas);
-
-            size_t numTrys;
-            for (numTrys = 0; numTrys < maxTrys; numTrys++) {
-                Serial.print('.');
+            for (numTrys = 1; numTrys <= maxTrys; numTrys++) {
+                Serial.printf("\b\b\b\b\b\b");                          // Overwite attempt counter (6 characters).
+                if (numTrys < 10) {
+                    Serial.printf("%02d/%d.", numTrys, maxTrys);
+                } else {
+                    Serial.printf("%d/%d.",   numTrys, maxTrys);
+                }
                 if (WiFi.status() == WL_CONNECTED) {
                     strlcpy(hotspotIp, WiFi.localIP().toString().c_str(), sizeof(hotspotIp));
-                    Serial.printf(", connected with IP = %s.\n", hotspotIp);
-                    ws2812LedColor = WHITE;
+                    Serial.printf("\nWiFi client connected with IP = %s.\n", hotspotIp);
+                    ws2812LedColor = WHITE;                             // Indicates no error during setup(). 
                     ws2812LedBlink = false;
                     statusLedOn();
                     break;
                 }
-                delay(1000);                            // Try again.
+                delay(1000);                                            // Try again.
             }
-            if (numTrys == maxTrys) {
-                Serial.printf(", max trys exceeded, not connected.\n", prfHotSsi);
-                strlcpy(hotspotIp, " ", sizeof(hotspotIp));
+            Serial.println();
+            if (numTrys-1 == maxTrys) {
+                Serial.printf("WiFi client connect FAILED after %d attempts.\n", maxTrys);
+                memset(hotspotIp, '\0', sizeof(hotspotIp));
             }
+        } else {
+            Serial.printf("WiFi client not started (RTCMin=\"%s\", prfHotSsi=\"%s\", prfHotPas=\"%s\").\n", prfRtcIn, prfHotSsi, prfHotPas);
         }
-}
+    }
 
 /**
  * -------------------------------------------------------------------------
@@ -2345,7 +2359,8 @@ void checkZedTriggerUpdate() {
  * @since 3.2.1  [2026-07-25-05:00pm] Convert NTRIP keys from alpha to numeric.
  * @since 3.2.1  [2026-07-30-10:45am] Implement FreeRTOS queues: refactor onWebSocketMessage() into processJsonActivity().
  *                Fix cross-task race on shared JsonDocuments causing intermittent LoadProhibited/heap-corruption crashes.
- * @since 3.2.1  [2026-07-30-11:45am] Set page name global var. 
+ * @since 3.2.1  [2026-07-30-11:45am] Set page name global var.
+ * @since 3.2.1  [2026-07-31-01:30pm] Moved "Wrap up" section from here to sendDataToBrowser().
  * @see   Global vars: GNSS, prefUtility(), onWebSocketEvent(), startWebSocketServer().
  * @link  https://randomnerdtutorials.com/esp32-websocket-server-arduino/.
  * @link  https://randomnerdtutorials.com/esp32-websocket-server-sensor/.
@@ -2545,7 +2560,7 @@ void checkZedTriggerUpdate() {
                 // - Set response. -
                 strcpy(response, "GR-MCU1 will restart.");
                 jsonDocToBrowser["restartGR-MCU1Resp"] = response;
-                Serial.println(response);
+                restartGrMCU1 = true;
             }
 
             // -------------------------------------------------------------------------
@@ -2632,34 +2647,10 @@ void checkZedTriggerUpdate() {
                 strcpy(response, "Message echoed.");
                 jsonDocToBrowser["echoResp"] = response;
             }
-
-            // -- Wrap up JSON processing. --
-            if (inLoop) {
-                if ((jsonDocFromBrowser["setPrefs"].is<JsonVariant>()) ||
-                    (jsonDocFromBrowser["resetPrefs"].is<JsonVariant>()) ||
-                    (jsonDocFromBrowser["setNtripCasterPref"].is<JsonVariant>())) {
-
-                        // -- Rerun dependent functions. --
-                        if (!jsonDocFromBrowser["setPrefs"].is<JsonVariant>()) {
-                            prefUtility(PREF_SET);
-                        }
-                        Serial.println("Restarting dependent processes.");
-                        startAndConfigGNSS();                                       // Uses prfGnsNavRat, prfGnsMsrInt.
-                        if (strcmp(prfRtcIn, "ntrip") == 0) {
-                            startWiFi();                                            // NTRIP uses prfHotSsi & prfHotPas.
-                            // ToDo: // Implement, if NTRIP switch is on, start/restart NTRIP client
-                        } 
-                }
-            }
         }
 
         // -- Send data to browser. --
         sendDataToBrowser();
-
-        // -- Wrap up. --
-        if (jsonDocFromBrowser["restartGR-MCU1"].is<JsonVariant>()) {
-            esp_restart();  // Restart.
-        }
     }
 
     // -- Step 2/2: Send periodic update to browser page (operate, nmea, ...) if pending. --
