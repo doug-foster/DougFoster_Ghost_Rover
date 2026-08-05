@@ -45,17 +45,8 @@ form#config {
     text-align: center;
     padding-bottom: 15px;
 }
-#config .full-row,
-#config .note {
+#config .full-row {
     grid-column: 1 / -1;
-}
-#config .note {
-    box-sizing: border-box;
-    width: 100%;
-    margin: 10px auto;
-    padding: 10px;
-    background-color: var(--gray-4);
-    font-family: 'Courier New', Courier, monospace;
 }
 #config .note.plain {
     background-color: unset;
@@ -135,11 +126,6 @@ form#config {
 #config #update-config-btn,
 #config #reset-config-btn {
     margin: 20px 0;
-    width: 160px !important;
-}
-#config #update-config-btn.std-button,
-#config #reset-config-btn.std-button {
-    max-width: unset;
 }
 #config #reset-config-btn {
     background-color: red;
@@ -266,7 +252,6 @@ form#config {
     width: 40px;
 }
 #config #ntrip-update-attributes {
-    min-width: 190px !important;
     margin-left: 164px;
 }
 

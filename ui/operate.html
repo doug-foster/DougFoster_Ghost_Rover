@@ -128,10 +128,10 @@
                 <!-- Comm & battery. -->
                 <section class="info">
                     <div class="item">
-                        <div id="rtcm" class="down"></div>
+                        <div id="rtcm"></div>
                     </div>
                     <div class="item">
-                        <div id="bt" class="down"></div>
+                        <div id="bt"></div>
                     </div>
                     <div id="battery" class="item">
                         <div class='bar' data-power='10'></div>
@@ -145,8 +145,8 @@
                         <div class='bar' data-power='90'></div>
                         <div class='bar' data-power='100'></div>
                     </div>
-                    <div id="rtcm-label" class="item">RTCM</div>
-                    <div id="ble-label" class="item">NMEA</div>
+                    <div id="rtcm-label" class="item">RTCM<br>&rarr;&nbsp;<div id="rtcm-source" class="sub-row">&nbsp;</div></div>
+                    <div id="ble-label"  class="item">NMEA<br><div class="sub-row">BLE&nbsp;&rarr;</div></div>
                     <div id="battery-label" class="item">
                         <div id="battery-status"></div>
                     </div>
@@ -217,7 +217,7 @@
                             <tr>
                                 <td>NMEA Out</td>
                                 <td class="empty">-</td>
-                                <td><span>BT LE (fixed)</span></td>
+                                <td><span>BLE serial</span></td>
                             </tr>
                             <tr>
                                 <td>NMEA (GGA) sentences</td>

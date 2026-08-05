@@ -225,7 +225,7 @@
 /* --- Info: battery. --- */
 .info {
     display: grid;
-    grid-template-columns: 20% 20% 1fr;  /* 20%, 20%, remainder */
+    grid-template-columns: 24% 20% 1fr;  /* 20%, 20%, remainder */
     grid-template-rows: 1fr 1fr;         /* 1x, 1x height rows */
     max-width: 340px;
     height: 80px;
@@ -277,12 +277,23 @@
 /* --- Info: RTCM & BT. --- */
 .info #rtcm,    
 .info #bt {
-    background-color: red;  /* Comm down. */
     animation: none;
+    background-color: var(--red-1);
+}
+.info #rtcm {
+    margin-left: 5px;
+}
+.info #rtcm-label,
+.info #ble-label {
+    text-align: center;
+}
+.info .sub-row {
+    display: contents;
+    font-size: 80%;
 }
 .info #rtcm.up,
 .info #bt.up {
-    background-color: var(--green-1); /* Comm up. */
+    background-color: var(--green-1);   /* Comm up. */
 }
 
 /**
@@ -291,7 +302,7 @@
  * -------------------------------------------------------------------------
 */
 .status {
-    margin: 10px 0 20px 0;
+    margin: 15px 0 20px 0;
 }
 .status #status {
     margin: auto;

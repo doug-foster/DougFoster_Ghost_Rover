@@ -26,6 +26,7 @@
  * @since  3.1.2  [2026-07-14-09:45am] Add NTRIP.
  * @since  3.2.1  [2026-07-25-04:00pm] Moved JSON to global.js.
  * @since  3.2.1  [2026-07-28-04:45pm] Removed NMEA out switch & preference.
+ * @since  3.2.1  [2026-08-02-09:30am] Moved messageField from here to global.js.
  * @link   http://dougfoster.me.
 */
 
@@ -52,7 +53,6 @@ const hotspotPassword         = document.querySelector('#config #hotspot-passwor
 const updateConfigBtn         = document.querySelector('#config #update-config-btn');
 const resetConfigBtn          = document.querySelector('#config #reset-config-btn');
 const updateCasterBtn         = document.querySelector('#config #ntrip-update-attributes');
-const messageForm             = document.querySelector('#config #message-form');
 const formConfig              = document.querySelector('form#config');
 const jsConsoleMessages       = document.querySelector('#js-console-messages input');
 const ghostRoverHeight        = document.querySelector('#config #ghostrover-height');
@@ -115,18 +115,6 @@ let   prfNtripCasterAct       = 0;
 function update() {
     websocket.send(SEND_PREFS);  // Send SEND_PREFS message.
     console.log('browser --> ' + SEND_PREFS);
-}
-
-/**
- * -------------------------------------------------------------------------
- *  Clear message field.
- * -------------------------------------------------------------------------
- * 
- * @return void  No output is returned.
- * @since  3.0.12 [2026-02-07-11:00am] New.
- */
-function clearMessageField() {
-    setTimeout(function() { messageForm.innerHTML = "&nbsp;"; }, 6000);
 }
 
 /**
@@ -210,7 +198,7 @@ function setHeights(action) {
             instrumentHeightIn.textContent = (parseFloat(instrumentHeightMm.textContent.replace(',', ''))/25.4).toFixed(1);
             break;
     }
-    messageForm.textContent = 'Instrument height calculated.';
+    messageField.textContent = 'Instrument height calculated.';
     clearMessageField();
 }
 
@@ -238,7 +226,7 @@ function ntripAttributes(action) {
         ntripCasterAttributes[parseInt(ntripCaster.value)] = toJson('ntripAttributes');
         websocket.send(ntripCasterAttributes[parseInt(ntripCaster.value)]);
         console.log('browser --> ' + ntripCasterAttributes[parseInt(ntripCaster.value)]);
-        messageForm.textContent = 'Caster ' + ntripCaster.value + ' preference saved.';
+        messageField.textContent = 'Caster ' + ntripCaster.value + ' preference saved.';
         clearMessageField();
     } else if ('load' == action) {
 
@@ -246,7 +234,7 @@ function ntripAttributes(action) {
         let which;
         if (ntripCaster.value == prfNtripCasterAct) {
             which                   = prfNtripCasterAct;
-            messageForm.textContent = 'Preferences loaded.';
+            messageField.textContent = 'Preferences loaded.';
         } else {
             which = ntripCaster.value;
         }
@@ -353,7 +341,7 @@ updateConfigBtn.addEventListener('click', () => {
         websocket.send( toJson('uiToPrefs') );          // Send "setPrefs" message to rover.
     }
     console.log('browser --> ' + toJson('uiToPrefs'));
-    messageForm.textContent = 'Preferences saved.';
+    messageField.textContent = 'Preferences saved.';
     setTimeout(function() { window.location.reload(); }, 2000);
     clearMessageField();
 });
@@ -366,10 +354,10 @@ resetConfigBtn.addEventListener('click', () => {
         if (confirmed) {
             websocket.send(PREF_RESET);  // Send "resetPrefs" message to rover.
             console.log('browser --> ' + PREF_RESET);
-            messageForm.textContent = 'Preferences reset.';
+            messageField.textContent = 'Preferences reset.';
             setTimeout(function() { window.location.reload(); }, 2000);
         } else {
-            messageForm.textContent = 'Reset cancelled.';
+            messageField.textContent = 'Reset cancelled.';
             clearMessageField();
         }
     }

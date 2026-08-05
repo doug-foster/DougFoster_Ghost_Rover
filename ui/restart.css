@@ -7,6 +7,7 @@
  *
  * @author D. Foster <doug@dougfoster.me>.
  * @since  3.2.1 [2026-07-31-02:15pm]. New.
+ * @since  3.2.1  [2026-08-01-03:00pm] Moved styles to global.css, commented out restart.css.
  * @link   http://dougfoster.me.
 */
 
@@ -17,27 +18,3 @@
  *
  * @since  3.2.1 [2026-07-31-02:15pm]. New.
  */
-
- #restart-items {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    max-width: 320px;
-    padding: 10px;
-    margin: 10px auto;
-    text-align: center;
- }
-#restart-items .menu-item {
-    margin: 10px;
-}
-
-/**
- * -------------------------------------------------------------------------
- *  Sub-section.
- * -------------------------------------------------------------------------
-*/
-
-/* --- Comment. --- */
-/*     -- Comment. -- */
-/*        - Comment. - */
-/*          Comment. */

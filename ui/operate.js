@@ -78,6 +78,7 @@ const btns                         = document.querySelectorAll('.btn');
 // --- Section: Comm. ---
 const commRtcm                     = document.querySelector('.info #rtcm');
 const commBt                       = document.querySelector('.info #bt');
+const rtcmSource                   = document.querySelector('.info #rtcm-source');
 
 // --- Section: Battery. ---
 const batteryStatus                = document.querySelector('.info #battery-status');
@@ -140,7 +141,6 @@ let convert                        = 1;     // Conversion for default units pref
  * @see   button()         - Buttons - set button states.
  * @see   toggleButtons()  - Buttons - set icon states.
  * @see   battery()        - Battery - set items.
- * @see   operateMessage() - Execute WebSocket message.
  * @see   flash()          - Flash an LED.
  */
 
@@ -365,208 +365,6 @@ function battery(which, info) {
 
 /**
  * -------------------------------------------------------------------------
- *  Execute WebSocket message.
- * -------------------------------------------------------------------------
- *
- * @return void   No output is returned.
- * @since  3.0.7  [2025-11-14-09:30am].
- * @since  3.0.10 [2026-01-08-12:30pm] Shortened keywords.
- * @since  3.0.11 [2026-01-20-07:00pm] Change altitude to height.
- * @since  3.0.11 [2026-01-21-03:30pm] Add comm(key, value).
- * @since  3.0.12 [2026-01-28-04:30pm] Add status section. Change "mode" to "RTCM".
- * @since  3.0.12 [2026-02-07-05:00pm] Add preferences.
- * @since  3.0.12 [2026-02-08-01:45pm] Add SEND_PREFS, change heights.
- * @since  3.0.12 [2026-02-09-03:45pm] Add WS message transfer rate.
- * @since  3.0.12 [2026-02-15-03:00pm] Add RTCM & NMEA status.
- * @since  3.0.12 [2026-02-15-03:45pm] Check wsLastMessageDate for undefined.
- * @since  3.0.12 [2026-02-18-11:00pm] Shorten RTCM & NMEA status.
- * @since  3.0.12 [2026-02-25-09:45pm] Refactor, move into statusItem().
- * @since  3.0.12 [2026-02-28-02:15pm] Add WS_SOCKET_NUM.
- * @since  3.1.2  [2026-07-05-05:45pm] Remove clearOperateUi().
- * @since  3.1.2  [2026-07-28-10:30am] Refaactor JSON.
- * @see    webSocketRcvMessage() in global.js.
- */
-function operateMessage(key, value) {
-
-    // --- Set element content directly or via fix(), button(), or battery() functions. ---
-    switch (key) {
-        case 'status':                                      // {"status":"ready"}.
-            if(value === 'ready') {
-                HEADER_H1.classList.remove('red');
-            }
-            break;
-        case "1":                            // {"1":"meter"}. Set in global.js.
-            prfUnt = value;
-            if ('feet' === prfUnt) {
-                heightUnits = 'in';
-            };
-            switch (value) {
-                case 'meter':
-                    statusUnitDisplayId.innerHTML = 'Meter';
-                    break;
-                case 'feet':
-                    statusUnitDisplayId.innerHTML = 'Feet';
-                    convert = 3.2808399;
-                    break;
-                default:
-                    statusUnitDisplayId.innerHTML = value;
-                    break;
-            }
-            break;
-        case "2":                         // {"2":"radio}.
-            switch (value) {
-                case 'radio':
-                    statusRtcmInId.innerHTML = 'Radio';
-                    break;
-                case 'ntrip':
-                    statusRtcmInId.innerHTML = 'NTRIP';
-                    break;
-                case 'off':
-                    statusRtcmInId.innerHTML = 'Off';
-                    break;
-                default:
-                    statusRtcmInId.innerHTML = value;
-                    break;
-            }
-            break;
-        case "3":                        // {"3":"on"}.
-            break;
-        case "4":           // {"4":100}
-            prfGnsMsrInt = value;
-            statusSolutionIntervalId.innerHTML = prfGnsNavRat + ' x ' + prfGnsMsrInt;
-            break;
-        case "5":                   // {"5":2}
-            prfGnsNavRat = value;
-            statusSolutionIntervalId.innerHTML = prfGnsNavRat + ' x ' + prfGnsMsrInt;
-            break;
-        case "6":                   // {"6":"ssid"}.
-            statusHotspotSsidId.innerHTML   = value;
-            break;
-        case "7":                   // {"7":"pass"}.
-            statusHotspotPassId.innerHTML   = value;
-            break;
-        case "8":                             // {"8":1}.
-            fix(value);
-            break;
-        case "9":                     // {"9":24}.
-            numSIV.innerHTML = value;
-            break;
-        case "10":                // {"10":"xx.xx"}. 3 posn = 10 mm.
-            numHeightElip.innerHTML = (Math.round(value * 100) / 100 * convert).toFixed(3);
-            break;
-        case "11":              // {"11":"127.05"}. 3 posn = 10 mm.
-            numHeightOrth.innerHTML = (Math.round(value * 100) / 100 * convert).toFixed(3);
-            break;
-        case "12":                        // {"12":"35.60599395,"} 8 posn = 1.11 mm.
-            numLatitude.innerHTML = (Math.round(value * 100000000) / 100000000).toFixed(8);
-            break;
-        case "13":                       // {"13":"-78.79439717"} 8 posn = 1.11 mm.
-            numLongitude.innerHTML = (Math.round(value * 100000000) / 100000000).toFixed(8);
-            break;
-        case "14":             // {"14":"0.016"}.
-            numHAC.forEach(hac => {
-                hac.innerHTML = (Math.round(value * 10000) / 10000 * convert).toFixed(3);
-            });
-            break;
-        case "15":                // {"15":"0.014"}.
-            numVAC.forEach(vac => {
-                vac.innerHTML = (Math.round(value * 10000) / 10000 * convert).toFixed(3);
-            });
-        case "16":                   // {"16":"u"}.
-            if (value == 'u') {
-                commRtcm.classList.add('up');
-                flashRtcm();
-            } else {
-                commRtcm.classList.remove('up');
-            }
-            break;
-        case "17":                // {"17":"u"}.
-            if (value == 'u') {
-                commBt.classList.add('up');
-                flashBt();
-            } else {
-                commBt.classList.remove('up');
-            }
-            break;
-        case "18":                      // {"18":"83.75"}.
-            battery('soc', value);
-            break;
-        case "19":                      // {"19":"-1.2"}.
-            battery('change', value);
-            break;
-        case "20":                      // {"20":"0h 3m 8s"}.
-            statusUptimeRoverId.textContent          = value;
-            break;
-        case "21":                      // {"21":"1234"}.
-            statusRtcmSentenceCountAllId.textContent = value.toLocaleString()
-            break;
-        case "22":                      // {"22":"1234"}.
-            statusRtcmSentenceRateId.textContent     = value.toLocaleString();
-            break;
-        case "23":                      // {"23":15271}.
-            statusNmeaCountGgaId.textContent         = value.toLocaleString()
-            break;
-        case "24":                      // {"24":15271}.
-            statusNmeaCountRmcId.textContent         = value.toLocaleString();
-            break;
-        case "25":                      // {"25":25450}.
-            statusNmeaCounGsatId.textContent         = value.toLocaleString();
-            break;
-        case "26":                      // {"26":72946}.
-            statusNmeaCountGsvId.textContent         = value.toLocaleString();
-            break;
-        case "27":                      // {"27":5090}.
-            statusNmeaCountGstId.textContent         = value.toLocaleString();
-            break;
-        case "28":                      // {"28":0}.
-            statusNmeaCountTxtId.textContent         = value.toLocaleString();
-            break; 
-        case "29":                      // {"29":3541857088}.
-            statusNmeaCountOthrId.textContent        = value.toLocaleString();
-            break;
-        case "30":                      // {"30":154010}.
-            statusNmeaSentenceCountAllId.textContent = value.toLocaleString();
-            break;
-        case "31":                      // {"31":81920}
-            statusNmeaRateId.textContent             = (value / 1000.0).toFixed();
-            break;
-        case "33":                      // {"33":"192.168.23.1"}.
-            statusLocalIpId.textContent              = value;
-            if (value.length > 0) {     // Status for WiFi server.
-                statusWifiMode.textContent = 'Server';
-            }
-            break;
-        case "34":                      // {"34":"172.20.10.3"}.
-            statusHotspotIpId.textContent            = value;
-            if (value.length > 0) {     // Status for WiFi client.
-                statusHotspotIpId.textContent        = value;
-                statusWifiMode.textContent += '/Client';
-            } else {
-                statusHotspotIpId.textContent        = 'N/A';
-            }
-            break;
-        case "35":                      // {"35":137}.
-            statusWebSocketNumId.textContent         = value.toLocaleString();
-            break;
-        case "36":                      // {"36":1201}.
-            statusInstrumentHeight.textContent       = value.toLocaleString();
-            break;
-        case "37":                      // {"37":659}.
-            statusRtcmSentenceCountAllId.textContent = value.toLocaleString();
-            break;
-        case "38":                      // {"38":0}.
-            statusRtcmSentenceRateId.textContent     = value.toFixed(2);
-            break;
-        case 'laser':                   // {"laser":"locked"}.
-        case 'height':                  // {"height":"locked"}.
-        case 'position':                // {"position":"locked"}.
-            button(key, value);
-            break;
-    }
-}
-
-/**
- * -------------------------------------------------------------------------
  *  Flash an LED.
  * -------------------------------------------------------------------------
  *
@@ -617,7 +415,6 @@ function flashRtcm() {
 
     // -- Console debug. --
     console.log('Show console messages is "' + sessionStorage.getItem("displayJsConsoleMessages") + '".');
-
 });
 
 // --- Buttons. ---

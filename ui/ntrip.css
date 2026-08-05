@@ -6,25 +6,34 @@
  * ntrip.css
  *
  * @author D. Foster <doug@dougfoster.me>.
- * @since  3.2.1 [2026-07-31-02:15pm]. New.
+ * @since  3.2.1 [2026-08-02-09:30am]. New.
  * @link   http://dougfoster.me.
 */
 
 /**
  * =========================================================================
- *  Section.
+ *  General.
  * =========================================================================
  *
  * @since  3.2.1 [2026-07-31-02:15pm]. New.
  */
-
-/**
- * -------------------------------------------------------------------------
- *  Sub-section.
- * -------------------------------------------------------------------------
-*/
-
-/* --- Comment. --- */
-/*     -- Comment. -- */
-/*        - Comment. - */
-/*          Comment. */
+.blink {
+  animation: fade 1.3s linear infinite;
+  color: black;
+}
+@keyframes fade {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.title .status {
+    margin-top: 5px;
+}
+.status {
+    font-family: monospace;
+    font-size: 90%;
+    font-style: italic;
+    color: var(--gray-2);
+}
+.note {
+    font-size: 90%;
+}

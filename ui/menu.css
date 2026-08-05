@@ -11,6 +11,7 @@
  * @since  3.1.0  [2026-03-02-05:00pm] Stable 3.0 version.
  * @since  3.1.1  [2026-06-25-02:00pm] Regroup: upload to SD card.
  * @since  3.1.2  [2026-07-05-08:30pm] General cleanup.
+ * @since  3.2.1  [2026-08-01-03:00pm] Moved styles to global.css, commented out menu.css.
  * @link   http://dougfoster.me.
 */
 
@@ -19,15 +20,3 @@
  *  General.
  * -------------------------------------------------------------------------
 */
- #menu-items {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    max-width: 320px;
-    padding: 10px;
-    margin: 10px auto;
-    text-align: center;
- }
-#menu-items .menu-item {
-    margin: 10px;
-}

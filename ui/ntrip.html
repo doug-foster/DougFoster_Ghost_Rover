@@ -7,7 +7,7 @@
  * ntrip.html
  *
  * @author D. Foster <doug@dougfoster.me>.
- * @since  3.2.1 [2026-07-31-02:15pm]. New.
+ * @since  3.2.1 [2026-08-01-04:45pm]. New.
  * @link   http://dougfoster.me.
 -->
 
@@ -35,7 +35,27 @@
 
         <!---- Section. ---->
         <section id="ntrip">
-            <div><br>NTRIP</div>
+            <div class="button-group">
+                <div class="label-and-button">
+                    <div class="title">WiFi Client<div id="wifi-client-status" class="hide status"></div></div>
+                    <a id="wifi-client" class="std-button">
+                        <span class="label">Connect</span>
+                    </a>
+                </div>
+                <div class="label-and-button">
+                    <div class="title">NTRIP Caster<div id="ntrip-caster-status" class="hide status"></div></div>
+                    <a id="ntrip-caster" class="std-button">
+                        <span class="label">Connect</span>
+                    </a>
+                </div>
+                <a id="operate" class="std-button" href="operate.html">
+                    <span class="label">Operate</span>
+                </a>
+                <a id="config" class="std-button" href="config.html">
+                    <span class="label">Config</span>
+                </a>
+            </div>
+            <div id="message-field" class="note">&nbsp;</div>
         </section>
     </body>
 </html>

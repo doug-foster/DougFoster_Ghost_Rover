@@ -26,7 +26,7 @@
  * @since  3.2.1  [2026-07-27-08:30am] Add webSocketNum.
  * @since  3.2.1  [2026-07-28-10:00am] Remove webSocketNum.
  * @since  3.2.1  [2026-07-28-04:45pm] Removed NMEA out switch & preference.
- * 
+ * @since  3.2.1  [2026-08-02-09:30am] Move clearMessageField() here from operate.js.
  * @link   http://dougfoster.me.
 */
 
@@ -43,7 +43,6 @@
  * @since  3.1.1  [2026-06-26-09:30pm] change WS_PREF_GNSS_MESASURE_INTERVAL to WS_PREF_GNSS_MEASURE_INTERVAL.
  * @since  3.1.2  [2026-07-16-10:00am] Add NTRIP.
  * @since  3.2.1  [2026-07-25-04:30pm] Add caster[{}].
- * @see    operateMessage() in operate.js.
  * @see    setHeights() in config.js.
  * @see    Global vars () WebSockets) in DougFoster_Ghost_Rover.ino.
  */
@@ -67,6 +66,7 @@ let batterySoc;
 // --- General. ---
 const newPage                 = document.querySelectorAll('a.new-page');
 const RECONNECT_INTERVAL      = 2000;    // Server reconnect interval.
+const messageField            = document.querySelector('#message-field');
 let wsNumBytesThisMessage     = 0;       // # of bytes in this WebSocket message. @see webSocketRcvMessage(). 
 
 // --- Header. ---
@@ -119,6 +119,7 @@ let heightPole               =    0;    // mm.
  * @since  3.0.3 [2025-10-16-01:45pm].
  * @since  3.1.0 [2026-03-20-11:15am] Update var names.
  * @since  3.2.1 [2026-07-25-04:30pm] add toJson().
+ * @since  3.2.1 [2026-08-02-09:30am] Move clearMessageField() here from operate.js.
  * @see   webSocketInit()       - WebSocket: init.
  * @see   webSocketOpened()     - WebSocket: opened.
  * @see   webSocketClosed()     - WebSocket: closed.
@@ -126,6 +127,7 @@ let heightPole               =    0;    // mm.
  * @see   webSocketStop()       - WebSocket: stopped.
  * @see   webSocketRcvMessage() - WebSocket: message from server. Decode.
  * @see   toJson()              - WebSocket: Encode values into JSON.
+ * @see   clearMessageField()   - Clear message field.
  */
 
 /**
@@ -249,8 +251,8 @@ async function webSocketStop(event) {
  *     18 = Battery State Of Charge (SOC)   (float    batterySoc         -> operBuffer[24]).
  *     19 = Battery change rate             (float    batteryChangeRate  -> operBuffer[24]).
  *     20 = Up time                         (char     uptime[20]).
- *     21 = RTCM in count all               Not used?
- *     22 = RTCM in rate                    Not used?
+ *     21 = Not used.
+ *     22 = Not used.
  *     23 = NMEA GGA out sentence count     (size_t   nmeaCountGGA).
  *     24 = NMEA RMC out sentence count     (size_t   nmeaCountRMC).
  *     25 = NMEA GSA out sentence count     (size_t   nmeaCountGSA).
@@ -262,7 +264,7 @@ async function webSocketStop(event) {
  *     31 = NMEA out rate                   (int64_t  nmeaRate).
  *     32 = Operational mode                (char     operMode[2]).
  *     33 = WiFi local network IP address   (char     localIp[16]).
- *     34 = WiFi hot spot address           Not used?
+ *     34 = WiFi hot spot address           (char     hotspotIp[16]).
  *     35 = WebSocket client/session id     (uint8_t  clientId).
  *     36 = Instrument height               (uint16_t prfInstrHgt).
  *     37 = RTCM sentence count             (size_t   rtcmSentenceCount).
@@ -271,15 +273,15 @@ async function webSocketStop(event) {
  *     40 = NTRIP caster #2 attributes      (char     prfNtripCastAttr[1][512]).
  *     41 = NTRIP caster #3 attributes      (char     prfNtripCastAttr[2][512]).
  *     42 = NTRIP caster active [1/2/3]     (char     prfNtripCastAct[2]).
- *     43 = NTRIP caster id                 (struct ntripCasterProfile caster[1/2/3].id      - uint8_t).
- *     44 = NTRIP caster name               (struct ntripCasterProfile caster[1/2/3].name    - char name[48]).
- *     45 = NTRIP caster url                (struct ntripCasterProfile caster[1/2/3].url     - char url[48]).
- *     46 = NTRIP caster mount point        (struct ntripCasterProfile caster[1/2/3].mount   - char mount[24]).
- *     47 = NTRIP caster port               (struct ntripCasterProfile caster[1/2/3].port    - uint16_t).
- *     48 = NTRIP caster version            (struct ntripCasterProfile caster[1/2/3].version - uint8_t).
- *     49 = NTRIP caster user               (struct ntripCasterProfile caster[1/2/3].user    - char user[48]).
- *     50 = NTRIP caster password           (struct ntripCasterProfile caster[1/2/3].pass    - char user[48]).
- *     51 = NTRIP caster sendGga            (struct ntripCasterProfile caster[1/2/3].sendGga - bool ).
+ *     43 = NTRIP caster id                 (struct ntripCasterProfile ntripCaster.id      - uint8_t).
+ *     44 = NTRIP caster name               (struct ntripCasterProfile ntripCaster.name    - char name[48]).
+ *     45 = NTRIP caster url                (struct ntripCasterProfile ntripCaster.url     - char url[48]).
+ *     46 = NTRIP caster mount point        (struct ntripCasterProfile ntripCaster.mount   - char mount[24]).
+ *     47 = NTRIP caster port               (struct ntripCasterProfile ntripCaster.port    - uint16_t).
+ *     48 = NTRIP caster version            (struct ntripCasterProfile ntripCaster.version - uint8_t).
+ *     49 = NTRIP caster user               (struct ntripCasterProfile ntripCaster.user    - char user[48]).
+ *     50 = NTRIP caster password           (struct ntripCasterProfile ntripCaster.pass    - char user[48]).
+ *     51 = NTRIP caster sendGga            (struct ntripCasterProfile ntripCaster.sendGga - bool ).
  *
  * @return void  No output is returned.
  * @since  3.0.7 [2025-11-15-02:00pm].
@@ -291,10 +293,13 @@ async function webSocketStop(event) {
  * @since  3.2.1  [2026-07-27-08:30am] Refactor, add webSocketNum.
  * @since  3.2.1  [2026-07-28-10:00am] Remove webSocketNum.
  * @since  3.2.1  [2026-07-28-04:45pm] Removed NMEA out switch & preference.
- * @see    operateMessage() in operate.js.
+ * @since  3.2.1  [2026-08-03-11:30am] Remove jsonObj["21'] & jsonObj["21']. Replace displayNmeaMessage() with webSocketRcvMessage().
  * @see    filesMessage() in files.js.
  */
 function webSocketRcvMessage(event) {
+
+    // --- Local vars. ---
+    const ntripCasterAttributes = [];
 
     // --- Process message. ---
     jsonObj = JSON.parse(event.data);
@@ -307,91 +312,66 @@ function webSocketRcvMessage(event) {
         console.log(response);
     }
 
-    // -- Page header. --
+    // --- Page header. ---
     if (undefined !== jsonObj["0"]) {
         versionRoverId.innerHTML = jsonObj["0"];
     }
 
-    // -- Config page. --
-    if ((window.location.pathname.includes('config') && (Object.keys(jsonObj).length > 1))) {
-
-        if (undefined !== jsonObj["1"]) {
-            document.querySelector('input[name="switch-unit"][value="' + jsonObj["1"] + '"]').checked = true;
+    // --- Set global vars from sendPrefs message. ---
+    if (undefined !== jsonObj["sendPrefsResp"]) {
+        build                       = jsonObj["0"];
+        prfUnt                      = jsonObj["1"];
+        prfRtcIn                    = jsonObj["2"];
+        prfGnsMsrInt                = jsonObj["4"];
+        prfGnsNavRat                = jsonObj["5"];
+        prfHotSsi                   = jsonObj["6"];
+        prfHotPas                   = jsonObj["7"];
+        hotspotIp                   = jsonObj["34"];
+        prfInstrHght                = jsonObj["36"];
+        ntripCasterAttributes[1]    = jsonObj["39"];
+        ntripCasterAttributes[2]    = jsonObj["40"];
+        ntripCasterAttributes[3]    = jsonObj["41"];
+        if (prfRtcIn == 'ntrip') {
+            prfNtripCasterAct = jsonObj["42"];  // Preference.
+        } else {                                // "off","radio".
+            prfNtripCasterAct = 1;              // Default.
         }
-        if (undefined !== jsonObj["2"]) {
-            prfRtcIn = jsonObj["2"];
-            document.querySelector('input[name="switch-rtcm-in"][value="' + jsonObj["2"] + '"]').checked = true;
-
-            // --- Hide/show "choose caster" row. ---
-            if(prfRtcIn == 'ntrip') {
-                chooseCaster.forEach(item => {
-                    item.classList.remove('hide');
-                });
-            }
+        // -- Load caster array. ntripAttributes() uses caster array values to set UI fields. --
+        for (let i = 1; i < ntripCasterAttributes.length; i++) {  // Array element 0 is not used. All alpha values.
+            let jsonObj = JSON.parse(ntripCasterAttributes[i]);
+            caster[i].id      = jsonObj["43"];
+            caster[i].name    = jsonObj["44"];
+            caster[i].url     = jsonObj["45"];
+            caster[i].mount   = jsonObj["46"];
+            caster[i].port    = jsonObj["47"];
+            caster[i].version = jsonObj["48"];
+            caster[i].user    = jsonObj["49"];
+            caster[i].pass    = jsonObj["50"];
+            caster[i].sendGga = Boolean(jsonObj["51"]);
         }
-        if (undefined !== jsonObj["4"]) {
-            prfGnsMsrInt              = jsonObj["4"];
-            gnssMeasureInterval.value = jsonObj["4"];
-            outputInterval.textContent = gnssMeasureInterval.value * gnssNavRate.value ;
-        }
-        if (undefined !== jsonObj["5"]) {
-            prfGnsNavRat      = jsonObj["5"];
-            gnssNavRate.value = jsonObj["5"];
-            outputInterval.textContent = gnssMeasureInterval.value * gnssNavRate.value ;
-        }
-        if (undefined !== jsonObj["6"]) {
-            prfHotSsi         = jsonObj["6"];
-            hotspotSsid.value = jsonObj["6"];
-        }
-        if (undefined !== jsonObj["7"]) {
-            prfHotPas             = jsonObj["7"];
-            hotspotPassword.value = jsonObj["7"];
-        }
-        if (undefined !== jsonObj["36"]) {
-            prfInstrHght = jsonObj["36"];
-            setHeights('init');
-        }
-        if (undefined !== jsonObj["39"]) {
-            ntripCasterAttributes[1] = jsonObj["39"];
-        }
-        if (undefined !== jsonObj["40"]) {
-            ntripCasterAttributes[2] = jsonObj["40"];
-        }
-        if (undefined !== jsonObj["41"]) {
-            ntripCasterAttributes[3] = jsonObj["41"];
-        }
-        if (undefined !== jsonObj["42"]) {
-            if (prfRtcIn == 'ntrip') {
-                prfNtripCasterAct = jsonObj["42"];  // Preference.
-            } else {
-                prfNtripCasterAct = 1;              // Default.
-            }
-            document.querySelector('input[name="switch-ntrip-caster-active"][value="' + prfNtripCasterAct +'"]').checked = true;
-            ntripCaster.value = prfNtripCasterAct
-        }
-
-        // - Load caster array. ntripAttributes() uses caster array values to set UI fields.
-        if (undefined !== jsonObj["42"]) {
-            for (let i = 1; i < ntripCasterAttributes.length; i++) {  // Array element 0 is not used. All alpha values.
-                let jsonObj = JSON.parse(ntripCasterAttributes[i]);
-                caster[i].id      = (undefined == jsonObj["43"]) ? '' : jsonObj["43"];
-                caster[i].name    = (undefined == jsonObj["44"]) ? '' : jsonObj["44"];
-                caster[i].url     = (undefined == jsonObj["45"]) ? '' : jsonObj["45"];
-                caster[i].mount   = (undefined == jsonObj["46"]) ? '' : jsonObj["46"];
-                caster[i].port    = (undefined == jsonObj["47"]) ? '' : jsonObj["47"];
-                caster[i].version = (undefined == jsonObj["48"]) ? '' : jsonObj["48"];
-                caster[i].user    = (undefined == jsonObj["49"]) ? '' : jsonObj["49"];
-                caster[i].pass    = (undefined == jsonObj["50"]) ? '' : jsonObj["50"];
-                caster[i].sendGga = ntripSendGGA.checked = Boolean(jsonObj["51"]);
-            }
-        }
-
-        // - Load UI fields. =
-        ntripAttributes('load');
-
     }
 
-    // -- Files page. --
+    // --- Config page. ---
+    if ((window.location.pathname.includes('config') && (Object.keys(jsonObj).length > 1))) {
+        document.querySelector('input[name="switch-unit"][value="'    + jsonObj["1"] + '"]').checked = true;
+        document.querySelector('input[name="switch-rtcm-in"][value="' + jsonObj["2"] + '"]').checked = true;
+        if(prfRtcIn == 'ntrip') {
+            chooseCaster.forEach(item => {
+                item.classList.remove('hide');      // Hide/show "choose caster" row.
+            });
+        }
+        gnssMeasureInterval.value = prfGnsMsrInt;
+        gnssNavRate.value         =  prfGnsNavRat;
+        outputInterval.textContent = gnssMeasureInterval.value * gnssNavRate.value ;
+        hotspotSsid.value     = jsonObj["6"];
+        hotspotPassword.value = jsonObj["7"];
+        setHeights('init');
+        document.querySelector('input[name="switch-ntrip-caster-active"][value="' + prfNtripCasterAct +'"]').checked = true;
+        ntripCaster.value     = prfNtripCasterAct;
+        ntripAttributes('load');                    // Load UI fields.
+    }
+
+    // --- Files page. ---
     if (window.location.pathname.includes('files')) {
 
         if (undefined !== jsonObj["fileList"]) {
@@ -416,22 +396,246 @@ function webSocketRcvMessage(event) {
         }
     }
 
-    // -- NMEA page. --
-    if (window.location.pathname.includes('nmea')) {
-        displayNmeaMessage(jsonObj["NMEA"]);
+    // --- NMEA page. ---
+    if (window.location.pathname.includes('nmea') && (undefined == jsonObj["sendPrefsResp"])) {
+        // displayNmeaMessage(jsonObj["NMEA"]);
+
+        if (solutionCount < numSolutionsToDisplay) {
+            if (jsonObj["NMEA"].includes('$GNGGA')) {
+
+                // --- Make a timestamp. ---
+                const date         = new Date();
+                const hours        = String(date.getHours()).padStart(2, '0');
+                const minutes      = String(date.getMinutes()).padStart(2, '0');
+                const seconds      = String(date.getSeconds()).padStart(2, '0');
+                const milliseconds = String(date.getMilliseconds()).padStart(3, '0');
+                let timeStamp      = `@${hours}:${minutes}:${seconds}.${milliseconds}`;
+
+                // --- Calculate interval since last $GNGGA sentence. ---
+                deltaMs = Math.abs(date - lastDate); 
+                lastDate = date;
+
+                // --- Display timestamp & delta ms. ---
+                solutionCount++;
+                nmeaDisplayArea.innerHTML += '<br><br><b> #' + solutionCount + '/' + numSolutionsToDisplay + ' - ' + timeStamp + '  </b>(<b>' + deltaMs + 'ms</b> since last<b>)</b><br>';
+            }
+
+            // --- Build the output. ---
+            if (solutionCount > 0) {
+                nmeaDisplayArea.innerHTML += jsonObj["NMEA"];
+            }
+        }
     }
 
-    // -- Operate page. --
+    // --- Operate page. ---
     if (window.location.pathname.includes('operate')) {
-        // --- Deprecated. // ToDo: Replace & dump. ---
-        if ('null' !== event.data) {
-            Object.entries(jsonObj).forEach(([key, value]) => {
-                // -- Route each message to its page. --
-                if (window.location.pathname.includes('operate')) {
-                    operateMessage(key, value);         // operate.js.
-                } 
+
+        if (jsonObj["sendPrefsResp"]) {
+
+            // -- {"1":"meter"}. --
+            if ('feet' === prfUnt) {
+                heightUnits = 'in';
+            };
+            switch (jsonObj["1"]) {
+                case 'meter':
+                    statusUnitDisplayId.innerText = 'Meter';
+                    break;
+                case 'feet':
+                    statusUnitDisplayId.innerText = 'Feet';
+                    convert = 3.2808399;
+                    break;
+                default:
+                    statusUnitDisplayId.innerText = jsonObj["1"];
+                    break;
+            }
+
+            // -- {"2":"radio}. --
+            switch (jsonObj["2"]) {
+                case 'radio':
+                    statusRtcmInId.innerText = 'Radio';
+                    rtcmSource.innerText = 'Radio';
+                    break;
+                case 'ntrip':
+                    statusRtcmInId.innerText = 'NTRIP';
+                    rtcmSource.innerText = 'NTRIP';
+                    break;
+                case 'off':
+                    statusRtcmInId.innerText = 'Off';
+                    rtcmSource.innerText = 'Off';
+                    break;
+                default:
+                    statusRtcmInId.innerText = jsonObj["2"];
+                    break;
+            }
+
+            // -- {"4":100}. --
+            // -- {"5":2}. --
+            statusSolutionIntervalId.innerHTML = prfGnsNavRat + ' x ' + prfGnsMsrInt;
+
+            // -- {"6":"ssid"}. --
+            statusHotspotSsidId.innerHTML = jsonObj["6"];
+
+            // -- {"7":"pass"}. --
+            statusHotspotPassId.innerHTML = jsonObj["7"];
+
+            // -- {"35":137}. --
+            statusWebSocketNumId.textContent = jsonObj["35"].toLocaleString();
+
+            // -- {"36":1201}. --
+            statusInstrumentHeight.textContent = jsonObj["36"].toLocaleString();
+
+        } else {
+
+            // -- {"8":1}. --
+            fix(jsonObj["8"]);
+
+            // -- {"9":24}. --
+            numSIV.innerHTML = jsonObj["9"];
+
+            // -- {"10":"xx.xx"} 3 posn = 10 mm. --
+            numHeightElip.innerHTML = (Math.round(jsonObj["10"] * 100) / 100 * convert).toFixed(3);
+
+            // -- {"11":"127.05"}. 3 posn = 10 mm. --
+            numHeightOrth.innerHTML = (Math.round(jsonObj["11"] * 100) / 100 * convert).toFixed(3);
+
+            // -- {"12":"35.60599395,"} 8 posn = 1.11 mm. --
+            numLatitude.innerHTML = (Math.round(jsonObj["12"] * 100000000) / 100000000).toFixed(8);
+
+            // -- {"13":"-78.79439717"} 8 posn = 1.11 mm. --
+            numLongitude.innerHTML = (Math.round(jsonObj["13"] * 100000000) / 100000000).toFixed(8);
+
+            // -- {"14":"0.016"}. --
+            numHAC.forEach(hac => {
+                hac.innerHTML = (Math.round(jsonObj["14"] * 10000) / 10000 * convert).toFixed(3);
             });
+
+            // -- {"15":"0.014"}. --
+            numVAC.forEach(vac => {
+                vac.innerHTML = (Math.round(jsonObj["15"] * 10000) / 10000 * convert).toFixed(3);
+            });
+
+            // -- {"16":"u"}. --
+            if (jsonObj["16"]) {
+                commRtcm.classList.add('up');
+                flashRtcm();
+            } else {
+                commRtcm.classList.remove('up');
+            }
+
+            // -- {"17":"u"}. --
+            if (jsonObj["17"]) {
+                commBt.classList.add('up');
+                flashBt();
+            } else {
+                commBt.classList.remove('up');
+            }
+
+            // -- {"18":"83.75"}. --
+            battery('soc', jsonObj["18"]);
+
+            // -- {"19":"-1.2"}. --
+            battery('change', jsonObj["19"]);
+
+            // -- {"20":"0h 3m 8s"}. --
+            statusUptimeRoverId.textContent = jsonObj["20"];
+
+            // -- {"23":15271}. --
+            statusNmeaCountGgaId.textContent = jsonObj["23"].toLocaleString()
+
+            // -- {"24":15271}. --
+            statusNmeaCountRmcId.textContent = jsonObj["24"].toLocaleString();
+
+            // -- {"25":25450}. --
+            statusNmeaCounGsatId.textContent = jsonObj["25"].toLocaleString();
+
+            // -- {"26":72946}. --
+            statusNmeaCountGsvId.textContent = jsonObj["26"].toLocaleString();
+
+            // -- {"27":5090}. --
+            statusNmeaCountGstId.textContent = jsonObj["27"].toLocaleString();
+
+            // -- {"28":0}. --
+            statusNmeaCountTxtId.textContent = jsonObj["28"].toLocaleString();
+
+            // -- {"29":3541857088}. --
+            statusNmeaCountOthrId.textContent = jsonObj["29"].toLocaleString();
+
+            // -- {"30":154010}. --
+            statusNmeaSentenceCountAllId.textContent = jsonObj["30"].toLocaleString();
+
+            // -- {"31":81920} --
+            statusNmeaRateId.textContent = (jsonObj["31"] / 1000.0).toFixed();
+
+            // -- {"33":"192.168.23.1"}. --
+            statusLocalIpId.textContent = jsonObj["33"];
+            if (jsonObj["33"].length > 0) {         // Status for WiFi server.
+                statusWifiMode.textContent = 'Server';
+            }
+
+            // -- {"34":"172.20.10.3"}. --
+            statusHotspotIpId.textContent = jsonObj["34"];
+            if (jsonObj["34"].length > 0) {         // Status for WiFi client.
+                statusHotspotIpId.textContent = jsonObj["34"];
+                statusWifiMode.textContent += '/Client';
+            } else {
+                statusHotspotIpId.textContent = 'N/A';
+            }
+
+            // -- {"37":659}. --
+            statusRtcmSentenceCountAllId.textContent = jsonObj["37"].toLocaleString();
+
+            // -- {"38":0}. --
+            statusRtcmSentenceRateId.textContent = jsonObj["38"].toFixed(2);
+
+            // case 'laser':                   // {"laser":"locked"}.
+            // case 'height':                  // {"height":"locked"}.
+            // case 'position':                // {"position":"locked"}.
+            //     button(key, value);
         }
+    }
+
+    // --- NTRIP page. ---
+    if (window.location.pathname.includes('ntrip')) {
+
+        // -- WiFi client. --
+        if (undefined !== jsonObj["connectWifiClientResp"]) {
+
+            // - Add response to message field. -
+            messageField.innerText += '<-- ' + jsonObj["connectWifiClientResp"] + '\n';
+
+            // - Failed. Update display. -
+            if (messageField.innerText.includes('ABORTED')) {
+                btnWifiClientLabel.textContent = "Connect";
+                statusWifiClient.classList.add('hide');
+                statusWifiClient.classList.remove('blink');
+                clearMessageField();
+            }
+
+            // - Connected. Update display. -
+            if (messageField.innerText.includes('CONNECTED')) {
+                statusWifiClient.textContent = "- Connected -";
+                statusWifiClient.classList.remove('hide');
+                statusWifiClient.classList.remove('blink');
+                btnWifiClientLabel.innerText = "Disconnect";
+                clearMessageField();
+            }
+
+        } else if (undefined !== jsonObj["disconnectWifiClientResp"]) {
+
+            // - Add response to message field. -
+            messageField.innerText += '<-- ' + jsonObj["disconnectWifiClientResp"] + '\n';
+            clearMessageField();
+        }
+
+        // -- NTRIP caster. --
+        if (undefined !== jsonObj["connectNtripCasterResp"]) {
+
+            // - Add response to message field. -
+            messageField.innerText += '<-- ' + jsonObj["connectNtripCasterResp"] + '\n';
+
+            // ToDo: add process logic.
+        }
+
     }
 }
 
@@ -488,6 +692,19 @@ function toJson(which) {
             break;
     }
     return jsonString;
+}
+
+/**
+ * -------------------------------------------------------------------------
+ *  Clear message field.
+ * -------------------------------------------------------------------------
+ * 
+ * @return void  No output is returned.
+ * @since  3.0.12 [2026-02-07-11:00am] New.
+ * @since  3.2.1  [2026-08-02-09:30am] Move clearMessageField() here from operate.js.
+ */
+function clearMessageField() {
+    setTimeout(function() { messageField.innerHTML = "&nbsp;"; }, 6000);
 }
 
 /**

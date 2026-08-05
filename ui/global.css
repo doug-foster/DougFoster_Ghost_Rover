@@ -16,6 +16,7 @@
  * @since  3.1.2  [2026-07-05-08:30pm] General cleanup.
  * @since  3.2.1  [2026-07-27-08:30am] Add webSocketNum.
  * @since  3.2.1  [2026-07-28-10:00am] Header items.
+ * @since  3.2.1  [2026-08-01-03:00pm] Add styles.
  * @link   http://dougfoster.me.
 */
 
@@ -53,6 +54,15 @@ a {
 }
 .hide {
     display: none !important;
+}
+.note {
+    grid-column: 1 / -1;
+    box-sizing: border-box;
+    width: 100%;
+    margin: 10px auto;
+    padding: 10px;
+    background-color: var(--gray-4);
+    font-family: 'Courier New', Courier, monospace;
 }
 
 /**
@@ -104,9 +114,23 @@ header #header-items * {
  *  Buttons.
  * -------------------------------------------------------------------------
 */
+ .button-group {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    max-width: 320px;
+    padding: 10px;
+    margin: 10px auto;
+    text-align: center;
+ }
+
+.button-group .std-button {
+    margin: 10px;
+}
 .std-button {
-    max-width: 100px;
-    min-width: 100px;
+    display: block;
+    max-width: 110px;
+    min-width: 110px;
     padding: 12px;
     background-color: var(--green-3);
     border: 1px solid;
@@ -116,6 +140,11 @@ header #header-items * {
     text-align: center;
     color: #ffffff;
     cursor: pointer;
+}
+.empty-button {
+    display: block;
+    max-width: 110px;
+    min-width: 110px;
 }
 .std-button.shadow {
     box-shadow: inset 0px 0px 90px 0px var(--green-5);

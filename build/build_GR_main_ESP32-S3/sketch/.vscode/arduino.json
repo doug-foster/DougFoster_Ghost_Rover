@@ -1,6 +1,6 @@
 #line 1 "/Users/dougfoster/Library/CloudStorage/Dropbox/Data/doug/Topics/_dev-arduino/DougFoster_Ghost_Rover/.vscode/arduino.json"
 {
-  "port": "/dev/cu.usbmodem2141401",
+  "port": "/dev/cu.usbmodem21101",
   "configuration": "UploadSpeed=921600,USBMode=default,CDCOnBoot=default,MSCOnBoot=default,DFUOnBoot=default,UploadMode=default,CPUFreq=240,FlashMode=qio,PartitionScheme=no_fs,DebugLevel=none,PSRAM=enabled,LoopCore=1,EventsCore=1,EraseFlash=none,JTAGAdapter=default,ZigbeeMode=default",
   "output": "build",
   "board": "esp32:esp32:sparkfun_esp32s3_thing_plus",
