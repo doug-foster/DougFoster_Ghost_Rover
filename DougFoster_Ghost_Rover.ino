@@ -4,26 +4,26 @@
  * *************************************************************************
  *
  * @author D. Foster <doug@dougfoster.me>.
- * @since  3.1.0  [2026-03-02-05:00pm] Stable 3.0 version.
- * @since  3.1.0  [2026-03-10-11:30am] Add pole height preference.
- * @since  3.1.1  [2026-06-25-10:30pm] Regroup. Cleanup.
- * @since  3.1.1  [2026-06-26-12:30pm] Cleanup formatting.
- * @since  3.1.1  [2026-06-26-06:00pm] Change reset to restart.
- * @since  3.1.1  [2026-06-26-06:00pm] Change checkZED to checkZedTriggerUpdate.
- * @since  3.1.1  [2026-07-03-10:30am] General cleanup.
- * @since  3.1.2  [2026-07-03-06:15pm] New, GhostRover FreeRTOS task taskRtcmRelay() replaced relaySerial1toSerial2() in loop().
- * @since  3.1.2  [2026-07-03-07:30pm] Address rtcmSentence buffer overflow.
- * @since  3.1.2  [2026-07-15-04:45pm] Add NTRIP preferences.
- * @since  3.1.2  [2026-07-16-09:00am] Changed int16_t prfInstrHgt to uint16_t.
- * @since  3.1.2  [2026-07-18-03:00pm] NTRIP.
- * @since  3.2.1  [2026-07-24-03:30pm] Refactor JSON.
- * @since  3.2.1  [2026-07-25-11:00am] Removed wsKey().
- * @since  3.2.1  [2026-07-25-05:00pm] Convert NTRIP keys from alpha to numeric.
- * @since  3.2.1  [2026-07-27-01:45pm] Add sendDataToBrowser(), refactor to consolidate JSON.
- * @since  3.2.1  [2026-07-28-04:45pm] Removed NMEA out switch & preference.
- * @since  3.2.1  [2026-07-31-09:30am] Add WiFi client for NTRIP access.
- * @since  3.2.1  [2026-08-02-04:30pm] Remove connectWiFiclient().
- * @since  3.2.1  [2026-08-03-10:00am] Removed jsonObj["21'] & jsonObj["21'].
+ * @since  3.1.0 [2026-03-02-05:00pm] Stable 3.0 version.
+ * @since  3.1.0 [2026-03-10-11:30am] Add pole height preference.
+ * @since  3.1.1 [2026-06-25-10:30pm] Regroup. Cleanup.
+ * @since  3.1.1 [2026-06-26-12:30pm] Cleanup formatting.
+ * @since  3.1.1 [2026-06-26-06:00pm] Change reset to restart.
+ * @since  3.1.1 [2026-06-26-06:00pm] Change checkZED to checkZedTriggerUpdate.
+ * @since  3.1.1 [2026-07-03-10:30am] General cleanup.
+ * @since  3.1.2 [2026-07-03-06:15pm] New, GhostRover FreeRTOS task taskRtcmRelay() replaced relaySerial1toSerial2() in loop().
+ * @since  3.1.2 [2026-07-03-07:30pm] Address rtcmSentence buffer overflow.
+ * @since  3.1.2 [2026-07-15-04:45pm] Add NTRIP preferences.
+ * @since  3.1.2 [2026-07-16-09:00am] Changed int16_t prfInstrHgt to uint16_t.
+ * @since  3.1.2 [2026-07-18-03:00pm] NTRIP.
+ * @since  3.2.1 [2026-07-24-03:30pm] Refactor JSON.
+ * @since  3.2.1 [2026-07-25-11:00am] Removed wsKey().
+ * @since  3.2.1 [2026-07-25-05:00pm] Convert NTRIP keys from alpha to numeric.
+ * @since  3.2.1 [2026-07-27-01:45pm] Add sendDataToBrowser(), refactor to consolidate JSON.
+ * @since  3.2.1 [2026-07-28-04:45pm] Removed NMEA out switch & preference.
+ * @since  3.2.1 [2026-07-31-09:30am] Add WiFi client for NTRIP access.
+ * @since  3.2.1 [2026-08-02-04:30pm] Remove connectWiFiclient().
+ * @since  3.2.1 [2026-08-03-10:00am] Removed jsonObj["21'] & jsonObj["21'].
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover_BT_relay.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
@@ -366,7 +366,7 @@
 #include <ESPAsyncWebServer.h>                             // https://github.com/ESP32Async/ESPAsyncWebServer (3.8.1).
 #include <ArduinoJson.h>                                   // https://github.com/bblanchon/ArduinoJson (7.4.3).
 #include <SparkFun_MAX1704x_Fuel_Gauge_Arduino_Library.h>  // https://github.com/sparkfun/SparkFun_MAX1704x_Fuel_Gauge_Arduino_Library (1.0.4).
-#include <SparkFun_u-blox_GNSS_v3.h>                       // https://github.com/sparkfun/SparkFun_u-blox_GNSS_v3 (3.1.13).
+#include <SparkFun_u-blox_GNSS_v3.h>                       // https://github.com/sparkfun/SparkFun_u-blox_GNSS_v3 (3.1.13).            
 
 /**
  * =========================================================================
@@ -480,12 +480,12 @@ const bool    RW_MODE                   = false;          // Open preference nam
 const bool    RO_MODE                   = true;           // Open preference name space as read only.
 const uint8_t MAJOR_VERSION             = 3;              // Current major build version (@see showBuild()).
 const uint8_t MINOR_VERSION             = 2;              // Current minor build version (@see showBuild()).
-const uint8_t PATCH_VERSION             = 1;              // Current patch build version (@see showBuild()).
-const uint8_t MIN_SATELLITE_THRESHHOLD  =  2;             // Minimum SIV for reliable coordinate information.      
+const uint8_t PATCH_VERSION             = 2;              // Current patch build version (@see showBuild()).
+const uint8_t MIN_SATELLITE_THRESHHOLD  = 2;              // Minimum SIV for reliable coordinate information.      
 bool          ghostMode                 = false;          // Flag, in Ghost mode (i.e. locked coordinates).
 bool          i2cUp                     = false;          // Status: true if both Wire & Wire1 up, else false.
 bool          inLoop                    = false;          // In loop() indicator.
-bool          RTCMin                    = false;          // RTCM being received from NTRIP or radio within RTCM_TIMEOUT.
+bool          RTCMin                    = false;          // RTCM being received within RTCM_TIMEOUT.
 bool          NMEAout                   = false;          // NMEA being sent OUT to MCU #2.
 bool          zeroStatusCounters        = false;          // Flag to zero status counters.
 bool          restartGrMCU1             = false;          // Flag to restart GR-MCU1.
@@ -506,8 +506,8 @@ char          serialState[4];                             // Serial state: '-', 
                                                           // serialState[1] = Serial0 interface, not used.
                                                           // serialState[2] = Serial1 interface, RTCM in from HC-12.
                                                           // serialState[3] = Serial2 interface, RTCM out to ZED UART2.
-                                                          // prfRtcmInSource (char[6]) RTCM in source: off/radio/ntrip.
-                                                          // RTCM (bool) being received from NTRIP or radio within RTCM_TIMEOUT.
+                                                          // prfRtcmInSource (char[6]) RTCM in source: off, radio, ntrip, ...
+                                                          // RTCM (bool) being received within RTCM_TIMEOUT.
                                                           // NMEA (bool) being sent OUT to MCU #2.
 char          nmeaBuffer[120]           = {'\0'};         // Buffer for NMEA sentence. @see DevUBLOXGNSS::processNMEA().  // ToDo: Move to local var?
 char          operBuffer[24]            = {'\0'};         // Buffer for Operate data.
@@ -529,7 +529,7 @@ double        lon                       = 0;              // GNSS - longitude.
 // --- Preferences. ---
 const uint16_t NTRIP_CAST_ATTR_LEN      = 512;            // Length of character array for NTRIP caster attibute profile.
 char           prfUnt[6];                                 // Distance units: meter/feet (used only in browser).
-char           prfRtcmInSource[6];                        // RTCM in source: off/radio/ntrip.
+char           prfRtcmInSource[8];                        // RTCM in source: off, radio, ntrip, ...
 char           prfHotSsi[20];                             // WiFi hotspot client: network SSID.
 char           prfHotPas[30];                             // WiFi hotspot client: password.
 char           prfNtripCastAttr[4][NTRIP_CAST_ATTR_LEN];  // 2D Array of (4) NTRIP caster attribute profiles (each is in JSON format).
@@ -653,7 +653,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
     // --- Local vars. ---
     const char      NAMESPACE[]             = "config";         // The preference namespace. 
     const char      DEF_UNT[]               = "meter";          // Default distance units: meter/feet (used only in browser).                        1 - Matching global var: char     prfUnt[6].
-    const char      DEF_RTC_IN[]            = "radio";          // Default control RTCM in: off/radio/ntrip.                                         2 - Matching global var: char     prfRtcmInSource[6].
+    const char      DEF_RTC_IN[]            = "off";            // Default control RTCM in: off, radio, ntrip, ...                                         2 - Matching global var: char     prfRtcmInSource[6].
     const char      DEF_HOT_SSI[]           = "";               // Default WiFi hotspot client: network SSID.                                        4 - Matching global var: char     prfHotSsi[20].
     const char      DEF_HOT_PASS[]          = "";               // Default WiFi hotspot client: password.                                            5 - Matching global var: char     prfHotPas[30].
     const char      DEF_NTRIP_CAST_ATTR_1[] = "{\"43\":\"1\",\"44\":\"\",\"45\":\"\",\"46\":\"\",\"47\":\"2101\",\"48\":\"1\",\"49\":\"\",\"50\":\"\",\"51\":\"1\"}";
@@ -756,7 +756,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             roverPrefs.end();
             Serial.println("Preferences saved.");
             restartGrMCU1Processes = true;
-            Serial.println("GR-MCU1 will restart.");
+            Serial.println("\nGR-MCU1 will restart dependent processes.");
             break;
 
         case PREF_RESET:
@@ -778,7 +778,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             roverPrefs.end();
             Serial.println("Resetting all preferences.");
             restartGrMCU1Processes = true;
-            Serial.println("GR-MCU1 will restart.");
+            Serial.println("\nGR-MCU1 will restart dependent processes.");
             break;
 
         case PREF_PRINT:
@@ -848,7 +848,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             roverPrefs.end();
             Serial.println("NTRIP preference set.");
             restartGrMCU1Processes = true;
-            Serial.println("GR-MCU1 will restart.");
+            Serial.println("\nGR-MCU1 will restart dependent processes.");
             break;
     }
 }
@@ -1132,8 +1132,8 @@ void showBuild() {
     Serial.println('\n');         // Empty lines before displaying boot messages.
     Serial.printf("%s\n%s\n", NAME, buildString);
     Serial.printf("Using %s, Rev %d, %d core(s), ID (MAC) %012llX.\n", ESP.getChipModel(), chip_info.revision, chip_info.cores, ESP.getEfuseMac());
-    Serial.println("setup() started.");
-    Serial.printf("Serial (USB) started @ %u bps.\n", SERIAL_USB_SPEED);
+    Serial.println("Setup started.");
+    Serial.printf("SerialUSB started @ %u bps.\n", SERIAL_USB_SPEED);
 }
 
 /**
@@ -1174,11 +1174,12 @@ void startSerial() {
     if (strncmp(prfRtcmInSource, "radio", sizeof(prfRtcmInSource)) == 0) {
         Serial1.begin(SERIAL1_SPEED, SERIAL_8N1, HC12_TX, HC12_RX); // UART1 object. RX, TX.
         serialState[2] = 'u';
-        Serial.printf("Serial1 (RTCM in from HC-12) started @ %i bps.\n", SERIAL1_SPEED);
-    } else {        // prfRtcmInSource is either "off' or "ntrip".
+        Serial.printf("Serial1 started @ %i bps", SERIAL1_SPEED);
+    } else {        // prfRtcmInSource is other than radio.
         serialState[2] = '-';
-        Serial.println("Serial1 is not used.");
+        Serial.print("Serial1 not started");
     }
+    Serial.printf(" (RTCM in = \"%s\").\n", prfRtcmInSource);
     if (strncmp(prfRtcmInSource, "off", sizeof(prfRtcmInSource)) == 0) {
         RTCMin = false;
     }
@@ -1186,7 +1187,7 @@ void startSerial() {
     // -- RTCM out is always over Serial2 (to ZED UART2).
     Serial2.begin(SERIAL2_SPEED, SERIAL_8N1, ZED_RX2, ZED_TX2);     // UART2 object. RX, TX.  
     serialState[3] = 'u';
-    Serial.printf("Serial2 (RTCM out to ZED UART2) started @ %i bps.\n", SERIAL2_SPEED);
+    Serial.printf("Serial2 started @ %i bps (RTCM out to ZED UART2).\n", SERIAL2_SPEED);
 }
 
 /**
@@ -1610,7 +1611,7 @@ void startTasks() {
     // Arduino-ESP32 core 0 defaults: WiFi/BT.
     // Arduino-ESP32 core 1 defaults: Arduino loop(), WiFi/I2C.
     // Pin taskRtcmRelay() to core 0 for parallel execution instead of round-robin in loop() since I2C calls block and don't yield.
-    if (strncmp(prfRtcmInSource, "off", sizeof(prfRtcmInSource)) != 0) {    // Relay RTCM only for "radio" & "ntrip". Skip for "off".
+    if (strncmp(prfRtcmInSource, "off", sizeof(prfRtcmInSource)) != 0) {    // Relay RTCM, skip for "off".
         xTaskCreatePinnedToCore(taskRtcmRelay, "RTCM_Relay", 8192, NULL, 2, &taskRtcmRelayHandle, 0);
         Serial.println("GhostRover FreeRTOS task \"RTCM relay\" started.");
     }
@@ -1633,7 +1634,7 @@ void preLoop() {
     ws2812LedBlink = false;
     operMode[0]    = 'r';
     inLoop         = true;
-    Serial.println("Loop() starting.");
+    Serial.println("Loop starting.");
 }
 
 /**
@@ -1776,6 +1777,10 @@ void taskRtcmRelay(void *pvParameters) {
         // -- prfRtcmInSource preference is set to "ntrip."
         if (strncmp(prfRtcmInSource, "ntrip", sizeof(prfRtcmInSource)) == 0) {
             // ToDo: implement.
+        }
+
+         // -- prfRtcmInSource preference is set to "bridge."
+        if (strncmp(prfRtcmInSource, "bridge", sizeof(prfRtcmInSource)) == 0) {
         }
     }
 }
@@ -1967,78 +1972,78 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
                 }
                 writeStatus = Wire1.endTransmission(8);                 // Send sentence on I2C1.
                 if (writeStatus == 0) {                                     // Success: master (Wire1 on MCU #1) & slave (Wire on MCU #2) are both up.
-                    nmeaCountAll++;                                         // Increment counter for all NMEA sentences sent.
-                    if (strncmp(&nmeaBuffer[3], "GGA", 3) == 0) {           // We have a full GGA sentence.
-                        lastGGAsendTime = esp_timer_get_time();             // Save time when GGA sentence was sent out.
-                        nmeaCountGGA++;                                     // Increment counter for GGA sentences sent.
-                        nmeaSolutionBlockComplete = true;                   // NMEA solution block is complete.
-                    } else if (strncmp(&nmeaBuffer[3], "RMC", 3) == 0) {
-                        nmeaCountRMC++;
-                    } else if (strncmp(&nmeaBuffer[3], "GSA", 3) == 0) {
-                        nmeaCountGSA++;
-                    } else if (strncmp(&nmeaBuffer[3], "GSV", 3) == 0) {
-                        nmeaCountGSV++;
-                    } else if (strncmp(&nmeaBuffer[3], "GST", 3) == 0) {
-                        nmeaCountGST++;
-                    } else if (strncmp(&nmeaBuffer[3], "TXT", 3) == 0) {
-                        nmeaCountTXT++;
-                    } else {
-                        nmeaCountOther++;
-                        if (commandFlag[DEBUG_NMEA_COUNTS]) {
-                            Serial.println(nmeaBuffer);
-                        }
-                    }
-                    if (zeroStatusCounters) {                               // Zero all NMEA status counters.
-                            nmeaCountAll       = 0;
-                            nmeaCountGGA       = 0;
-                            nmeaCountRMC       = 0;
-                            nmeaCountGSA       = 0;
-                            nmeaCountGSV       = 0;
-                            nmeaCountGST       = 0;
-                            nmeaCountTXT       = 0;
-                            nmeaCountOther     = 0;
-                            zeroStatusCounters = false;
-                    }
+                nmeaCountAll++;                                         // Increment counter for all NMEA sentences sent.
+                if (strncmp(&nmeaBuffer[3], "GGA", 3) == 0) {           // We have a full GGA sentence.
+                    lastGGAsendTime = esp_timer_get_time();             // Save time when GGA sentence was sent out.
+                    nmeaCountGGA++;                                     // Increment counter for GGA sentences sent.
+                    nmeaSolutionBlockComplete = true;                   // NMEA solution block is complete.
+                } else if (strncmp(&nmeaBuffer[3], "RMC", 3) == 0) {
+                    nmeaCountRMC++;
+                } else if (strncmp(&nmeaBuffer[3], "GSA", 3) == 0) {
+                    nmeaCountGSA++;
+                } else if (strncmp(&nmeaBuffer[3], "GSV", 3) == 0) {
+                    nmeaCountGSV++;
+                } else if (strncmp(&nmeaBuffer[3], "GST", 3) == 0) {
+                    nmeaCountGST++;
+                } else if (strncmp(&nmeaBuffer[3], "TXT", 3) == 0) {
+                    nmeaCountTXT++;
+                } else {
+                    nmeaCountOther++;
                     if (commandFlag[DEBUG_NMEA_COUNTS]) {
-                        Serial.printf("All=%u, GGA=%u, RMC=%u, GSA=%u, GSV=%u, GST=%u, TXT=%u, $other=%u.\n",
-                        nmeaCountAll, nmeaCountGGA, nmeaCountRMC, nmeaCountGSA, nmeaCountGSV, nmeaCountGST, nmeaCountTXT, nmeaCountOther);
+                        Serial.println(nmeaBuffer);
                     }
-                    if (commandFlag[DEBUG_NMEA]) {                          // Debug - show NMEA sentence characters.
-                        if (strncmp("$GNGGA", nmeaBuffer, 6) == 0) {
-                            Serial.print('\n');
-                        }
-                        Serial.printf("%u %s", nmeaCountAll, nmeaBuffer);   // Display NMEA sentence (nmeaBuffer already ends with [CR][LF]).
+                }
+                if (zeroStatusCounters) {                               // Zero all NMEA status counters.
+                        nmeaCountAll       = 0;
+                        nmeaCountGGA       = 0;
+                        nmeaCountRMC       = 0;
+                        nmeaCountGSA       = 0;
+                        nmeaCountGSV       = 0;
+                        nmeaCountGST       = 0;
+                        nmeaCountTXT       = 0;
+                        nmeaCountOther     = 0;
+                        zeroStatusCounters = false;
+                }
+                if (commandFlag[DEBUG_NMEA_COUNTS]) {
+                    Serial.printf("All=%u, GGA=%u, RMC=%u, GSA=%u, GSV=%u, GST=%u, TXT=%u, $other=%u.\n",
+                    nmeaCountAll, nmeaCountGGA, nmeaCountRMC, nmeaCountGSA, nmeaCountGSV, nmeaCountGST, nmeaCountTXT, nmeaCountOther);
+                }
+                if (commandFlag[DEBUG_NMEA]) {                          // Debug - show NMEA sentence characters.
+                    if (strncmp("$GNGGA", nmeaBuffer, 6) == 0) {
+                        Serial.print('\n');
                     }
-                    if (commandFlag[DEBUG_NMEA_HEX]) {                      // Debug - show NMEA sentence characters in hex.
-                        if (strncmp("$GNGGA", nmeaBuffer, 6) == 0) {
-                            Serial.println('\n');
-                        }
-                        Serial.printf("%u %s", nmeaCountAll, nmeaBuffer);   // Display NMEA sentence (nmeaBuffer already ends with [CR][LF]).
-                        for (int i = 0; i < strlen(nmeaBuffer); i++) {      // Display NMEA sentence characters in hex.
-                            Serial.printf("[\"%c\" 0x%02X] ",nmeaBuffer[i], nmeaBuffer[i]);
-                        }
+                    Serial.printf("%u %s", nmeaCountAll, nmeaBuffer);   // Display NMEA sentence (nmeaBuffer already ends with [CR][LF]).
+                }
+                if (commandFlag[DEBUG_NMEA_HEX]) {                      // Debug - show NMEA sentence characters in hex.
+                    if (strncmp("$GNGGA", nmeaBuffer, 6) == 0) {
                         Serial.println('\n');
                     }
-
-                    // -- If on NMEA page, save sentence for processJsonActivity() call in next loop() & flag update. --
-                    // NmeaBuffer gets memset (cleared), so it needs to be saved into lastNmea.
-                    // This shifts the NMEA sentence's arrival at the browser by roughly one loop() pass (microseconds) which is negligable.
-                    if (strcmp(whichPage, "nmea") == 0) {
-                        strlcpy(lastNmea, nmeaBuffer, sizeof(lastNmea));
-                        browserUpdatePending = true;
+                    Serial.printf("%u %s", nmeaCountAll, nmeaBuffer);   // Display NMEA sentence (nmeaBuffer already ends with [CR][LF]).
+                    for (int i = 0; i < strlen(nmeaBuffer); i++) {      // Display NMEA sentence characters in hex.
+                        Serial.printf("[\"%c\" 0x%02X] ",nmeaBuffer[i], nmeaBuffer[i]);
                     }
+                    Serial.println('\n');
+                }
 
-                    i2cUp = true;
-                    NMEAout = true;                                         // NMEA sent out succesfully to MCU #2.
+                // -- If on NMEA page, save sentence for processJsonActivity() call in next loop() & flag update. --
+                // NmeaBuffer gets memset (cleared), so it needs to be saved into lastNmea.
+                // This shifts the NMEA sentence's arrival at the browser by roughly one loop() pass (microseconds) which is negligable.
+                if (strcmp(whichPage, "nmea") == 0) {
+                    strlcpy(lastNmea, nmeaBuffer, sizeof(lastNmea));
+                    browserUpdatePending = true;
+                }
 
-                    // -- Calculate NMEA status values for oper page. --
-                    if (nmeaSolutionBlockComplete) {                        // For each solution block ...
-                        nmeaRate = (nmeaSolutionLength * 1024) / (esp_timer_get_time() - lastGGAsendTime);          // Average kbps x 1000 per solution.
-                        lastGGAsendTime = esp_timer_get_time();             // Save time when last GGA sent.
-                        nmeaSolutionBlockComplete = false;                  // Start a new solution block.
-                        nmeaSolutionLength = 0;                             // Reset counter for # of bytes in solution block.
-                    }
-                    nmeaSolutionLength += strlen(nmeaBuffer);               // Each NMEA sentence - add to total bytes for this solution block.
+                i2cUp = true;
+                NMEAout = true;                                         // NMEA sent out succesfully to MCU #2.
+
+                // -- Calculate NMEA status values for oper page. --
+                if (nmeaSolutionBlockComplete) {                        // For each solution block ...
+                    nmeaRate = (nmeaSolutionLength * 1024) / (esp_timer_get_time() - lastGGAsendTime);          // Average kbps x 1000 per solution.
+                    lastGGAsendTime = esp_timer_get_time();             // Save time when last GGA sent.
+                    nmeaSolutionBlockComplete = false;                  // Start a new solution block.
+                    nmeaSolutionLength = 0;                             // Reset counter for # of bytes in solution block.
+                }
+                nmeaSolutionLength += strlen(nmeaBuffer);               // Each NMEA sentence - add to total bytes for this solution block.
                 } else {
                     i2cUp = false;                                          // Wire1 is down.
                     NMEAout = false;

@@ -287,6 +287,13 @@
 .info #ble-label {
     text-align: center;
 }
+.info #rtcm-label .spacer,
+.info #ble-label .spacer {
+    display: contents;
+    margin-left: 20px !important;
+    font-size: 5px;
+}
+
 .info .sub-row {
     display: contents;
     font-size: 80%;

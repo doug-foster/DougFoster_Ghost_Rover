@@ -27,6 +27,7 @@
  * @since  3.2.1  [2026-07-28-10:00am] Remove webSocketNum.
  * @since  3.2.1  [2026-07-28-04:45pm] Removed NMEA out switch & preference.
  * @since  3.2.1  [2026-08-02-09:30am] Move clearMessageField() here from operate.js.
+ * @since  3.2.1  [2026-08-07-09:15am] Added RTCM bridge mode.
  * @link   http://dougfoster.me.
 */
 
@@ -333,7 +334,7 @@ function webSocketRcvMessage(event) {
         ntripCasterAttributes[3]    = jsonObj["41"];
         if (prfRtcIn == 'ntrip') {
             prfNtripCasterAct = jsonObj["42"];  // Preference.
-        } else {                                // "off","radio".
+        } else {                                // "off","radio", ....
             prfNtripCasterAct = 1;              // Default.
         }
         // -- Load caster array. ntripAttributes() uses caster array values to set UI fields. --
@@ -451,6 +452,10 @@ function webSocketRcvMessage(event) {
 
             // -- {"2":"radio}. --
             switch (jsonObj["2"]) {
+                case 'bridge':
+                    statusRtcmInId.innerText = 'Bridge';
+                    rtcmSource.innerText = 'Bridge';
+                    break;
                 case 'radio':
                     statusRtcmInId.innerText = 'Radio';
                     rtcmSource.innerText = 'Radio';

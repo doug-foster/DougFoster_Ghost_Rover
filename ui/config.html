@@ -24,6 +24,7 @@
  * @since  3.2.1  [2026-07-27-08:30am] Add webSocketNum.
  * @since  3.2.1  [2026-07-28-10:00am] Header items.
  * @since  3.2.1  [2026-08-02-09:15am] MessageForm to MessageField
+ * @since  3.2.1  [2026-08-07-09:15am] Added RTCM bridge mode.
  * @link   http://dougfoster.me.
 -->
 
@@ -62,26 +63,16 @@
                         <label for="unit-feet">Feet</label>
                     </div>
 
-                    <!-- <div class="grid-item">WiFi mode</div>
-                    <div id="ntrip-caster-active" class="switch-field grid-item">
-                        <input type="radio" id="wifi-mode-off" name="wifi-mode" value="off" />
-                        <label for="ifi-mode-off">Off</label>
-                        <input type="radio" id="ifi-mode-ap" name="wifi-mode" value="ap" />
-                        <label for="ifi-mode-ap">AP</label>
-                        <input type="radio" id="ifi-mode-sta" name="wifi-mode" value="sta" />
-                        <label for="ifi-mode-sta">STA</label>
-                        <input type="radio" id="ifi-mode-both" name="wifi-mode" value="both" />
-                        <label for="ifi-mode-both">BOTH</label>
-                    </div> -->
-
                     <div class="grid-item">RTCM in</div>
                     <div id="rtcm-in-buttons" class="switch-field grid-item">
                         <input type="radio" id="rtcm-in-off" name="switch-rtcm-in" value="off" />
                         <label for="rtcm-in-off">Off</label>
-                        <input type="radio" id="rtcm-in-radio" name="switch-rtcm-in" value="radio" />
-                        <label for="rtcm-in-radio">Radio</label>
+                        <input type="radio" id="rtcm-in-bridge" name="switch-rtcm-in" value="bridge" />
+                        <label for="rtcm-in-bridge">Bridge</label>
                         <input type="radio" id="rtcm-in-ntrip" name="switch-rtcm-in" value="ntrip" />
                         <label for="rtcm-in-ntrip">NTRIP</label>
+                        <input type="radio" id="rtcm-in-radio" name="switch-rtcm-in" value="radio" />
+                        <label for="rtcm-in-radio">Radio</label>
                     </div>
                     <div class="grid-item choose-caster hide">NTRIP caster</div>
                     <div id="ntrip-caster-active" class="switch-field grid-item choose-caster hide">

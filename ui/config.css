@@ -21,6 +21,7 @@
  * @since  3.1.2  [2026-07-16-01:30pm] Add .divider.
  * @since  3.1.2  [2026-07-20-10:00pm] Remove .divider, NTRIP active caster from select to switch.
  * @since  3.1.2  [2026-07-28-11:00am] Plain note, add WiFi switch.
+ * @since  3.2.1  [2026-08-07-09:15am] Added RTCM bridge mode.
  * @link   http://dougfoster.me.
 */
 
@@ -57,7 +58,7 @@ form#config {
 #config .config-grid-buttons {
     display: grid;
     grid-template-rows: 1fr;
-    grid-template-columns: 1fr 2fr;
+    grid-template-columns: .6fr 2fr;
 }
 #config .config-grid-buttons .grid-item {
     display: flex;
