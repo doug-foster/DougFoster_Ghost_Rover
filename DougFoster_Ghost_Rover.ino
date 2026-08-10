@@ -24,6 +24,9 @@
  * @since  3.2.1 [2026-07-31-09:30am] Add WiFi client for NTRIP access.
  * @since  3.2.1 [2026-08-02-04:30pm] Remove connectWiFiclient().
  * @since  3.2.1 [2026-08-03-10:00am] Removed jsonObj["21'] & jsonObj["21'].
+ * @since  3.2.2 [2026-08-09-11:45am] Add NTRIP client.
+ * @since  3.2.2 [2026-08-09-02:00pm] Updated platform from 3.3.10 to 3.3.11. Updated AsyncTCP & ESPAsyncWebServer libraries.
+ * @since  3.2.2 [2026-08-09-05:30pm] Only print for DEBUG_WS.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover_BT_relay.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
@@ -114,21 +117,25 @@
  *     -- Pin config  https://roboticsbackend.com/arduino-uno-pins-a-complete-practical-guide/.
  * 
  * --- Dev environment. ---
- *     -- IDE         VS Code & Arduino Maker Workshop 1.1.5 extension (uses Arduino CLI 1.2.0).
- *     -- Platform    https://github.com/espressif/arduino-esp32/releases/latest (Arduino Release v3.3.10 based on ESP-IDF v5.5.4).
+ *     -- IDE            VS Code & Arduino Maker Workshop 1.1.9 extension (uses Arduino CLI 1.2.0).
+ *                       https://marketplace.visualstudio.com/items?itemName=TheLastOutpostWorkshop.arduino-maker-workshop.
+ *     -- Platform       https://github.com/espressif/arduino-esp32/releases/latest (Arduino Release v3.3.11 based on ESP-IDF v5.5.5).
+ *     -- Release notes  https://github.com/espressif/arduino-esp32/releases.
  * 
  * --- Caveats. ---
  *     -- SoftwareSerial library is not supported on ESP32-S3 (does work on ESP32-C6).
  *     -- 0.5.1 -> 0.6.1 builds: Moved BLE relay from primary MCU to secondary MCU since BleSerial library is a space pig.
  *
  * --- TODO: ---
- *     1. Add NTRIP client (use credential preferences).
- *     2. Add RTCM page.
- *     3. Offset height/NMEA by instrument height.
- *     4. Button lock (laser/height/position).
- *     5. Update RTKEverywhere for base station.
- *     6. Verify RTK-FIX.
- *     7. Operate.js/operate.html page - add ability to select coordinates (lat/lon, ECEF, UTM northing & easting)  
+ *     - Fix rtcm3GetMessageType().
+ *     - Replace BLE with TCP for NTRIP.
+ *     - Add NTRIP bridge mode.
+ *     - Add RTCM page.
+ *     - Offset height/NMEA by instrument height.
+ *     - Button lock (laser/height/position).
+ *     - Update RTKEverywhere for base station.
+ *     - Verify RTK-FIX.
+ *     - Operate.js/operate.html page - add ability to select coordinates (lat/lon, ECEF, UTM northing & easting)  
  */
 
 /**
@@ -139,6 +146,7 @@
  * @since 3.1.1 [2026-06-25-01:00pm] New.
  * @since 3.1.2 [2026-07-03-06:15pm] New, GhostRover FreeRTOS task taskRtcmRelay() replaced relaySerial1toSerial2() in loop().
  * @since 3.2.1 [2026-07-30-07:45am] Implement GhostRover FreeRTOS queues: refactor onWebSocketMessage() into processJsonActivity().
+ * @since 3.2.2  [2026-08-09-11:45am] Add NTRIP client: add relayRtcmByte(), add ntripBeginClient(), & ntripPushGGA().
  *
  *  --- Docs. ---
  *  --- Include libraries. ---
@@ -164,6 +172,9 @@
  *      -- buildOperData()             - Build data for operate page.
  *      -- sendDataToBrowser()         - Send data to browser.
  *      -- rtcm3GetMessageType()       - Return RTCM3 message type to taskRtcmRelay().
+ *      -- relayRtcmByte()             - Relay RTCM byte to Serial2 (ZED UART2), tracking stats.
+ *      -- ntripBeginClient()          - Connect to NTRIP caster & validate credentials.
+ *      -- ntripPushGGA()              - If sendGga preference is set, push last GGA sentence to NTRIP caster.
  *  --- Setup functions. ---
  *      -- showBuild()                 - Display build & processor info. Status LED is xxx.
  *      -- startSerial()               - Start serial interfaces.
@@ -236,8 +247,11 @@
  *     debug()                        // Display debug.
  * --- GhostRover FreeRTOS functions. ---
  *     taskLoopStatusLed()            // GhostRover FreeRTOS task - Set Loop() status LED to blink or solid.
- *     taskRtcmRelay()                // GhostRover FreeRTOS task - Relay RTCM from Serial1 (HC-12) to -> Serial2 (ZED UART2).
+ *     taskRtcmRelay()                // GhostRover FreeRTOS task - Relay RTCM from source to -> Serial2 (ZED UART2).
  *     rtcm3GetMessageType()          // Called by taskRtcmRelay - return RTCM3 message type.
+ *     relayRtcmByte()                // Called by taskRtcmRelay - read byte from NTRIP client, write to Serial2 (ZED UART2).
+ *     ntripBeginClient()             // Called by taskRtcmRelay - connect to NTRIP caster.
+ *     ntripPushGGA()                 // Called by taskRtcmRelay - when connected to NTRIP caster, periodically (GGA_INTERVAL) send $GGA NMEA sentence.
  * --- Event handlers for core/additional library processes. ---
  *     -- onWiFiEvent()               // <WiFi.h> & <WiFiAP.h> WiFi event handler (WiFiEvent_t).
  *        - if commandFlag[DEBUG_WIFI]), print WiFi status.
@@ -344,6 +358,9 @@
  * @since 3.1.1   [2026-06-25-02:00pm] Updated library <ArduinoJson.h>             from 7.4.2  to 7.4.3.
  * @since 3.1.1   [2026-06-25-02:00pm] Updated library <SparkFun_u-blox_GNSS_v3.h> from 3.1.13 to 3.1.14.
  * @since 3.1.2   [2026-07-15-04:45pm] Add NTRIP preferences.
+ * @since 3.2.2   [2026-08-09-11:45am] Add NTRIP client: add base64.h.
+ * @since 3.2.2   [2026-08-09-01:45pm] Updated library <AsyncTCP.h>                from 3.4.10  to 3.5.0.
+ * @since 3.2.2   [2026-08-09-01:45pm] Updated library <ESPAsyncWebServer.h>       from 3.11.1  to 3.12.0.
  * @link  Arduino https://docs.arduino.cc/libraries/.
  * @link  ESP32   https://docs.espressif.com/projects/arduino-esp32/en/latest/libraries.html.
  */
@@ -360,13 +377,14 @@
 #include <esp_system.h>                                    // https://github.com/pycom/pycom-esp-idf.
 #include <esp_chip_info.h>                                 // https://github.com/pycom/pycom-esp-idf.
 #include <Preferences.h>                                   // https://github.com/espressif/arduino-esp32/tree/master/libraries/Preferences/.
+#include "base64.h"                                        // https://github.com/espressif/arduino-esp32/tree/master/cores/esp32.
 
 // --- Additional. ---                  
-#include <AsyncTCP.h>                                      // https://github.com/ESP32Async/AsyncTCP (3.4.10).
-#include <ESPAsyncWebServer.h>                             // https://github.com/ESP32Async/ESPAsyncWebServer (3.8.1).
+#include <AsyncTCP.h>                                      // https://github.com/ESP32Async/AsyncTCP (3.5.0).
+#include <ESPAsyncWebServer.h>                             // https://github.com/ESP32Async/ESPAsyncWebServer (3.12.0).
 #include <ArduinoJson.h>                                   // https://github.com/bblanchon/ArduinoJson (7.4.3).
 #include <SparkFun_MAX1704x_Fuel_Gauge_Arduino_Library.h>  // https://github.com/sparkfun/SparkFun_MAX1704x_Fuel_Gauge_Arduino_Library (1.0.4).
-#include <SparkFun_u-blox_GNSS_v3.h>                       // https://github.com/sparkfun/SparkFun_u-blox_GNSS_v3 (3.1.13).            
+#include <SparkFun_u-blox_GNSS_v3.h>                       // https://github.com/sparkfun/SparkFun_u-blox_GNSS_v3 (3.1.14).            
 
 /**
  * =========================================================================
@@ -383,7 +401,8 @@
  * @since 3.1.2  [2026-07-16-09:00am] Changed int16_t prfInstrHgt to uint16_t.
  * @since 3.1.2  [2026-07-16-10:00am] Moved MAJOR, MINOR, PATCH from showBuild() to "Operation" section.
  * @since 3.2.1  [2026-07-24-03:30pm] Refactor JSON.
- * @since  3.2.1  [2026-07-28-04:45pm] Removed NMEA out switch & preference.
+ * @since 3.2.1  [2026-07-28-04:45pm] Removed NMEA out switch & preference.
+ * @since 3.2.2  [2026-08-09-11:45am] Add NTRIP client.
  */
 
 // --- Pin assignments. ---
@@ -430,6 +449,18 @@ struct WsQueueItem {                                      // Queued incoming Web
     size_t len;                                           // Length of raw JSON data (not just null-terminated).
 };
 
+// --- NTRIP client. ---
+WiFiClient ntripClient;                                    // WiFi connection to NTRIP caster.
+                                                           // Owned only by taskRtcmRelay() (core 0) for connect()/stop()/read().
+                                                           // Requests/status cross task boundary as flags, same pattern as browserUpdatePending.                                                            
+bool       ntripConnected             = false;             // Status: connected to caster. Set only by taskRtcmRelay().
+bool       ntripConnectRequest        = false;             // Set by processJsonActivity(), cleared by taskRtcmRelay().
+bool       ntripDisconnectRequest     = false;             // Set by processJsonActivity(), cleared by taskRtcmRelay().
+bool       ntripStatusPending         = false;             // New ntripStatusMsg ready to forward to browser.
+bool       ntripsendRtcmSentenceCount = false;             // Flag to send rtcmSentenceCount for ntrip page. Triggered by checkZedTriggerUpdate() timer.
+char       ntripStatusMsg[100]        = {'\0'};            // Latest status line for "connectNtripCasterResp".
+char       lastGGA[100]               = {'\0'};            // Last complete GGA sentence (any page). @see DevUBLOXGNSS::processNMEA().
+
 // --- GNSS. ---
 SFE_UBLOX_GNSS roverGNSS;                                 // GNSS object (uses I2C-1).
 
@@ -456,7 +487,8 @@ enum CommandIndex {                                       //  Readable index for
     DEBUG_NMEA_HEX,                                       // 13.
     DEBUG_NMEA_COUNTS,                                    // 14.
     DEBUG_PREFS,                                          // 15.
-    NUM_COMMANDS                                          // 16 = automatic array length.
+    DEBUG_NTRIP,                                          // 16.
+    NUM_COMMANDS                                          // 17 = automatic array length.
 };     
 const char* COMMAND[NUM_COMMANDS] = {                     // Command strings; match CommandIndex.
     "testRad",                                            // TEST_RAD.
@@ -474,7 +506,8 @@ const char* COMMAND[NUM_COMMANDS] = {                     // Command strings; ma
     "debugTemp",                                          // DEBUG_TEMP.
     "debugNMEAhex",                                       // DEBUG_NMEA_HEX.
     "debugNMEAcounts",                                    // DEBUG_NMEA_COUNTS.
-    "debugPrefs"                                          // DEBUG_PREFS.
+    "debugPrefs",                                         // DEBUG_PREFS.
+    "debugNTRIP"                                          // DEBUG_NTRIP.
 };     
 const bool    RW_MODE                   = false;          // Open preference name space as read/write.
 const bool    RO_MODE                   = true;           // Open preference name space as read only.
@@ -584,11 +617,15 @@ int64_t lastRTCMtime       = esp_timer_get_time();      // Last time (us) when R
  * @since 3.0.12 [2026-02-06-04:00pm] New.
  * @since 3.2.1  [2026-07-25-11:00am] Removed wsKey().
  * @since 3.2.1  [2026-07-26-09:00am] Add sendDataToBrowser().
+ * @since 3.2.2  [2026-08-09-11:45am] Add NTRIP client: add relayRtcmByte(), add ntripBeginClient(), & ntripPushGGA().
  * @see   statusLedOn()           - Turn on status LED.
  * @see   prefUtility()           - Preference utility.
  * @see   buildOperData()         - Build data for operate page.
  * @see   sendDataToBrowser()     - Send jsonDocToBrowser.
  * @see   rtcm3GetMessageType()   - Return RTCM3 message type to taskRtcmRelay().
+ * @see   relayRtcmByte()         - Relay RTCM byte to Serial2 (ZED UART2), tracking stats.
+ * @see   ntripBeginClient()      - Connect to NTRIP caster & validate credentials.
+ * @see   ntripPushGGA().         - If sendGga preference is set, push last GGA sentence to NTRIP caster.
  */
 
 /**
@@ -943,6 +980,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
  * @since  3.2.1 [2026-07-26-06:30pm] New.
  * @since  3.2.1 [2026-07-30-10:30am] jsonDocToBrowser["NMEA"] '= lastNmea' was '= nmeaBuffer'.
  * @since  3.2.1 [2026-07-31-01:30pm] Moved "Wrap up" section from processJsonActivity() to here.
+ * @since  3.2.2 [2026-08-09-05:30pm] Only print for DEBUG_WS.
  * @see    checkZedTriggerUpdate(), processJsonActivity(), DevUBLOXGNSS::processNMEA().
  * @see    processJsonActivity() for description of exchange protocol.
  */
@@ -951,6 +989,12 @@ void sendDataToBrowser() {
     // --- NMEA page. ---
     if (strcmp(whichPage, "nmea") == 0) {
         jsonDocToBrowser["NMEA"] = lastNmea;
+    }
+
+    // --- NTRIP page. ---
+    if ((strcmp(whichPage, "ntrip") == 0) && (ntripsendRtcmSentenceCount))  {
+        jsonDocToBrowser["37"] = rtcmSentenceCount;
+        ntripsendRtcmSentenceCount = false;
     }
 
     // --- Operate page. ---
@@ -1019,10 +1063,6 @@ void sendDataToBrowser() {
     wsSendCount++;
     if (commandFlag[DEBUG_WS]) {                    // Debug.
         Serial.printf("WS #%u: browser <-- %s\n\n", clientId, jsonBuffer);
-    } else {
-        if (response[0] != '\0') {
-            Serial.println(response);
-        }
     }
 
     // -- Wrap up. Additional post processing. --
@@ -1066,6 +1106,211 @@ uint16_t rtcm3GetMessageType(const char* rtcmSentence) {
     }
     uint16_t message_type = ((uint16_t)rtcmSentence[3] << 4) | (rtcmSentence[4] >> 4);
     return message_type;
+}
+
+/**
+ * -------------------------------------------------------------------------
+ *  Relay RTCM byte to Serial2 (ZED UART2), tracking stats.
+ * -------------------------------------------------------------------------
+ *
+ * Extracted so the "ntrip" branch of taskRtcmRelay() can reuse the same
+ * preamble-detection/stats logic as the "radio" branch without duplicating
+ * it. The "radio" branch itself is left as-is for now.
+ *
+ * @param  char      inputChar     Byte to relay.
+ * @param  char*     rtcmSentence  Sentence buffer (caller-owned, sized 1030).
+ * @param  uint16_t  &byteCount    Caller-owned running byte count.
+ * @param  uint16_t  &msg_type     Caller-owned last parsed message type.
+ * @return void No output is returned.
+ * @since  3.2.2 [2026-08-09-12:00pm] New.
+ * @see    taskRtcmRelay(), rtcm3GetMessageType().
+ */
+void relayRtcmByte(char inputChar, char* rtcmSentence, uint16_t &byteCount, uint16_t &msg_type) {
+    Serial2.write(inputChar);
+    if (byteCount < 1030 - 1) {                                     // Bounds check.
+        rtcmSentence[byteCount] = inputChar;
+    }
+    RTCMin = true;
+    ws2812LedColor = GREEN;
+    ws2812LedBlink = true;
+
+    if (inputChar == (char)0xd3) {                                  // Start of new sentence.
+        rtcmSentenceCount++;
+        msg_type = rtcm3GetMessageType(rtcmSentence);
+        int64_t RTCMintervalUs = esp_timer_get_time() - lastRTCMtime;
+        if (RTCMintervalUs > 0) {
+            rtcmKbps = ((float)byteCount * 8.0f * 1000.0f) / (float)RTCMintervalUs;
+        }
+        if (commandFlag[DEBUG_RTCM]) {
+            Serial.printf("\nRTCM3 (%s) active(%d) #%zu Type:%u bytes:%u kbps:%.2f\n\nd3 ",
+                prfRtcmInSource, RTCMin, rtcmSentenceCount, msg_type, byteCount, rtcmKbps);
+        }
+        lastRTCMtime = esp_timer_get_time();
+        memset(rtcmSentence, '\0', 1030);
+        rtcmSentence[0] = 0xd3;
+        byteCount = 1;
+    } else {
+        if (commandFlag[DEBUG_RTCM]) {
+            Serial.printf("%02x ", inputChar);
+        }
+        byteCount++;
+    }
+}
+
+/**
+ * -------------------------------------------------------------------------
+ *  Connect to NTRIP caster & validate credentials.
+ * -------------------------------------------------------------------------
+ *
+ * Only called from taskRtcmRelay() (core 0) in response to ntripConnectRequest.
+ * Credentials come from the active ntripCaster profile (NVS preferences).
+ *
+ * @return bool true if caster responded 200 OK, false otherwise.
+ * @since  3.2.2 [2026-08-09-12:30pm] New.
+ * @see    taskRtcmRelay(), ntripPushGGA(), prefUtility(), Global vars: NTRIP client.
+ * @link   https://github.com/sparkfun/SparkFun_u-blox_GNSS_Arduino_Library/blob/main/examples/ZED-F9P/Example17_NTRIPClient_With_GGA_Callback/Example17_NTRIPClient_With_GGA_Callback.ino.
+ * @link   https://www.use-snip.com/kb/knowledge-base/ntrip-rev1-versus-rev2-formats/.
+ * @link   https://www.use-snip.com/kb/knowledge-base/subtle-issues-with-using-ntrip-client-nmea-183-strings/.
+ */
+bool ntripBeginClient() {
+
+    // --- Local vars. ---
+    const uint16_t REQUEST_BUF_LEN  = 512;
+    const uint16_t RESPONSE_BUF_LEN = 512;
+    const int64_t  CASTER_TIMEOUT   = 5000000;                   // Time (us) to wait for caster response (5 sec).
+    char           serverRequest[REQUEST_BUF_LEN]   = {'\0'};
+    char           credentials[REQUEST_BUF_LEN]     = {'\0'};
+    char           casterResponse[RESPONSE_BUF_LEN] = {'\0'};
+    size_t         responseSpot     = 0;
+    int            connectionResult = 0;
+    int64_t        startTime;
+
+    // --- Open socket. ---
+    if (commandFlag[DEBUG_NTRIP]) {
+        Serial.printf("Opening socket to %s:%u.\n", ntripCaster.url, ntripCaster.port);
+    }
+    if (ntripClient.connect(ntripCaster.url, ntripCaster.port) == false) {
+        strlcpy(ntripStatusMsg, "FAILED: connect to url:port.", sizeof(ntripStatusMsg));
+        if (commandFlag[DEBUG_NTRIP]) {
+            Serial.println(ntripStatusMsg);        
+        }
+        ntripStatusPending = true;
+        return false;
+    }
+    if (commandFlag[DEBUG_NTRIP]) {
+        Serial.printf("Connected to %s:%u.\n", ntripCaster.url, ntripCaster.port);
+    }
+
+    // --- Build GET request. ---
+    snprintf(serverRequest, REQUEST_BUF_LEN,
+        "GET /%s HTTP/1.0\r\nUser-Agent: NTRIP GhostRover Client v1.0\r\n", ntripCaster.mount);
+
+    // --- Build & base64-encode credentials (Basic Auth), if provided. ---
+    if (strlen(ntripCaster.user) == 0) {
+        strlcpy(credentials, "Accept: */*\r\nConnection: close\r\n", sizeof(credentials));
+    } else {
+        char userCredentials[sizeof(ntripCaster.user) + sizeof(ntripCaster.pass) + 1];  // ':' takes a spot.
+        snprintf(userCredentials, sizeof(userCredentials), "%s:%s", ntripCaster.user, ntripCaster.pass);
+        base64 b;                                                                       // Built-in ESP32 lib returns String.
+        String strEncodedCredentials = b.encode(userCredentials);                       // converted to char[] immediately below.
+        char   encodedCredentials[strEncodedCredentials.length() + 1];
+        strEncodedCredentials.toCharArray(encodedCredentials, sizeof(encodedCredentials));
+        snprintf(credentials, sizeof(credentials), "Authorization: Basic %s\r\n", encodedCredentials);
+    }
+    strlcat(serverRequest, credentials, REQUEST_BUF_LEN);
+    strlcat(serverRequest, "\r\n", REQUEST_BUF_LEN);
+
+    // --- Send request. ---
+    if (commandFlag[DEBUG_NTRIP]) {
+        Serial.printf("Requesting mount point \"%s\".\n", ntripCaster.mount);
+    }
+    ntripClient.write(serverRequest, strlen(serverRequest));
+
+    // --- Wait for response. ---
+    startTime = esp_timer_get_time();
+    while (ntripClient.available() == 0) {
+        if ((esp_timer_get_time() - startTime) > CASTER_TIMEOUT) {
+            strlcpy(ntripStatusMsg, "FAILED: Time out.", sizeof(ntripStatusMsg));
+            if (commandFlag[DEBUG_NTRIP]) {
+                Serial.println(ntripStatusMsg);
+            }
+            ntripStatusPending = true;
+            ntripClient.stop();
+            return false;
+        }
+        vTaskDelay(1);                                            // Yield - runs inside taskRtcmRelay().
+    }
+
+    // --- Check reply: look for OK (200). Unauthorized is (401). ---
+    while (ntripClient.available()) {
+        if (responseSpot == RESPONSE_BUF_LEN - 1) {
+            break;                                                // Bounds check.
+        }
+        casterResponse[responseSpot++] = ntripClient.read();
+        if ((connectionResult == 0) && (strstr(casterResponse, "200") != NULL)) {
+            connectionResult = 200;
+        }
+        if ((connectionResult == 0) && (strstr(casterResponse, "401") != NULL)) {
+            connectionResult = 401;
+        }
+    }
+    casterResponse[responseSpot] = '\0';
+
+    if (connectionResult == 200) {
+
+        // --- Success. ---
+        strlcpy(ntripStatusMsg, "SUCCESS: ready to receive RTCM.", sizeof(ntripStatusMsg));
+        if (commandFlag[DEBUG_NTRIP]) {
+            Serial.println(ntripStatusMsg);
+        }
+        rtcmSentenceCount = 0;
+        ntripStatusPending = true;
+        return true;
+    } else {
+
+        // --- Something went wrong. ---
+        snprintf(ntripStatusMsg, sizeof(ntripStatusMsg), "REJECTED: %s.\n", casterResponse);
+        if (commandFlag[DEBUG_NTRIP]) {
+            Serial.print(ntripStatusMsg);
+        }
+        ntripStatusPending = true;
+        ntripClient.stop();
+        return false;
+    }
+}
+
+/**
+ * -------------------------------------------------------------------------
+ *  If sendGga preference is set, push last GGA sentence to NTRIP caster.
+ * -------------------------------------------------------------------------
+ *
+ * @return void No output is returned.
+ * @since  3.2.2 [2026-08-09-12:45pm] New.
+ * @see    taskRtcmRelay(), DevUBLOXGNSS::processNMEA(), Global vars: NTRIP client.
+ * @link   https://www.use-snip.com/kb/knowledge-base/subtle-issues-with-using-ntrip-client-nmea-183-strings/.
+ */
+void ntripPushGGA() {
+
+    // --- Local vars. ---
+    const  int64_t  GGA_INTERVAL        = 10000000;              // Time (us) between GGA sends (10 sec, matches Ex17).
+    static int64_t  lastGgaToCasterTime = 0;                     // Throttle - persists across calls.
+
+    // --- Only if preference set & a sentence is available. ---
+    if ((ntripCaster.sendGga == false) || (lastGGA[0] == '\0')) {
+        return;
+    }
+
+    // --- Throttle. ---
+    if ((esp_timer_get_time() - lastGgaToCasterTime) < GGA_INTERVAL) {
+        return;
+    }
+    lastGgaToCasterTime = esp_timer_get_time();
+
+    // --- Push GGA to caster. ---
+    ntripClient.print(lastGGA);
+    if ((commandFlag[DEBUG_RTCM]) || (commandFlag[DEBUG_NTRIP])) {
+        Serial.printf("Pushed to NTRIP caster: %s", lastGGA);
+    }
 }
 
 /**
@@ -1705,6 +1950,7 @@ void taskLoopStatusLed(void * pvParameters) {
  * @since  3.1.2  [2026-07-03-06:15pm] New, replaced relaySerial1toSerial2() in loop().
  * @since  3.1.2  Added if (byteCount < sizeof(rtcmSentence) - 1) to check for rtcmSentence overflow.
  * @since  3.2.1  [2026-07-29-09:30am] Added guard to prevent rtcmKbps form calculating as null.
+ * @since  3.2.2. [2026-08-09-12:45pm] Add NTRIP client: add logic for "// prfRtcmInSource preference is set to "ntrip."
  * @see    startTasks().
  * @see    rtcm3GetMessageType().
  * @see    Global vars: Serial, startSerialInterfaces(), loop().
@@ -1712,10 +1958,12 @@ void taskLoopStatusLed(void * pvParameters) {
  * @link   https://www.use-snip.com/kb/knowledge-base/an-rtcm-message-cheat-sheet/.
  * @link   https://www.use-snip.com/kb/knowledge-base/rtcm-3-message-list/.
  * @link   https://www.singularxyz.com/blog_detail/11.
+ * @link   https://github.com/sparkfun/SparkFun_u-blox_GNSS_Arduino_Library/blob/main/examples/ZED-F9P/Example15_NTRIPClient/Example15_NTRIPClient.ino.
+ * @link   https://github.com/sparkfun/SparkFun_u-blox_GNSS_Arduino_Library/blob/main/examples/ZED-F9P/Example17_NTRIPClient_With_GGA_Callback/Example17_NTRIPClient_With_GGA_Callback.ino.
  */
 void taskRtcmRelay(void *pvParameters) {
 
-// --- Local vars. ---
+    // --- Local vars. ---
     const  uint16_t RTCM_TIMEOUT      = 5000000;                        // Time (us) not to exceed for RTCM input received (5 sec).
            uint16_t byteCount         =       0;
            char     rtcmSentence[1030] =  {'\0'};                       // RTCM3 sentence buffer.
@@ -1726,7 +1974,7 @@ void taskRtcmRelay(void *pvParameters) {
         vTaskDelay(1);                                                  // Yield 1 tick when idle - keeps watchdog/other tasks fed.
         // vTaskDelay(pdMS_TO_TICKS(50));                               // Idle - nothing to relay.
 
-        // -- Operate page: check for RTCMin timeout. --
+        // -- Operate page: check for RTCMin timeout. --  // ToDo: Not needed or debug.
         // if ((strncmp(whichPage, "operate", sizeof(whichPage)) == 0) && ((esp_timer_get_time() - lastRTCMtime) > RTCM_TIMEOUT)) {
         //     RTCMin = false;
         //     ws2812LedColor = GREEN;
@@ -1774,9 +2022,64 @@ void taskRtcmRelay(void *pvParameters) {
             }
         }
 
-        // -- prfRtcmInSource preference is set to "ntrip."
+        // -- prfRtcmInSource preference is set to "ntrip." --
         if (strncmp(prfRtcmInSource, "ntrip", sizeof(prfRtcmInSource)) == 0) {
-            // ToDo: implement.
+
+            static int64_t lastNtripRtcmTime = 0;                        // Hangup timeout - persists across task passes.
+            const  int64_t NTRIP_RTCM_TIMEOUT = 10000000;                // Time (us), matches Ex15/17's maxTimeBeforeHangup_ms.
+
+            // -- Handle connect/disconnect requests from browser (via processJsonActivity()). --
+            if (ntripConnectRequest) {
+                ntripConnectRequest = false;
+                ntripConnected = ntripBeginClient();
+                if (ntripConnected) {
+                    lastNtripRtcmTime = esp_timer_get_time();
+                }
+            }
+            if (ntripDisconnectRequest) {
+                ntripDisconnectRequest = false;
+                if (ntripClient.connected()) {
+                    ntripClient.stop();
+                }
+                ntripConnected = false;
+                RTCMin = false;
+                strlcpy(ntripStatusMsg, "DISCONNECTED: browser request.", sizeof(ntripStatusMsg));
+                if (commandFlag[DEBUG_NTRIP]) {
+                    Serial.println(ntripStatusMsg);
+                }
+                ntripStatusPending = true;
+            }
+
+            // -- Relay RTCM & push GGA while connected. --
+            if (ntripConnected) {
+                if (ntripClient.connected()) {
+                    while (ntripClient.available() > 0) {
+                        char inputChar = ntripClient.read();
+                        relayRtcmByte(inputChar, rtcmSentence, byteCount, msg_type);
+                        lastNtripRtcmTime = esp_timer_get_time();
+                    }
+                    ntripPushGGA();
+
+                    if ((esp_timer_get_time() - lastNtripRtcmTime) > NTRIP_RTCM_TIMEOUT) {
+                        ntripClient.stop();
+                        ntripConnected = false;
+                        RTCMin = false;
+                        strlcpy(ntripStatusMsg, "DISCONNECTED: RTCM timeout.", sizeof(ntripStatusMsg));
+                        if (commandFlag[DEBUG_NTRIP]) {
+                            Serial.println(ntripStatusMsg);
+                        }
+                        ntripStatusPending = true;
+                    }
+                } else {                                                  // Caster closed the connection.
+                    ntripConnected = false;
+                    RTCMin = false;
+                    strlcpy(ntripStatusMsg, "DISCONNECTED: connection dropped.", sizeof(ntripStatusMsg));
+                    if (commandFlag[DEBUG_NTRIP]) {
+                        Serial.println(ntripStatusMsg);
+                    }
+                    ntripStatusPending = true;
+                }
+            }
         }
 
          // -- prfRtcmInSource preference is set to "bridge."
@@ -1948,7 +2251,9 @@ void onWebSocketEvent(AsyncWebSocket *httpServer, AsyncWebSocketClient *client, 
  * @since  3.0.12 [2026-02-18-11:00pm] Shorten RTCM & NMEA status.
  * @since  3.2.1  [2026-07-28-04:45pm] Removed NMEA out switch & preference.
  * @since  3.2.1  [2026-07-30-10:30am] Global browserUpdatePending flag added.
+ * @since  3.2.2  [2026-08-09-11:45am] Add NTRIP client: add char lastGGA[100].
  * @see    nmeaBuffer[] in Operation section of Global vars.
+ * @see    ntripPushGGA().
  * @link   https://docs.espressif.com/projects/arduino-esp32/en/latest/api/wifi.html.
  * @link   https://github.com/sparkfun/SparkFun_u-blox_GNSS_v3/tree/main/examples/Basics/Example2_NMEAParsing.
  */
@@ -1971,12 +2276,13 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
                     Wire1.write(nmeaBuffer[i]);
                 }
                 writeStatus = Wire1.endTransmission(8);                 // Send sentence on I2C1.
-                if (writeStatus == 0) {                                     // Success: master (Wire1 on MCU #1) & slave (Wire on MCU #2) are both up.
+                if (writeStatus == 0) {                                 // Success: master (Wire1 on MCU #1) & slave (Wire on MCU #2) are both up.
                 nmeaCountAll++;                                         // Increment counter for all NMEA sentences sent.
                 if (strncmp(&nmeaBuffer[3], "GGA", 3) == 0) {           // We have a full GGA sentence.
                     lastGGAsendTime = esp_timer_get_time();             // Save time when GGA sentence was sent out.
                     nmeaCountGGA++;                                     // Increment counter for GGA sentences sent.
                     nmeaSolutionBlockComplete = true;                   // NMEA solution block is complete.
+                    strlcpy(lastGGA, nmeaBuffer, sizeof(lastGGA));      // @since 3.2.2, @see ntripPushGGA().
                 } else if (strncmp(&nmeaBuffer[3], "RMC", 3) == 0) {
                     nmeaCountRMC++;
                 } else if (strncmp(&nmeaBuffer[3], "GSA", 3) == 0) {
@@ -2086,29 +2392,66 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
  * @since  3.2.1  [2026-07-30-11:15am] Moved jsonDocToBrowser.clear() to processJsonActivity().
  * @see    DevUBLOXGNSS::processNMEA().
  */
+// void checkZedTriggerUpdate() {
+
+//     // --- NMEA page. ---
+//     if (strcmp(whichPage, "nmea") == 0) {
+//         // -- Local vars. --
+//         const  int64_t THROTTLE_CHECK_ZED = (prfGnsNavRat * prfGnsMsrInt) * 1000;   // Convert from (us) to (ms), time between checkZedTriggerUpdate().
+//         static int64_t lastZedCheck = esp_timer_get_time();                         // Throttle. Initialize only once, then persist.
+//                int64_t lastTime;
+
+//         // -- Throttle loop() calls. --
+//         if ((esp_timer_get_time() - lastZedCheck) < THROTTLE_CHECK_ZED) {           // Not time to run.
+//             return; 
+//         }
+//         lastZedCheck = esp_timer_get_time();                                        // Time to run. Reset timer.
+
+//         // -- Check ZED. --
+//         roverGNSS.checkUblox();
+//         lastTime = esp_timer_get_time();
+//     }
+
+//     // --- Build data for operate page. ---
+//     if (strcmp(whichPage, "operate") == 0) {
+//         buildOperData();
+//     }
+
+//     // --- Flag to send rtcmSentenceCount for ntrip page. ---
+//     ntripsendRtcmSentenceCount = true;
+//     browserUpdatePending       = true;
+// }
 void checkZedTriggerUpdate() {
 
-    // --- NMEA page. ---
-    if (strcmp(whichPage, "nmea") == 0) {
-        // -- Local vars. --
-        const  int64_t THROTTLE_CHECK_ZED = (prfGnsNavRat * prfGnsMsrInt) * 1000;   // Convert from (us) to (ms), time between checkZedTriggerUpdate().
-        static int64_t lastZedCheck = esp_timer_get_time();                         // Throttle. Initialize only once, then persist.
-               int64_t lastTime;
+    // -- Local vars. --
+    const  int64_t THROTTLE_CHECK_ZED = (prfGnsNavRat * prfGnsMsrInt) * 1000;   // Convert from (us) to (ms), time between checkZedTriggerUpdate().
+    static int64_t lastZedCheck = esp_timer_get_time();                         // Throttle. Initialize only once, then persist.
+            // int64_t lastTime;
 
-        // -- Throttle loop() calls. --
-        if ((esp_timer_get_time() - lastZedCheck) < THROTTLE_CHECK_ZED) {           // Not time to run.
-            return; 
-        }
-        lastZedCheck = esp_timer_get_time();                                        // Time to run. Reset timer.
-
-        // -- Check ZED. --
-        roverGNSS.checkUblox();
-        lastTime = esp_timer_get_time();
+    // -- Throttle loop() calls. --
+    if ((esp_timer_get_time() - lastZedCheck) < THROTTLE_CHECK_ZED) {           // Not time to run.
+        return; 
     }
+    lastZedCheck = esp_timer_get_time();                                        // Time to run. Reset timer.
+
+    // -- Check ZED. --
+    roverGNSS.checkUblox();
+    // lastTime = esp_timer_get_time();
+
+    //         // --- NMEA page. ---
+    // if (strcmp(whichPage, "nmea") == 0) {
+
+    // }
 
     // --- Build data for operate page. ---
     if (strcmp(whichPage, "operate") == 0) {
         buildOperData();
+    }
+
+    // --- Flag to send rtcmSentenceCount for ntrip page. ---
+    if (strcmp(whichPage, "ntrip") == 0) {
+        ntripsendRtcmSentenceCount = true;
+        browserUpdatePending       = true;
     }
 }
 
@@ -2325,11 +2668,16 @@ void checkZedTriggerUpdate() {
  *       browser (receives) <-- {NMEA SENTENCE}. Continues in loop() until page is left.
  * 
  *  -- NTRIP page. --
- *     - Hello. WiFi client already connected. -
+ *     - Hello: WiFi client already connected. -
  *       browser (sends)    --> {"page:"ntrip","sendPrefs":""}.
  *       browser (receives) <-- {"sendPrefsResp":"Preferences sent.",ALL PREFERENCES}.
- *       browser (receives) <-- {"connectWifiClientResp":"CONNECTED as x.x.x.x"}. If WiFi client already connected.
- *
+ *       browser (receives) <-- {"connectWifiClientResp":"WiFi CONNECTED: x.x.x.x"}. If WiFi client already connected.
+ * 
+ *     - Hello: NTRIP client already connected. -
+ *       browser (sends)    --> {"page:"ntrip","sendPrefs":""}.
+ *       browser (receives) <-- {"sendPrefsResp":"Preferences sent.",ALL PREFERENCES}.
+ *       browser (receives) <-- {"connectNtripCasterResp":"NTRIP CONNECTED: url:port @ mount"}.
+ * 
  *     - Connect/disconnect WiFi client. -
  *       browser (sends)    --> {"connectWifiClient":""}.
  *       browser (receives) <-- {"connectWifiClientResp":"Connecting WiFi client"}.
@@ -2340,17 +2688,15 @@ void checkZedTriggerUpdate() {
  *       browser (sends)    --> {"disconnectWifiClient":""}.
  *       browser (sends)    --> {"disconnectWifiClientResp":"WiFi client disconnected."}
  * 
- *     - Connect to NTRIP caster. - // ToDo: Working here.
+ *     - Connect/disconnect to NTRIP caster. -
  *       browser (sends)    --> {"connectNtripCaster":""}.
  *       browser (receives) <-- {"connectNtripCasterResp":"Connecting to NTRIP caster \n name \n url:port \n mount (version x)"}.
- *       browser (receives) <-- {"connectNtripCasterResp":"Attempt x of y"}. Repeat for each "x" of max "y" attempts.
- *       browser (receives) <-- {"connectNtripCasterResp":"Connect ABORTED"}. Max attempts exceeded. Connect failed.
- *       browser (receives) <-- {"connectNtripCasterResp":"CONNECTED. Submitting credentials"}. Connect success. Send credentials.
- *       browser (receives) <-- {"connectNtripCasterResp":"Validating credentials"}."  Valiate credentials.
- *       browser (receives) <-- {"connectNtripCasterResp":"(Response from caster)"}."  Success or fail.
- *       browser (receives) <-- {"connectNtripCasterResp":"Received xxx RTCM bytes"}."
- *       browser (receives) <-- {"connectNtripCasterResp":"Pushed xxx bytes to ZED"}."
- *       browser (receives) <-- {"connectNtripCasterResp":"Caster timed out."}."  Timeout. Caster send interval exceeded.
+ *       browser (receives) <-- {"connectNtripCasterResp":"FAILED: connect to url:port."} Attempt to connect to caster.url @ caster.port failed.
+ *       browser (receives) <-- {"connectNtripCasterResp":"FAILED: Time out."} No reponse from caster within timeout window.
+ *       browser (receives) <-- {"connectNtripCasterResp":"REJECTED: caster response."}. 
+ *       browser (receives) <-- {"connectNtripCasterResp":"SUCCESS: ready to receive RTCM."}. Connect success.
+ *       browser (sends)    --> {"disconnectNtripCaster":""}.
+ *       browser (receives) <-- {"disconnectNtripCasterResp":"Disconnecting from NTRIP caster."}
  *
  *  -- Restart page. --
  *     - Hello. -
@@ -2382,6 +2728,7 @@ void checkZedTriggerUpdate() {
  * @since 3.2.1  [2026-07-30-11:45am] Set page name global var.
  * @since 3.2.1  [2026-07-31-01:30pm] Moved "Wrap up" section from here to sendDataToBrowser().
  * @since 3.2.1  [2026-08-03-10:00am] Removed jsonObj["21'] & jsonObj["21'].
+ * @since 3.2.2  [2026-08-09-01:00pm] Add NTRIP client: add NTRIP Connect/Disconnect logic, add logic for "// Step 3/3: Forward pending NTRIP status update to browser.""
  * @see   Global vars: GNSS, prefUtility(), onWebSocketEvent(), startWebSocketServer().
  * @link  https://randomnerdtutorials.com/esp32-websocket-server-arduino/.
  * @link  https://randomnerdtutorials.com/esp32-websocket-server-sensor/.
@@ -2639,7 +2986,8 @@ void checkZedTriggerUpdate() {
             if (strncmp(whichPage,"ntrip", sizeof(whichPage)) == 0) {
                 if ((WiFi.status() == WL_CONNECTED) && (jsonDocFromBrowser["sendPrefs"].is<JsonVariant>())) {
                     sendDataToBrowser();                                                    // Send prefs WS message.
-                    snprintf(response, sizeof(response), "CONNECTED as %s", hotspotIp);     // Second WS message. Triggers UI.
+                    jsonDocToBrowser.clear();
+                    snprintf(response, sizeof(response), "WiFi CONNECTED: %s", hotspotIp);     // Second WS message. Triggers UI.
                     jsonDocToBrowser["connectWifiClientResp"] = response;
                 }
             }
@@ -2677,7 +3025,7 @@ void checkZedTriggerUpdate() {
                 }
                 if (WiFi.status() == WL_CONNECTED) {
                     strlcpy(hotspotIp, WiFi.localIP().toString().c_str(), sizeof(hotspotIp));
-                    snprintf(response, sizeof(response), "CONNECTED as %s", hotspotIp);
+                    snprintf(response, sizeof(response), "WiFi CONNECTED:  %s", hotspotIp);
                     jsonDocToBrowser["connectWifiClientResp"] = response;
                     ws2812LedColor = WHITE;                             // Indicates no error during setup(). 
                     ws2812LedBlink = false;
@@ -2700,51 +3048,35 @@ void checkZedTriggerUpdate() {
             }
 
             // -------------------------------------------------------------------------
-            // -- NTRIP page. Connect to NTRIP caster. --
+            // -- NTRIP page. Was on NTRIP page, connected to NTRIP caster, left, returned, NTRIP caster still connected.
             // -------------------------------------------------------------------------
-            if (jsonDocFromBrowser["connectNtripCaster"].is<JsonVariant>()) {
-
-                // ToDo: Working here.
-
-                // - Local vars. --
-                size_t numCastrTrys = 1;                        // Count connect attempts to NTRIP caster.
-                size_t maxCastrTrys = 3;                        // Max # of trys to connect to NTRIP caster, one per second.
-
-                // - Begin. -
-                snprintf(response, sizeof(response), "Connecting to NTRIP caster\n%s\n%s:%d\n%s (version %d)", 
-                  ntripCaster.name, ntripCaster.url, ntripCaster.port, ntripCaster.mount, ntripCaster.version); 
-                jsonDocToBrowser["connectNtripCasterResp"] = response;
-                sendDataToBrowser();
-
-                snprintf(response, sizeof(response), "Attempt %d of %d", numCastrTrys, maxCastrTrys);
-                jsonDocToBrowser["connectNtripCasterResp"] = response;
-                sendDataToBrowser();
-                // Connect logic. Multiple attempts.
-
-                strcpy(response, "CONNECTED\nSubmitting credentials\nValidating credentials");
-                jsonDocToBrowser["connectNtripCasterResp"] = response;
-                sendDataToBrowser();
-                // Login logic.
-
-                strcpy(response, "Caster login response");
-                jsonDocToBrowser["connectNtripCasterResp"] = response;
-                sendDataToBrowser();
-                // Login response.
-
-                strcpy(response, "Received 157 RTCM bytes");
-                jsonDocToBrowser["connectNtripCasterResp"] = response;
-                sendDataToBrowser();
-                strcpy(response, "Pushed 157 RTCM bytes to ZED");
-                jsonDocToBrowser["connectNtripCasterResp"] = response;
-                sendDataToBrowser();
-                // Relay logic.
+            if (strncmp(whichPage,"ntrip", sizeof(whichPage)) == 0) {
+                if ((WiFi.status() == WL_CONNECTED) && (ntripClient.connected()) && (jsonDocToBrowser["connectWifiClientResp"].is<JsonVariant>())) {
+                    snprintf(response, sizeof(response), "NTRIP CONNECTED: %s:%d@ %s ", ntripCaster.url, ntripCaster.port, ntripCaster.mount);  // Trigger UI.
+                    jsonDocToBrowser["connectNtripCasterResp"] = response;
+                    ntripConnected = true;
+                    ntripConnectRequest = false;  // taskRtcmRelay() picks this up next pass.
+                }
             }
 
             // -------------------------------------------------------------------------
-            // -- NTRIP page. Discoonnect NTRIP caster. --
+            // -- NTRIP page. Connect to NTRIP caster. --
+            // -------------------------------------------------------------------------
+            if (!ntripClient.connected() && jsonDocFromBrowser["connectNtripCaster"].is<JsonVariant>()) {
+                snprintf(response, sizeof(response), "Connecting to NTRIP caster\n%s\n%s:%d\n%s (version %d)",
+                    ntripCaster.name, ntripCaster.url, ntripCaster.port, ntripCaster.mount, ntripCaster.version);
+                jsonDocToBrowser["connectNtripCasterResp"] = response;
+                ntripConnected = false;
+                ntripConnectRequest = true;  // taskRtcmRelay() picks this up next pass.
+            }
+
+            // -------------------------------------------------------------------------
+            // -- NTRIP page. Disconnect NTRIP caster. --
             // -------------------------------------------------------------------------
             if (jsonDocFromBrowser["disconnectNtripCaster"].is<JsonVariant>()) {
-                // ToDo: Implement.
+                strcpy(response, "Disconnecting from NTRIP caster.");
+                jsonDocToBrowser["disconnectNtripCasterResp"] = response;
+                ntripDisconnectRequest = true;
             }
 
             // -------------------------------------------------------------------------
@@ -2771,6 +3103,14 @@ void checkZedTriggerUpdate() {
         jsonDocToBrowser.clear();       // Ensure a clean JSON doc for all browser pages (operate, nmea, ...).
         sendDataToBrowser();
         browserUpdatePending = false;
+    }
+
+    // -- Step 3/3: Forward pending NTRIP status update to browser. --
+    if (ntripStatusPending) {
+        jsonDocToBrowser.clear();
+        jsonDocToBrowser["connectNtripCasterResp"] = ntripStatusMsg;
+        sendDataToBrowser();
+        ntripStatusPending = false;
     }
 }
 
@@ -2957,7 +3297,7 @@ void debug() {
                     char outoutChar = Serial1.read();
                     if (((int) outoutChar > 31) && ((int) outoutChar < 128)) {
                         Serial.printf("%c",outoutChar);     // Display character from HC-12.
-                        lastTime = esp_timer_get_time();
+                        lastTime = esp_timer_get_time();    // ToDo: Delete, not used?
                     }
                 }
             }
@@ -3046,6 +3386,9 @@ void debug() {
         prefUtility(PREF_PRINT);
         Serial.println();
     }
+
+    // --- NTRIP. ---
+    // @see "if (commandFlag[DEBUG_NTRIP])" in ntripBeginClient(), called from taskRtcmRelay() FreeRTOS task.
 }
 
 /**

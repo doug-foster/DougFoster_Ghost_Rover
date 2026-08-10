@@ -28,6 +28,7 @@
  * @since  3.2.1  [2026-07-28-04:45pm] Removed NMEA out switch & preference.
  * @since  3.2.1  [2026-08-02-09:30am] Move clearMessageField() here from operate.js.
  * @since  3.2.1  [2026-08-07-09:15am] Added RTCM bridge mode.
+ * @since  3.2.2  [2026-08-09-04:45pm] Completed NTRIP logic.
  * @link   http://dougfoster.me.
 */
 
@@ -295,6 +296,7 @@ async function webSocketStop(event) {
  * @since  3.2.1  [2026-07-28-10:00am] Remove webSocketNum.
  * @since  3.2.1  [2026-07-28-04:45pm] Removed NMEA out switch & preference.
  * @since  3.2.1  [2026-08-03-11:30am] Remove jsonObj["21'] & jsonObj["21']. Replace displayNmeaMessage() with webSocketRcvMessage().
+ * @since  3.2.2  [2026-08-09-04:45pm] Completed NTRIP logic.
  * @see    filesMessage() in files.js.
  */
 function webSocketRcvMessage(event) {
@@ -609,22 +611,21 @@ function webSocketRcvMessage(event) {
             messageField.innerText += '<-- ' + jsonObj["connectWifiClientResp"] + '\n';
 
             // - Failed. Update display. -
-            if (messageField.innerText.includes('ABORTED')) {
+            if (messageField.innerText.includes('ABORTED'))  {
                 btnWifiClientLabel.textContent = "Connect";
                 statusWifiClient.classList.add('hide');
                 statusWifiClient.classList.remove('blink');
                 clearMessageField();
             }
 
-            // - Connected. Update display. -
-            if (messageField.innerText.includes('CONNECTED')) {
+            // - Success. Update display. -
+            if (messageField.innerText.includes('WiFi CONNECTED')) {
                 statusWifiClient.textContent = "- Connected -";
                 statusWifiClient.classList.remove('hide');
                 statusWifiClient.classList.remove('blink');
                 btnWifiClientLabel.innerText = "Disconnect";
                 clearMessageField();
             }
-
         } else if (undefined !== jsonObj["disconnectWifiClientResp"]) {
 
             // - Add response to message field. -
@@ -638,9 +639,36 @@ function webSocketRcvMessage(event) {
             // - Add response to message field. -
             messageField.innerText += '<-- ' + jsonObj["connectNtripCasterResp"] + '\n';
 
-            // ToDo: add process logic.
+            // - Failed. Update display. -
+            if ((messageField.innerText.includes('FAILED')) || 
+                (messageField.innerText.includes('REJECTED')) ||
+                (messageField.innerText.includes('DISCONNECTED')))  {
+                btnNtripCasterLabel.textContent = "Connect";
+                statusNtripCaster.classList.add('hide');
+                statusNtripCaster.classList.remove('blink');
+                clearMessageField();
+            }
+
+            // - Success. Update display. -
+            if ((messageField.innerText.includes('SUCCESS')) ||
+                (messageField.innerText.includes('NTRIP CONNECTED'))) {
+                statusNtripCaster.textContent = '- Connected -';
+                statusNtripCaster.classList.remove('hide');
+                statusNtripCaster.classList.remove('blink');
+                btnNtripCasterLabel.innerText = "Disconnect";
+                clearMessageField();
+            }
+        } else if (undefined !== jsonObj["disconnectNtripCasterResp"]) {
+
+            // - Add response to message field. -
+            messageField.innerText += '<-- ' + jsonObj["disconnectNtripCasterResp"] + '\n';
+            clearMessageField();
         }
 
+        // - RTCM sentence count. -
+        if (undefined !== jsonObj["37"]) {
+            rtcmSentenceCount.innerText = jsonObj["37"];
+        }
     }
 }
 

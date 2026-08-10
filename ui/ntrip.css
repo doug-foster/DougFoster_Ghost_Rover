@@ -37,3 +37,9 @@
 .note {
     font-size: 90%;
 }
+#rtcm-status {
+    margin-top: 0;
+}
+#message-field {
+    margin-bottom: 5px;
+}

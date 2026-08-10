@@ -25,6 +25,7 @@ const btnNtripCasterLabel     = document.querySelector('#ntrip #ntrip-caster .la
 const statusWifiClient        = document.querySelector('#ntrip #wifi-client-status');
 const statusNtripCaster       = document.querySelector('#ntrip #ntrip-caster-status');
 const statusNote              = document.querySelector('#ntrip #status.note');
+const rtcmSentenceCount       = document.querySelector('#ntrip #rtcm-sentence-count');
 const SEND_PREFS              = '{"page":"ntrip","sendPrefs":""}';
 const CONNECT_WIFI_CLIENT     = '{"connectWifiClient":""}';
 const DISCONNECT_WIFI_CLIENT  = '{"disconnectWifiClient":""}';
