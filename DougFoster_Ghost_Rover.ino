@@ -27,6 +27,8 @@
  * @since  3.2.2 [2026-08-09-11:45am] Add NTRIP client.
  * @since  3.2.2 [2026-08-09-02:00pm] Updated platform from 3.3.10 to 3.3.11. Updated AsyncTCP & ESPAsyncWebServer libraries.
  * @since  3.2.2 [2026-08-09-05:30pm] Only print for DEBUG_WS.
+ * @since  3.2.3 [2026-08-10-09:45am] Add TCP to replace BLE.
+ * @since  3.2.3 [2026-08-10-10:15pm] Refactor rtcm3GetMessageType(), relayRtcmByte(), & taskRtcmRelay() to properly handle RTCM sentences.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover_BT_relay.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
@@ -127,7 +129,6 @@
  *     -- 0.5.1 -> 0.6.1 builds: Moved BLE relay from primary MCU to secondary MCU since BleSerial library is a space pig.
  *
  * --- TODO: ---
- *     - Fix rtcm3GetMessageType().
  *     - Replace BLE with TCP for NTRIP.
  *     - Add NTRIP bridge mode.
  *     - Add RTCM page.
@@ -146,7 +147,8 @@
  * @since 3.1.1 [2026-06-25-01:00pm] New.
  * @since 3.1.2 [2026-07-03-06:15pm] New, GhostRover FreeRTOS task taskRtcmRelay() replaced relaySerial1toSerial2() in loop().
  * @since 3.2.1 [2026-07-30-07:45am] Implement GhostRover FreeRTOS queues: refactor onWebSocketMessage() into processJsonActivity().
- * @since 3.2.2  [2026-08-09-11:45am] Add NTRIP client: add relayRtcmByte(), add ntripBeginClient(), & ntripPushGGA().
+ * @since 3.2.2 [2026-08-09-11:45am] Add NTRIP client: add relayRtcmByte(), add ntripBeginClient(), & ntripPushGGA().
+ * @since 3.2.3 [2026-08-10-09:45am] Add startTcpServer(), add checkTcpClient().
  *
  *  --- Docs. ---
  *  --- Include libraries. ---
@@ -181,8 +183,9 @@
  *      -- initPins()                  - Initialize pins & pin values.
  *      -- startI2C()                  - Start I2C wire interfaces.
  *      -- startLiPo()                 - Start LiPo I2C interface.
- *      -- startWiFiServer()           - Start WiFi server.
  *      -- startSD()                   - Start & test microSD card reader.
+ *      -- startWiFiServer()           - Start WiFi server.
+ *      -- startTcpServer()            - Start TCP server for GNSS Master (NMEA out / RTCM in bridge).
  *      -- startHttpServer()           - Start HTTP server.
  *      -- startWebSocketServer()      - Start WebSocket server.
  *      -- startAndConfigGNSS()        - Start GNSS, config ZED settings.
@@ -202,6 +205,7 @@
  *      -- processJsonActivity()       - Process queued WS messages & pending status updates. All JSON activity lives here.
  *      -- checkSerialUSB()            - Check serial USB for input.
  *      -- // checkGnssLockButton()    - Check GNSS lock button (upPosition or downPosition). // ToDo: Implement.
+ *      -- checkTcpClient()            - Check TCP server for new/dropped client (GNSS Master, ..).
  *      -- debug()                     - Display debug.
  *  --- Setup. ---
  *  --- Loop. ---
@@ -214,7 +218,8 @@
  *
  * @since 3.1.1 [2026-06-25-01:00pm] New.
  * @since 3.2.1 [2026-07-30-07:45am] Implement FreeRTOS queues: refactor onWebSocketMessage() into processJsonActivity().
- *
+ * @since 3.2.3 [2026-08-10-09:45am] Add startTcpServer(), add checkTcpClient().
+ * 
  * --- Boot. ---
  *     Include libraries.
  *     Define global vars.
@@ -223,45 +228,67 @@
  *     Define FreeRTOS functions.
  *     Define event handlers.
  *     Define loop() functions.
+ *
  * --- Run setup(). ---
- *     showBuild()                    // Display build & processor info.
- *     prefUtility(PREF_INIT)         // Get preferences.
- *     startSerial()                  // Start serial interfaces.
- *     initPins()                     // Initialize pin modes & pin values.
- *     startI2C()                     // Start I2C wire interfaces.
- *     startLiPo()                    // Start LiPo I2C interface.
- *     startWiFiServer()              // Start WiFi.
- *     startSD()                      // Start & test microSD card reader.
- *     startHttpServer()              // Start HTTP server.
- *     startWebSocketServer()         // Start WebSocket server.
- *     startAndConfigGNSS()           // Start GNSS, config ZED settings.
- *     startQueues()                  // Start GhostRover FreeRTOS queues.
- *     startTasks()                   // Start GhostRover FreeRTOS tasks.
- *     preLoop()                      // Prepare for loop().
+ *     showBuild()                    - Display build & processor info.
+ *     prefUtility(PREF_INIT)         - Get preferences.
+ *     startSerial()                  - Start serial interfaces.
+ *     initPins()                     - Initialize pin modes & pin values.
+ *     startI2C()                     - Start I2C wire interfaces.
+ *     startLiPo()                    - Start LiPo I2C interface.
+ *     startSD()                      - Start & test microSD card reader.
+ *     startWiFiServer()              - Start WiFi.
+ *     startTcpServer()               - Start TCP server for GNSS Master (NMEA out / RTCM in bridge).
+ *     startHttpServer()              - Start HTTP server.
+ *     startWebSocketServer()         - Start WebSocket server.
+ *     startAndConfigGNSS()           - Start GNSS, config ZED settings.
+ *     startQueues()                  - Start GhostRover FreeRTOS queues.
+ *     startTasks()                   - Start GhostRover FreeRTOS tasks.
+ *     preLoop()                      - Prepare for loop().
+ *
  * --- Run loop(). ---    
- *     checkZedTriggerUpdate()        // NMEA - Check ZED to trigger DevUBLOXGNSS::processNMEA().
- *     processJsonActivity()          // @see "Operation summary" in description for processJsonActivity().
- *     checkSerialUSB()               // Check serial USB for input.
- *     // checkGnssLockButton()       // Check GNSS lock button.
- *     ws.cleanupClients()            // HTTP WebSocket cleanup.
- *     debug()                        // Display debug.
+ *     checkZedTriggerUpdate()        - Check ZED to trigger DevUBLOXGNSS::processNMEA().
+ *       - After THROTTLE_CHECK_ZED expires:
+ *         - Run roverGNSS.checkUblox().
+ *         - Call buildOperData() to set GNSS global vars.
+ *         - Set flag to send RTCM if page is "ntrip".
+ *         - Set pending browser update flag.
+ *     processJsonActivity()          - @see "Operation summary" in description for processJsonActivity().
+ *       - Process one incoming WebSocket message, if queued.
+ *         - Remove message from queue.
+ *         - Deserialize JSON.
+ *         - Set page name.
+ *         - Depending on page (config, files, nmea, operate, ntrip, ...):
+ *           - Fill jsonDocToBrowser[] with page specific data. Run specific functions for some pages.
+ *              - If "nmea" page, do nothing. Processing is loop() -> checkZedTriggerUpdate() -> DevUBLOXGNSS::processNMEA().
+ *           - Send data to browser.
+ *           - If periodic status update is pending, send to browser page.
+ *           - If NTRIP status update is pending, send to browser page.
+ * 
+ *     checkSerialUSB()               - Check serial USB for input.
+ *     // checkGnssLockButton()       - Check GNSS lock button.
+ *     checkTcpClient()               - Check TCP server for new/dropped client (GNSS Master, ..).
+ *     ws.cleanupClients()            - HTTP WebSocket cleanup.
+ *     debug()                        - Display debug.
+ *
  * --- GhostRover FreeRTOS functions. ---
- *     taskLoopStatusLed()            // GhostRover FreeRTOS task - Set Loop() status LED to blink or solid.
- *     taskRtcmRelay()                // GhostRover FreeRTOS task - Relay RTCM from source to -> Serial2 (ZED UART2).
- *     rtcm3GetMessageType()          // Called by taskRtcmRelay - return RTCM3 message type.
- *     relayRtcmByte()                // Called by taskRtcmRelay - read byte from NTRIP client, write to Serial2 (ZED UART2).
- *     ntripBeginClient()             // Called by taskRtcmRelay - connect to NTRIP caster.
- *     ntripPushGGA()                 // Called by taskRtcmRelay - when connected to NTRIP caster, periodically (GGA_INTERVAL) send $GGA NMEA sentence.
+ *     taskLoopStatusLed()            - GhostRover FreeRTOS task - Set Loop() status LED to blink or solid.
+ *     taskRtcmRelay()                - GhostRover FreeRTOS task - Relay RTCM from source to -> Serial2 (ZED UART2).
+ *     rtcm3GetMessageType()          - Called by taskRtcmRelay - return RTCM3 message type.
+ *     relayRtcmByte()                - Called by taskRtcmRelay - read byte from NTRIP client, write to Serial2 (ZED UART2).
+ *     ntripBeginClient()             - Called by taskRtcmRelay - connect to NTRIP caster.
+ *     ntripPushGGA()                 - Called by taskRtcmRelay - when connected to NTRIP caster, periodically (GGA_INTERVAL) send $GGA NMEA sentence.
+ *
  * --- Event handlers for core/additional library processes. ---
- *     -- onWiFiEvent()               // <WiFi.h> & <WiFiAP.h> WiFi event handler (WiFiEvent_t).
+ *     -- onWiFiEvent()               -- <WiFi.h> & <WiFiAP.h> WiFi event handler (WiFiEvent_t).
  *        - if commandFlag[DEBUG_WIFI]), print WiFi status.
- *     -- onHttpFileUpload()          // <ESPAsyncWebServer.h> HTTP endpoint ("/upload") event handler (AsyncWebServerRequest).
+ *     -- onHttpFileUpload()          -- <ESPAsyncWebServer.h> HTTP endpoint ("/upload") event handler (AsyncWebServerRequest).
  *        - write file to SD, print upload status.
- *     -- onWebSocketEvent()          // <ESPAsyncWebServer.h> WebSocket event handler (AsyncWebSocket).
+ *     -- onWebSocketEvent()          -- <ESPAsyncWebServer.h> WebSocket event handler (AsyncWebSocket).
  *        - cases: WS_EVT_CONNECT, WS_EVT_DISCONNECT,WS_EVT_DATA,WS_EVT_PONG,WS_EVT_ERROR.
  *        - print status, set LED color.
  *        - if WS_EVT_DATA, push (xQueueSend) JSON struct (data & length) into GhostRover FreeRTOS QueueHandle_t wsRxQueue.
- *     -- DevUBLOXGNSS::processNMEA() // <SparkFun_u-blox_GNSS_v3.h> DevUBLOXGNSS::processNMEA event handler (char incoming).
+ *     -- DevUBLOXGNSS::processNMEA() -- <SparkFun_u-blox_GNSS_v3.h> DevUBLOXGNSS::processNMEA event handler (char incoming).
  *        - Gather NMEA bytes into sentences, send NMEA sentence over I2C (Wire1) to GR-MCU2.
  *        - Track counts of NMEA sentences (all & each type) for operate page, status section.
  *        - Set status LED red if I2C (Wire1) is down, call startI2C() to restart.
@@ -403,6 +430,7 @@
  * @since 3.2.1  [2026-07-24-03:30pm] Refactor JSON.
  * @since 3.2.1  [2026-07-28-04:45pm] Removed NMEA out switch & preference.
  * @since 3.2.2  [2026-08-09-11:45am] Add NTRIP client.
+ * @since 3.2.3  [2026-08-10-09:45am] Add TCP to replace BLE.
  */
 
 // --- Pin assignments. ---
@@ -427,6 +455,12 @@ SFE_MAX1704X lipo(MAX1704X_MAX17048);                     // LiPo battery.
 // --- WiFi. ---
 char localIp[16];
 char hotspotIp[16];
+
+// --- TCP (GNSS Master: NMEA out, RTCM in for "bridge" mode). ---
+const uint16_t TCP_SERVER_PORT = 9099;                    // GNSS Master (Android) connects here.
+WiFiServer     gnssTcpServer(TCP_SERVER_PORT);            // TCP server object.
+WiFiClient     gnssTcpClient;                             // Single TCP client (GNSS Master). Single-client by design.
+bool           tcpClientConnected = false;                // Status: TCP client connected.
 
 // --- HTTP. ---
 const char     WEBSOCKET_SERVER_NAME[] = "/ghostRover";
@@ -513,7 +547,7 @@ const bool    RW_MODE                   = false;          // Open preference nam
 const bool    RO_MODE                   = true;           // Open preference name space as read only.
 const uint8_t MAJOR_VERSION             = 3;              // Current major build version (@see showBuild()).
 const uint8_t MINOR_VERSION             = 2;              // Current minor build version (@see showBuild()).
-const uint8_t PATCH_VERSION             = 2;              // Current patch build version (@see showBuild()).
+const uint8_t PATCH_VERSION             = 3;              // Current patch build version (@see showBuild()).
 const uint8_t MIN_SATELLITE_THRESHHOLD  = 2;              // Minimum SIV for reliable coordinate information.      
 bool          ghostMode                 = false;          // Flag, in Ghost mode (i.e. locked coordinates).
 bool          i2cUp                     = false;          // Status: true if both Wire & Wire1 up, else false.
@@ -899,6 +933,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
  * @since  3.0.10 [2026-01-08-01:30pm] New
  * @since  3.0.12 [2026-02-18-11:00pm] Shorten RTCM & NMEA status.
  * @since  3.2.1  [2026-07-26-06:30pm] Refactor.
+ * @since  3.2.3  [2026-08-11-09:00am] Moved browserUpdatePending flag to DevUBLOXGNSS::processNMEA().
  * @see    Global vars: WebSockets, setup().
  */
  void buildOperData() {
@@ -966,9 +1001,6 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
         int32_t hours = minutes / 60;
         snprintf(uptime, sizeof(uptime), "%uh %um %us", hours % 24, minutes % 60, seconds % 60);
     }
-
-    // -- Flag pending browser update. Global vars are sent as JSON by processJsonActivity(). --
-    browserUpdatePending = true;
 }
 
 /**
@@ -984,7 +1016,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
  * @see    checkZedTriggerUpdate(), processJsonActivity(), DevUBLOXGNSS::processNMEA().
  * @see    processJsonActivity() for description of exchange protocol.
  */
-void sendDataToBrowser() {
+void sendDataToBrowser() {      // Browser sets state: 1) respond to from browser or 2)periodic update (nmea, operate) to browser, 
 
     // --- NMEA page. ---
     if (strcmp(whichPage, "nmea") == 0) {
@@ -1096,65 +1128,148 @@ void sendDataToBrowser() {
  * @param  array RTCM3 sentence.
  * @return uint16_t Message type.
  * @since  0.8.7 [2025-12-16-06:00pm] New.
+ * @since  3.2.3 [2026-08-10-10:15pm] Defensive cast (uint8_t) since Xtensa/ESP32 defaults char to unsigned.
  * @see    checkRTCMtoRadio().
  * @link   https://portal.u-blox.com/s/question/0D52p0000C7MwDfCQK/can-you-find-out-the-message-type-of-a-given-rtcm3-message.
  */
 uint16_t rtcm3GetMessageType(const char* rtcmSentence) {
     // Serial.printf("[%02x] [%02x] [%02x] [%02x] [%02x]\n", rtcmSentence[0],  rtcmSentence[1], rtcmSentence[2], rtcmSentence[3], rtcmSentence[3]);
-    if (rtcmSentence[0] != 0xD3) {    // Check if preamble is correct
+    if ((uint8_t)rtcmSentence[0] != 0xD3) {    // Check if preamble is correct
         return 0;               // Invalid preamble.
     }
-    uint16_t message_type = ((uint16_t)rtcmSentence[3] << 4) | (rtcmSentence[4] >> 4);
+    uint16_t message_type = ((uint16_t)(uint8_t)rtcmSentence[3] << 4) | ((uint8_t)rtcmSentence[4] >> 4);
     return message_type;
 }
+
+// /**. // ToDo: Delete after verifying new version.
+//  * -------------------------------------------------------------------------
+//  *  Relay RTCM byte to Serial2 (ZED UART2), tracking stats.
+//  * -------------------------------------------------------------------------
+//  *
+//  * Extracted so the "ntrip" branch of taskRtcmRelay() can reuse the same
+//  * preamble-detection/stats logic as the "radio" branch without duplicating
+//  * it. The "radio" branch itself is left as-is for now.
+//  *
+//  * @param  char      inputChar     Byte to relay.
+//  * @param  char*     rtcmSentence  Sentence buffer (caller-owned, sized 1030).
+//  * @param  uint16_t  &byteCount    Caller-owned running byte count.
+//  * @param  uint16_t  &msg_type     Caller-owned last parsed message type.
+//  * @return void No output is returned.
+//  * @since  3.2.2 [2026-08-09-12:00pm] New.
+//  * @see    taskRtcmRelay(), rtcm3GetMessageType().
+//  */
+// void relayRtcmByte(char inputChar, char* rtcmSentence, uint16_t &byteCount, uint16_t &msg_type) {
+//     Serial2.write(inputChar);
+//     if (byteCount < 1030 - 1) {                                     // Bounds check.
+//         rtcmSentence[byteCount] = inputChar;
+//     }
+//     RTCMin = true;
+//     ws2812LedColor = GREEN;
+//     ws2812LedBlink = true;
+
+//     if (inputChar == (char)0xd3) {                                  // Start of new sentence.
+//         rtcmSentenceCount++;
+//         msg_type = rtcm3GetMessageType(rtcmSentence);
+//         int64_t RTCMintervalUs = esp_timer_get_time() - lastRTCMtime;
+//         if (RTCMintervalUs > 0) {
+//             rtcmKbps = ((float)byteCount * 8.0f * 1000.0f) / (float)RTCMintervalUs;
+//         }
+//         if (commandFlag[DEBUG_RTCM]) {
+//             Serial.printf("\nRTCM3 (%s) active(%d) #%zu Type:%u bytes:%u kbps:%.2f\n\nd3 ",
+//                 prfRtcmInSource, RTCMin, rtcmSentenceCount, msg_type, byteCount, rtcmKbps);
+//         }
+//         lastRTCMtime = esp_timer_get_time();
+//         memset(rtcmSentence, '\0', 1030);
+//         rtcmSentence[0] = 0xd3;
+//         byteCount = 1;
+//     } else {
+//         if (commandFlag[DEBUG_RTCM]) {
+//             Serial.printf("%02x ", inputChar);
+//         }
+//         byteCount++;
+//     }
+// }
 
 /**
  * -------------------------------------------------------------------------
  *  Relay RTCM byte to Serial2 (ZED UART2), tracking stats.
  * -------------------------------------------------------------------------
  *
- * Extracted so the "ntrip" branch of taskRtcmRelay() can reuse the same
- * preamble-detection/stats logic as the "radio" branch without duplicating
- * it. The "radio" branch itself is left as-is for now.
+ * RTCM3 framing: [0xD3][6 reserved bits + 10-bit length][length bytes payload][3-byte CRC24Q].
+ * The payload is arbitrary binary data and CAN legitimately contain the byte
+ * value 0xD3 - RTCM3 uses length-prefixed framing, not byte-stuffing. A message
+ * boundary can only be found by counting down the declared length; treating
+ * every 0xD3 in the stream as a new preamble mis-frames any message whose
+ * payload happens to contain that byte, corrupting the parsed type and count.
  *
- * @param  char      inputChar     Byte to relay.
- * @param  char*     rtcmSentence  Sentence buffer (caller-owned, sized 1030).
- * @param  uint16_t  &byteCount    Caller-owned running byte count.
- * @param  uint16_t  &msg_type     Caller-owned last parsed message type.
- * @return void No output is returned.
- * @since  3.2.2 [2026-08-09-12:00pm] New.
+ * @param  char      inputChar          Byte to relay.
+ * @param  char*     rtcmSentence       Sentence buffer (caller-owned, sized 1030).
+ * @param  uint16_t  &byteCount         Caller-owned byte position within the current frame.
+ * @param  uint16_t  &bytesLeftInFrame  Caller-owned countdown; 0 means "expecting a preamble byte", 0xFFFF means "header length not yet known".
+ * @param  uint16_t  &msg_type          Caller-owned last parsed message type.
+ * @return void      No output is returned.
+ * @since  3.2.3     [2026-08-10] Refactored to use length-based framing instead of "any 0xD3 = new message".
  * @see    taskRtcmRelay(), rtcm3GetMessageType().
+ * @link   https://www.use-snip.com/kb/knowledge-base/an-rtcm-message-cheat-sheet/.
  */
-void relayRtcmByte(char inputChar, char* rtcmSentence, uint16_t &byteCount, uint16_t &msg_type) {
-    Serial2.write(inputChar);
-    if (byteCount < 1030 - 1) {                                     // Bounds check.
-        rtcmSentence[byteCount] = inputChar;
-    }
-    RTCMin = true;
-    ws2812LedColor = GREEN;
-    ws2812LedBlink = true;
+void relayRtcmByte(char inputChar, char* rtcmSentence, uint16_t &byteCount, uint16_t &bytesLeftInFrame, uint16_t &msg_type) {
+    Serial2.write(inputChar);               // Always relay immediately - framing state never affects this.
 
-    if (inputChar == (char)0xd3) {                                  // Start of new sentence.
-        rtcmSentenceCount++;
-        msg_type = rtcm3GetMessageType(rtcmSentence);
-        int64_t RTCMintervalUs = esp_timer_get_time() - lastRTCMtime;
-        if (RTCMintervalUs > 0) {
-            rtcmKbps = ((float)byteCount * 8.0f * 1000.0f) / (float)RTCMintervalUs;
+    // --- Idle: expecting the next preamble. ---
+    if (bytesLeftInFrame == 0) {
+        if ((uint8_t)inputChar != 0xd3) {
+            if (commandFlag[DEBUG_RTCM]) {
+                Serial.printf("RTCM3 desync - expected preamble, got %02x\n", (uint8_t)inputChar);
+            }
+            return;                         // Drop stray byte from parsing; relay above already happened.
         }
-        if (commandFlag[DEBUG_RTCM]) {
-            Serial.printf("\nRTCM3 (%s) active(%d) #%zu Type:%u bytes:%u kbps:%.2f\n\nd3 ",
-                prfRtcmInSource, RTCMin, rtcmSentenceCount, msg_type, byteCount, rtcmKbps);
-        }
-        lastRTCMtime = esp_timer_get_time();
+        RTCMin = true;
+        ws2812LedColor = GREEN;
+        ws2812LedBlink = true;
         memset(rtcmSentence, '\0', 1030);
         rtcmSentence[0] = 0xd3;
         byteCount = 1;
-    } else {
-        if (commandFlag[DEBUG_RTCM]) {
-            Serial.printf("%02x ", inputChar);
-        }
-        byteCount++;
+        bytesLeftInFrame = 0xFFFF;          // Sentinel: length not known until 2 more header bytes arrive.
+        return;
     }
+
+    // --- Mid-frame: buffer the byte. ---
+    if (byteCount < 1030 - 1) {             // Bounds check.
+        rtcmSentence[byteCount] = inputChar;
+    }
+    byteCount++;
+
+    // --- Compute payload length & remaining frame size from bytes 0-2. ---
+    if ((byteCount == 3) && (bytesLeftInFrame == 0xFFFF)) {
+        uint16_t payloadLen = ((uint16_t)((uint8_t)rtcmSentence[1] & 0x03) << 8) | (uint8_t)rtcmSentence[2];
+        bytesLeftInFrame = payloadLen + 3;  // Remaining: payload + 3-byte CRC24Q.
+        return;
+    }
+
+    // --- Continue filling header length bytes (byteCount 1 or 2). ---
+    if (bytesLeftInFrame == 0xFFFF) {
+        return;
+    }
+
+    // --- Count down payload+CRC. ---
+    bytesLeftInFrame--;
+    if (bytesLeftInFrame > 0) {
+        return;
+    }
+
+    // --- Frame complete. ---
+    rtcmSentenceCount++;
+    msg_type = rtcm3GetMessageType(rtcmSentence);
+    int64_t RTCMintervalUs = esp_timer_get_time() - lastRTCMtime;
+    if (RTCMintervalUs > 0) {
+        rtcmKbps = ((float)byteCount * 8.0f * 1000.0f) / (float)RTCMintervalUs;
+    }
+    if (commandFlag[DEBUG_RTCM]) {
+        Serial.printf("RTCM3 (%s) active(%d) #%zu Type:%u bytes:%u kbps:%.2f\n",
+            prfRtcmInSource, RTCMin, rtcmSentenceCount, msg_type, byteCount, rtcmKbps);
+    }
+    lastRTCMtime = esp_timer_get_time();
+    // bytesLeftInFrame is already 0 - next byte in is treated as the next preamble.
 }
 
 /**
@@ -1189,6 +1304,8 @@ bool ntripBeginClient() {
     if (commandFlag[DEBUG_NTRIP]) {
         Serial.printf("Opening socket to %s:%u.\n", ntripCaster.url, ntripCaster.port);
     }
+
+    // --- Socket connect failed. ---
     if (ntripClient.connect(ntripCaster.url, ntripCaster.port) == false) {
         strlcpy(ntripStatusMsg, "FAILED: connect to url:port.", sizeof(ntripStatusMsg));
         if (commandFlag[DEBUG_NTRIP]) {
@@ -1229,6 +1346,8 @@ bool ntripBeginClient() {
     // --- Wait for response. ---
     startTime = esp_timer_get_time();
     while (ntripClient.available() == 0) {
+
+        // -- Timed out waiting for caster's HTTP response. --
         if ((esp_timer_get_time() - startTime) > CASTER_TIMEOUT) {
             strlcpy(ntripStatusMsg, "FAILED: Time out.", sizeof(ntripStatusMsg));
             if (commandFlag[DEBUG_NTRIP]) {
@@ -1319,14 +1438,16 @@ void ntripPushGGA() {
  * =========================================================================
  *
  * @since 3.0.11 [2026-01-08-10:30am] Browser initiated updates.
+ * @since 3.2.3 [2026-08-10-09:45am] Add startTcpServer().
  * @see   showBuild()            - Display build & processor info.
  * @see   prefUtility(PREF_INIT) - Preference utility (get preferences).
  * @see   startSerial()          - Start serial interfaces.
  * @see   initPins()             - Initialize pins & pin values.
  * @see   startI2C()             - Start I2C wire interfaces.
  * @see   startLiPo()            - Start LiPo I2C interface.
- * @see   startWiFiServer()      - Start WiFi server.
  * @see   startSD()              - Start & test microSD card reader.
+ * @see   startWiFiServer()      - Start WiFi server.
+ * @see   startTcpServer()       - Start TCP server for GNSS Master (NMEA out / RTCM in bridge).
  * @see   startHttpServer()      - Start HTTP server.
  * @see   startWebSocketServer() - Start WebSocket server.
  * @see   startAndConfigGNSS()   - Start GNSS, config ZED settings.
@@ -1519,58 +1640,6 @@ void startLiPo() {
 
 /**
  * -------------------------------------------------------------------------
- *  Start WiFi server.
- * -------------------------------------------------------------------------
- *
- * @return void  No output is returned.
- * @since  3.0.7  [2025-11-20-12:30pm]. New.
- * @since  3.0.10 [2026-01-07-11:00am] Local vars.
- * @since  3.0.12 [2026-01-27-04:00pm] Refactor from AP mode to AP+Station mode.
- * @since  3.0.12 [2026-02-01-05:30pm] Use preferences.
- * @since  3.2.1  [2026-07-31-12:30pm] Add WiFi client for NTRIP access. Refactor.
- * @see    setup(), prefUtility().
- * @link   https://github.com/espressif/arduino-esp32/tree/master/libraries/WiFi.
- * @link   https://docs.espressif.com/projects/arduino-esp32/en/latest/api/wifi.html.
- * @link   https://docs.espressif.com/projects/arduino-esp32/en/latest/api/network.html.
- */
-void startWiFiServer() {
-
-    // --- Local Vars. ---
-    const char AP_SSID[] = "Ghost Rover";                           // Local ESP32 Access Point (AP) network.
-    const char AP_NAME[] = "ghost";                                 // AP name.
-    const IPAddress AP_LOCAL_IP(192, 168, 23, 1);                   // AP host address.
-    const IPAddress AP_GATEWAY(192, 168, 23, 1);                    // AP gateway address.
-    const IPAddress AP_SUBNET(255, 255, 255, 0);                    // AP subnet mask.      
-
-    // --- Set WiFi mode to WIFI_AP_STA for both WiFi server (WIFI_AP) & client (WIFI_STA). ---
-    WiFi.mode(WIFI_AP_STA);
-
-    // --- Config & start WiFi server (Access Point) for easy browser access. ---
-    if (!WiFi.softAPConfig(AP_LOCAL_IP, AP_GATEWAY, AP_SUBNET)) {   // Configure IP network.
-        Serial.println("Soft AP - config failed.");
-        while (true) {
-            ws2812LedColor = RED;                                   // Indicates error during setup(). 
-            ws2812LedBlink = false;
-            statusLedOn();
-        };
-    }
-    if (!WiFi.softAP(AP_SSID)) {                                    // Open access point - set SSID, omit password.
-        Serial.println("Soft AP - create failed. Freezing.");
-        while (true) {
-            ws2812LedColor = RED;                                   // Indicates error during setup(). 
-            ws2812LedBlink = false;
-            statusLedOn();
-        };
-    }
-    WiFi.softAPsetHostname(AP_NAME);                                // Set hostname.
-    WiFi.onEvent(onWiFiEvent);                                      // Add event handler WiFiEvent().
-    IPAddress ip = WiFi.softAPIP();                                 // Start WiFi & check status (get IP).
-    snprintf(localIp, sizeof(localIp), "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
-    Serial.printf("WiFi server \"%s\" started @ %s.\n", AP_SSID, localIp);
-}
-
-/**
- * -------------------------------------------------------------------------
  *  Start & test microSD card reader.
  * -------------------------------------------------------------------------
  *
@@ -1640,6 +1709,75 @@ void startSD() {
     }
     Serial.println("OK.");
     file.close();
+}
+
+/**
+ * -------------------------------------------------------------------------
+ *  Start WiFi server.
+ * -------------------------------------------------------------------------
+ *
+ * @return void  No output is returned.
+ * @since  3.0.7  [2025-11-20-12:30pm]. New.
+ * @since  3.0.10 [2026-01-07-11:00am] Local vars.
+ * @since  3.0.12 [2026-01-27-04:00pm] Refactor from AP mode to AP+Station mode.
+ * @since  3.0.12 [2026-02-01-05:30pm] Use preferences.
+ * @since  3.2.1  [2026-07-31-12:30pm] Add WiFi client for NTRIP access. Refactor.
+ * @see    setup(), prefUtility().
+ * @link   https://github.com/espressif/arduino-esp32/tree/master/libraries/WiFi.
+ * @link   https://docs.espressif.com/projects/arduino-esp32/en/latest/api/wifi.html.
+ * @link   https://docs.espressif.com/projects/arduino-esp32/en/latest/api/network.html.
+ */
+void startWiFiServer() {
+
+    // --- Local Vars. ---
+    const char AP_SSID[] = "Ghost Rover";                           // Local ESP32 Access Point (AP) network.
+    const char AP_NAME[] = "ghost";                                 // AP name.
+    const IPAddress AP_LOCAL_IP(192, 168, 23, 1);                   // AP host address.
+    const IPAddress AP_GATEWAY(192, 168, 23, 1);                    // AP gateway address.
+    const IPAddress AP_SUBNET(255, 255, 255, 0);                    // AP subnet mask.      
+
+    // --- Set WiFi mode to WIFI_AP_STA for both WiFi server (WIFI_AP) & client (WIFI_STA). ---
+    WiFi.mode(WIFI_AP_STA);
+
+    // --- Config & start WiFi server (Access Point) for easy browser access. ---
+    if (!WiFi.softAPConfig(AP_LOCAL_IP, AP_GATEWAY, AP_SUBNET)) {   // Configure IP network.
+        Serial.println("Soft AP - config failed.");
+        while (true) {
+            ws2812LedColor = RED;                                   // Indicates error during setup(). 
+            ws2812LedBlink = false;
+            statusLedOn();
+        };
+    }
+    if (!WiFi.softAP(AP_SSID)) {                                    // Open access point - set SSID, omit password.
+        Serial.println("Soft AP - create failed. Freezing.");
+        while (true) {
+            ws2812LedColor = RED;                                   // Indicates error during setup(). 
+            ws2812LedBlink = false;
+            statusLedOn();
+        };
+    }
+    WiFi.softAPsetHostname(AP_NAME);                                // Set hostname.
+    WiFi.onEvent(onWiFiEvent);                                      // Add event handler WiFiEvent().
+    IPAddress ip = WiFi.softAPIP();                                 // Start WiFi & check status (get IP).
+    snprintf(localIp, sizeof(localIp), "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
+    Serial.printf("WiFi server \"%s\" started @ %s.\n", AP_SSID, localIp);
+}
+
+/**
+ * -------------------------------------------------------------------------
+ *  Start TCP server for GNSS Master (NMEA out / RTCM in bridge).
+ * -------------------------------------------------------------------------
+ *
+ * Listens on both WiFi "server" and WiFi "client" interfaces.
+ *
+ * @return void No output is returned.
+ * @since  3.2.3 [2026-08-10-10:45am] New.
+ * @see    setup(), checkTcpClient().
+ */
+void startTcpServer() {
+    gnssTcpServer.begin();
+    gnssTcpServer.setNoDelay(true);                        // Disable Nagle - don't batch NMEA/RTCM bytes.
+    Serial.printf("TCP server started on port %u.\n", TCP_SERVER_PORT);
 }
 
 /**
@@ -1934,7 +2072,7 @@ void taskLoopStatusLed(void * pvParameters) {
  *  GhostRover FreeRTOS task - Relay RTCM from Serial1 (HC-12) to -> Serial2 (ZED UART2).
  * -------------------------------------------------------------------------
  *
- * RTCM preamble = '11010011 000000xx' = 0xd3 0x00.
+ * RTCM preamble = '11010011 000000xx' = 0xd3 0x00.  // ToDo: cleanup after new code inserted.
  *
  *  ESP32-S3 Serial1 (HC12) is set to 9,600 bps (default speed) in Global Vars.
  *  ESP32-S3 Serial2 (ZED UART2) is set to 57,600 bps in Global Vars.
@@ -1944,13 +2082,16 @@ void taskLoopStatusLed(void * pvParameters) {
  * (NMEA-over-I2C forwarding) can't starve the RTCM relay. Drains Serial1 fully
  * on every wake so any backlog from a stall clears immediately instead of
  * trickling out one byte per loop() pass.
+ * 
+ * RTCM types: 1004/1005/1006/1012/1019/1033/1074/1077/1084/1087/1094/1097/1124/1127/1230/4072.
  *
  * @param  void * pvParameters Pointer to FreeRTOS task parameters.
  * @return void   No output is returned (infinite loop).
  * @since  3.1.2  [2026-07-03-06:15pm] New, replaced relaySerial1toSerial2() in loop().
  * @since  3.1.2  Added if (byteCount < sizeof(rtcmSentence) - 1) to check for rtcmSentence overflow.
  * @since  3.2.1  [2026-07-29-09:30am] Added guard to prevent rtcmKbps form calculating as null.
- * @since  3.2.2. [2026-08-09-12:45pm] Add NTRIP client: add logic for "// prfRtcmInSource preference is set to "ntrip."
+ * @since  3.2.2  [2026-08-09-12:45pm] Add NTRIP client: add logic for "// prfRtcmInSource preference is set to "ntrip."
+ * @since  3.2.3  [2026-08-10-10:30pm] Add bytesLeftInFrame, unify "radio" branch onto relayRtcmByte() helper.
  * @see    startTasks().
  * @see    rtcm3GetMessageType().
  * @see    Global vars: Serial, startSerialInterfaces(), loop().
@@ -1964,61 +2105,20 @@ void taskLoopStatusLed(void * pvParameters) {
 void taskRtcmRelay(void *pvParameters) {
 
     // --- Local vars. ---
-    const  uint16_t RTCM_TIMEOUT      = 5000000;                        // Time (us) not to exceed for RTCM input received (5 sec).
-           uint16_t byteCount         =       0;
-           char     rtcmSentence[1030] =  {'\0'};                       // RTCM3 sentence buffer.
-           uint16_t msg_type          =       0;
+    char     rtcmSentence[1030] = {'\0'};                               // RTCM3 sentence buffer.
+    uint16_t byteCount          = 0;
+    uint16_t bytesLeftInFrame   = 0;                                    // @since 3.2.4 - framing state for relayRtcmByte().
+    uint16_t msg_type           = 0;
 
     // --- Loop. ---
     for (;;) {
         vTaskDelay(1);                                                  // Yield 1 tick when idle - keeps watchdog/other tasks fed.
-        // vTaskDelay(pdMS_TO_TICKS(50));                               // Idle - nothing to relay.
 
-        // -- Operate page: check for RTCMin timeout. --  // ToDo: Not needed or debug.
-        // if ((strncmp(whichPage, "operate", sizeof(whichPage)) == 0) && ((esp_timer_get_time() - lastRTCMtime) > RTCM_TIMEOUT)) {
-        //     RTCMin = false;
-        //     ws2812LedColor = GREEN;
-        //     ws2812LedBlink = false;
-        //     Serial.println("ERROR: RTCMin timeout.");
-        // }
-        
+        // -- prfRtcmInSource preference is set to "radio." --
         if (strncmp(prfRtcmInSource, "radio", sizeof(prfRtcmInSource)) == 0) {
-
-            // -- Always drain Serial1 (HC-12) fully, write each byte to Serial2 (ZED UART2). --
-            while (Serial1.available() > 0) {                           // Loop until caught up, not just once.
-                char inputChar = Serial1.read();                        // Read a character from Serial1 (HC-12) @ SERIAL1_SPEED.
-                Serial2.write(inputChar);                               // Write a character to Serial2 (ZED UART2) @ SERIAL2_SPEED.
-                if (byteCount < sizeof(rtcmSentence) - 1) {             // Bounds check - prevent stack buffer overflow (relay above is unaffected either way).
-                    rtcmSentence[byteCount] = inputChar;                // RTCM3 sentence buffer used to parse message type.
-                }
-                RTCMin = true;
-                ws2812LedColor = GREEN;
-                ws2812LedBlink = true;
-
-                // - Stats. -
-                if (inputChar == 0xd3) {                                    // Start of new sentence.
-                    rtcmSentenceCount++;
-                    msg_type = rtcm3GetMessageType(rtcmSentence);           // Parse message type.
-                    int64_t RTCMintervalUs = esp_timer_get_time() - lastRTCMtime;
-                    int64_t RTCMinterval = RTCMintervalUs / 1000;           // Ms for display only.
-                    if (RTCMintervalUs > 0) {
-                        rtcmKbps = ((float)byteCount * 8.0f * 1000.0f) / (float)RTCMintervalUs;     // kbps = bits / ms.
-                    } else {
-                            // Interval too short to measure meaningfully — hold last known value rather than emit garbage/null.
-                    }
-                    if (commandFlag[DEBUG_RTCM]) {          // Debug.
-                        Serial.printf("\nRTCM3 (%s) active(%d) #%zu Type:%u bytes:%u ms:%lld kbps:%.2f\n\nd3 ", prfRtcmInSource, RTCMin, rtcmSentenceCount, msg_type, byteCount, RTCMinterval, rtcmKbps);
-                    }
-                    lastRTCMtime = esp_timer_get_time();                    // Used to check for timeout.
-                    memset(rtcmSentence, '\0', sizeof(rtcmSentence));       // Clear the sentence buffer.
-                    rtcmSentence[0] = 0xd3;
-                    byteCount = 1;
-                } else {
-                    if (commandFlag[DEBUG_RTCM]) {                          // Debug.
-                        Serial.printf("%02x ", inputChar);
-                    }
-                    byteCount++;
-                }
+            while (Serial1.available() > 0) {
+                char inputChar = Serial1.read();
+                relayRtcmByte(inputChar, rtcmSentence, byteCount, bytesLeftInFrame, msg_type);
             }
         }
 
@@ -2028,7 +2128,7 @@ void taskRtcmRelay(void *pvParameters) {
             static int64_t lastNtripRtcmTime = 0;                        // Hangup timeout - persists across task passes.
             const  int64_t NTRIP_RTCM_TIMEOUT = 10000000;                // Time (us), matches Ex15/17's maxTimeBeforeHangup_ms.
 
-            // -- Handle connect/disconnect requests from browser (via processJsonActivity()). --
+            // - Handle connect/disconnect requests from browser (via processJsonActivity()). -
             if (ntripConnectRequest) {
                 ntripConnectRequest = false;
                 ntripConnected = ntripBeginClient();
@@ -2041,6 +2141,8 @@ void taskRtcmRelay(void *pvParameters) {
                 if (ntripClient.connected()) {
                     ntripClient.stop();
                 }
+
+                // Browser requested disconnect.
                 ntripConnected = false;
                 RTCMin = false;
                 strlcpy(ntripStatusMsg, "DISCONNECTED: browser request.", sizeof(ntripStatusMsg));
@@ -2050,17 +2152,19 @@ void taskRtcmRelay(void *pvParameters) {
                 ntripStatusPending = true;
             }
 
-            // -- Relay RTCM & push GGA while connected. --
+            // - Relay RTCM & push GGA while connected. -
             if (ntripConnected) {
                 if (ntripClient.connected()) {
                     while (ntripClient.available() > 0) {
                         char inputChar = ntripClient.read();
-                        relayRtcmByte(inputChar, rtcmSentence, byteCount, msg_type);
+                        relayRtcmByte(inputChar, rtcmSentence, byteCount, bytesLeftInFrame, msg_type);
                         lastNtripRtcmTime = esp_timer_get_time();
-                    }
+                    }  
                     ntripPushGGA();
 
                     if ((esp_timer_get_time() - lastNtripRtcmTime) > NTRIP_RTCM_TIMEOUT) {
+
+                        // RTCM hangup timeout.
                         ntripClient.stop();
                         ntripConnected = false;
                         RTCMin = false;
@@ -2070,10 +2174,12 @@ void taskRtcmRelay(void *pvParameters) {
                         }
                         ntripStatusPending = true;
                     }
-                } else {                                                  // Caster closed the connection.
+                } else {
+
+                    // Caster closed the socket.
                     ntripConnected = false;
                     RTCMin = false;
-                    strlcpy(ntripStatusMsg, "DISCONNECTED: connection dropped.", sizeof(ntripStatusMsg));
+                    strlcpy(ntripStatusMsg, "DISCONNECTED: dropped by caster.", sizeof(ntripStatusMsg));
                     if (commandFlag[DEBUG_NTRIP]) {
                         Serial.println(ntripStatusMsg);
                     }
@@ -2082,8 +2188,15 @@ void taskRtcmRelay(void *pvParameters) {
             }
         }
 
-         // -- prfRtcmInSource preference is set to "bridge."
+        // -- prfRtcmInSource preference is set to "bridge". --
+        // RTCM from GNSS Master's own NTRIP client, over TCP).
         if (strncmp(prfRtcmInSource, "bridge", sizeof(prfRtcmInSource)) == 0) {
+            if (tcpClientConnected) {
+                while (gnssTcpClient.available() > 0) {
+                    char inputChar = gnssTcpClient.read();
+                    relayRtcmByte(inputChar, rtcmSentence, byteCount, bytesLeftInFrame, msg_type);
+                }
+            }
         }
     }
 }
@@ -2252,6 +2365,7 @@ void onWebSocketEvent(AsyncWebSocket *httpServer, AsyncWebSocketClient *client, 
  * @since  3.2.1  [2026-07-28-04:45pm] Removed NMEA out switch & preference.
  * @since  3.2.1  [2026-07-30-10:30am] Global browserUpdatePending flag added.
  * @since  3.2.2  [2026-08-09-11:45am] Add NTRIP client: add char lastGGA[100].
+ * @since  3.2.3  [2026-08-10-10:30am] Refactor from Wire1 to TCP.
  * @see    nmeaBuffer[] in Operation section of Global vars.
  * @see    ntripPushGGA().
  * @link   https://docs.espressif.com/projects/arduino-esp32/en/latest/api/wifi.html.
@@ -2268,21 +2382,23 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
     // --- Loop. ---
     if (inLoop) {
         strncat(nmeaBuffer, &incoming, 1);                                  // Add NMEA byte from RTK-SMA to outbound buffer.
-        if ((incoming == '\n') && (nmeaBuffer[0] == '$')) {                 // We have a full sentence.
-            // TODo: Here is where the NMEA sentence should get modified for instrument hieght and lock button.
-            if (i2cUp) {                                                    // Slave is up.
-                Wire1.beginTransmission(8);                                 // Prepare to send on I2C1.
-                for (int i = 0; i < strlen(nmeaBuffer); i++) {              // Add bytes to output queue.
-                    Wire1.write(nmeaBuffer[i]);
-                }
-                writeStatus = Wire1.endTransmission(8);                 // Send sentence on I2C1.
-                if (writeStatus == 0) {                                 // Success: master (Wire1 on MCU #1) & slave (Wire on MCU #2) are both up.
-                nmeaCountAll++;                                         // Increment counter for all NMEA sentences sent.
-                if (strncmp(&nmeaBuffer[3], "GGA", 3) == 0) {           // We have a full GGA sentence.
-                    lastGGAsendTime = esp_timer_get_time();             // Save time when GGA sentence was sent out.
-                    nmeaCountGGA++;                                     // Increment counter for GGA sentences sent.
-                    nmeaSolutionBlockComplete = true;                   // NMEA solution block is complete.
-                    strlcpy(lastGGA, nmeaBuffer, sizeof(lastGGA));      // @since 3.2.2, @see ntripPushGGA().
+        // ToDo: Here is where the NMEA sentence should get modified for instrument hieght and lock button.
+        // ToDo: i2cUp/startI2C() for Wire1 are no longer referenced by this function. Remove references.
+
+        if ((incoming == '\n') && (nmeaBuffer[0] == '$')) {              // Full sentence.
+
+            size_t bytesWritten = 0;
+            if (tcpClientConnected) {
+                bytesWritten = gnssTcpClient.write((const uint8_t*)nmeaBuffer, strlen(nmeaBuffer));
+            }
+
+            if (bytesWritten > 0) {                                      // Success.
+                nmeaCountAll++;
+                if (strncmp(&nmeaBuffer[3], "GGA", 3) == 0) {
+                    lastGGAsendTime = esp_timer_get_time();
+                    nmeaCountGGA++;
+                    nmeaSolutionBlockComplete = true;
+                    strlcpy(lastGGA, nmeaBuffer, sizeof(lastGGA));       // @since 3.2.2 - for ntripPushGGA().
                 } else if (strncmp(&nmeaBuffer[3], "RMC", 3) == 0) {
                     nmeaCountRMC++;
                 } else if (strncmp(&nmeaBuffer[3], "GSA", 3) == 0) {
@@ -2299,64 +2415,49 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
                         Serial.println(nmeaBuffer);
                     }
                 }
-                if (zeroStatusCounters) {                               // Zero all NMEA status counters.
-                        nmeaCountAll       = 0;
-                        nmeaCountGGA       = 0;
-                        nmeaCountRMC       = 0;
-                        nmeaCountGSA       = 0;
-                        nmeaCountGSV       = 0;
-                        nmeaCountGST       = 0;
-                        nmeaCountTXT       = 0;
-                        nmeaCountOther     = 0;
-                        zeroStatusCounters = false;
+                if (zeroStatusCounters) {
+                    nmeaCountAll = 0; nmeaCountGGA = 0; nmeaCountRMC = 0; nmeaCountGSA = 0;
+                    nmeaCountGSV = 0; nmeaCountGST = 0; nmeaCountTXT = 0; nmeaCountOther = 0;
+                    zeroStatusCounters = false;
                 }
                 if (commandFlag[DEBUG_NMEA_COUNTS]) {
-                    Serial.printf("All=%u, GGA=%u, RMC=%u, GSA=%u, GSV=%u, GST=%u, TXT=%u, $other=%u.\n",
-                    nmeaCountAll, nmeaCountGGA, nmeaCountRMC, nmeaCountGSA, nmeaCountGSV, nmeaCountGST, nmeaCountTXT, nmeaCountOther);
+                    Serial.printf("All=%u, GGA=%u, RMC=%u, GSA=%u, GSV=%u, GST=%u, TXT=%u, other=%u.\n",
+                        nmeaCountAll, nmeaCountGGA, nmeaCountRMC, nmeaCountGSA, nmeaCountGSV, nmeaCountGST, nmeaCountTXT, nmeaCountOther);
                 }
-                if (commandFlag[DEBUG_NMEA]) {                          // Debug - show NMEA sentence characters.
+                if (commandFlag[DEBUG_NMEA]) {
                     if (strncmp("$GNGGA", nmeaBuffer, 6) == 0) {
                         Serial.print('\n');
                     }
-                    Serial.printf("%u %s", nmeaCountAll, nmeaBuffer);   // Display NMEA sentence (nmeaBuffer already ends with [CR][LF]).
+                    Serial.printf("%u %s", nmeaCountAll, nmeaBuffer);
                 }
-                if (commandFlag[DEBUG_NMEA_HEX]) {                      // Debug - show NMEA sentence characters in hex.
+                if (commandFlag[DEBUG_NMEA_HEX]) {
                     if (strncmp("$GNGGA", nmeaBuffer, 6) == 0) {
                         Serial.println('\n');
                     }
-                    Serial.printf("%u %s", nmeaCountAll, nmeaBuffer);   // Display NMEA sentence (nmeaBuffer already ends with [CR][LF]).
-                    for (int i = 0; i < strlen(nmeaBuffer); i++) {      // Display NMEA sentence characters in hex.
-                        Serial.printf("[\"%c\" 0x%02X] ",nmeaBuffer[i], nmeaBuffer[i]);
+                    Serial.printf("%u %s", nmeaCountAll, nmeaBuffer);
+                    for (int i = 0; i < strlen(nmeaBuffer); i++) {
+                        Serial.printf("[\"%c\" 0x%02X] ", nmeaBuffer[i], nmeaBuffer[i]);
                     }
                     Serial.println('\n');
                 }
 
                 // -- If on NMEA page, save sentence for processJsonActivity() call in next loop() & flag update. --
-                // NmeaBuffer gets memset (cleared), so it needs to be saved into lastNmea.
-                // This shifts the NMEA sentence's arrival at the browser by roughly one loop() pass (microseconds) which is negligable.
                 if (strcmp(whichPage, "nmea") == 0) {
                     strlcpy(lastNmea, nmeaBuffer, sizeof(lastNmea));
                     browserUpdatePending = true;
                 }
 
-                i2cUp = true;
-                NMEAout = true;                                         // NMEA sent out succesfully to MCU #2.
+                NMEAout = true;                                          // NMEA sent out succesfully over TCP.
 
-                // -- Calculate NMEA status values for oper page. --
-                if (nmeaSolutionBlockComplete) {                        // For each solution block ...
-                    nmeaRate = (nmeaSolutionLength * 1024) / (esp_timer_get_time() - lastGGAsendTime);          // Average kbps x 1000 per solution.
-                    lastGGAsendTime = esp_timer_get_time();             // Save time when last GGA sent.
-                    nmeaSolutionBlockComplete = false;                  // Start a new solution block.
-                    nmeaSolutionLength = 0;                             // Reset counter for # of bytes in solution block.
+                if (nmeaSolutionBlockComplete) {
+                    nmeaRate = (nmeaSolutionLength * 1024) / (esp_timer_get_time() - lastGGAsendTime);
+                    lastGGAsendTime = esp_timer_get_time();
+                    nmeaSolutionBlockComplete = false;
+                    nmeaSolutionLength = 0;
                 }
-                nmeaSolutionLength += strlen(nmeaBuffer);               // Each NMEA sentence - add to total bytes for this solution block.
-                } else {
-                    i2cUp = false;                                          // Wire1 is down.
-                    NMEAout = false;
-                    ws2812LedColor = RED;
-                    ws2812LedBlink = false;
-                    startI2C();                                             // Restart Wire & Wire1.
-                }
+                nmeaSolutionLength += strlen(nmeaBuffer);
+            } else {
+                NMEAout = false;                                          // No client, or write failed.
             }
             memset(nmeaBuffer, '\0', sizeof(nmeaBuffer));
         }
@@ -2373,6 +2474,7 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
  * @see checkSerialUSB()          - Check serial USB for input.
  * @see debug()                   - Display debug.
  * @see checkGnssLockButton()     - Check GNSS lock button. // ToDo: Implement.
+ * @see checkTcpClient()          - Check TCP server for new/dropped GNSS Master client.
  * @see ws.cleanupClients()       - HTTP WebSocket cleanup.
  */
 
@@ -2390,43 +2492,15 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
  * @since  3.0.12 [2026-02-08-05:00pm] New.
  * @since  3.0.12 [2026-02-14-06:15pm] Replace prfRqsPvtInt with (prfGnsNavRat * prfGnsMsrInt).
  * @since  3.2.1  [2026-07-30-11:15am] Moved jsonDocToBrowser.clear() to processJsonActivity().
+ * @since  3.2.3  [2026-08-11-09:00am] Moved browserUpdatePending flag from buildOperData().
+ * @see    loop().
  * @see    DevUBLOXGNSS::processNMEA().
  */
-// void checkZedTriggerUpdate() {
-
-//     // --- NMEA page. ---
-//     if (strcmp(whichPage, "nmea") == 0) {
-//         // -- Local vars. --
-//         const  int64_t THROTTLE_CHECK_ZED = (prfGnsNavRat * prfGnsMsrInt) * 1000;   // Convert from (us) to (ms), time between checkZedTriggerUpdate().
-//         static int64_t lastZedCheck = esp_timer_get_time();                         // Throttle. Initialize only once, then persist.
-//                int64_t lastTime;
-
-//         // -- Throttle loop() calls. --
-//         if ((esp_timer_get_time() - lastZedCheck) < THROTTLE_CHECK_ZED) {           // Not time to run.
-//             return; 
-//         }
-//         lastZedCheck = esp_timer_get_time();                                        // Time to run. Reset timer.
-
-//         // -- Check ZED. --
-//         roverGNSS.checkUblox();
-//         lastTime = esp_timer_get_time();
-//     }
-
-//     // --- Build data for operate page. ---
-//     if (strcmp(whichPage, "operate") == 0) {
-//         buildOperData();
-//     }
-
-//     // --- Flag to send rtcmSentenceCount for ntrip page. ---
-//     ntripsendRtcmSentenceCount = true;
-//     browserUpdatePending       = true;
-// }
 void checkZedTriggerUpdate() {
 
     // -- Local vars. --
     const  int64_t THROTTLE_CHECK_ZED = (prfGnsNavRat * prfGnsMsrInt) * 1000;   // Convert from (us) to (ms), time between checkZedTriggerUpdate().
     static int64_t lastZedCheck = esp_timer_get_time();                         // Throttle. Initialize only once, then persist.
-            // int64_t lastTime;
 
     // -- Throttle loop() calls. --
     if ((esp_timer_get_time() - lastZedCheck) < THROTTLE_CHECK_ZED) {           // Not time to run.
@@ -2436,12 +2510,6 @@ void checkZedTriggerUpdate() {
 
     // -- Check ZED. --
     roverGNSS.checkUblox();
-    // lastTime = esp_timer_get_time();
-
-    //         // --- NMEA page. ---
-    // if (strcmp(whichPage, "nmea") == 0) {
-
-    // }
 
     // --- Build data for operate page. ---
     if (strcmp(whichPage, "operate") == 0) {
@@ -2451,8 +2519,10 @@ void checkZedTriggerUpdate() {
     // --- Flag to send rtcmSentenceCount for ntrip page. ---
     if (strcmp(whichPage, "ntrip") == 0) {
         ntripsendRtcmSentenceCount = true;
-        browserUpdatePending       = true;
     }
+
+    // -- Flag pending browser update. Global vars are sent as JSON by processJsonActivity(). --
+    browserUpdatePending = true;
 }
 
 /**
@@ -2741,7 +2811,7 @@ void checkZedTriggerUpdate() {
  * @link  https://github.com/espressif/arduino-esp32/tree/master/libraries/Preferences/.
  *
  */
- void processJsonActivity() {
+ void  processJsonActivity() {      // From browser, to browser, periodic.
 
     // --- Debug. ---
     // serializeJson(jsonDocToBrowser, Serial); // Debug.
@@ -2751,353 +2821,360 @@ void checkZedTriggerUpdate() {
     // jsonDocFromBrowser, jsonDocToBrowser, &  JsonDocNtrip are global vars.
     WsQueueItem item;
 
-    // --- Step 1/2: Process one incoming WebSocket message, if queued. ---
-    if (xQueueReceive(wsRxQueue, &item, 0) == pdTRUE) {
-
-        // -- Debug. Print data received. --
-        if (commandFlag[DEBUG_WS]) {
-            Serial.printf("WS #%u: browser --> %s\n", clientId, item.data);
-        }
-
-        // -- WebSocket message - deserialize the JSON data into a JSON document (jsonDocFromBrowser). --
-        jsonDocFromBrowser.clear();
-        DeserializationError error = deserializeJson(jsonDocFromBrowser, item.data, item.len);
-
-        // -- Begin. --
-        if (error) {
-            Serial.printf("JSON deserialize failed: %s\n", error.f_str());
-            return;
-        } else {
-
-            // -- Process JSON. --
-            memset(response, '\0', sizeof(response));
-            jsonDocToBrowser.clear();
-
-            // -- Set page name global var.
-            if (jsonDocFromBrowser["page"].is<JsonVariant>()) {                     // Does key exist?
-                strlcpy(whichPage, jsonDocFromBrowser["page"], sizeof(whichPage));  // Important global used in loop().
-            }
-
-            // -------------------------------------------------------------------------
-            // -- All pages. Send all preferences to browser. --
-            // -------------------------------------------------------------------------
-
-            if (jsonDocFromBrowser["sendPrefs"].is<JsonVariant>()) {
-
-                // - Set global vars from preferences. -
-                prefUtility(PREF_READ);
-                
-                // - Set JSON values from global vars. -
-                jsonDocToBrowser["0"]  = buildString;
-                jsonDocToBrowser["1"]  = prfUnt;
-                jsonDocToBrowser["2"]  = prfRtcmInSource;
-                jsonDocToBrowser["4"]  = prfGnsMsrInt;
-                jsonDocToBrowser["5"]  = prfGnsNavRat;
-                jsonDocToBrowser["6"]  = prfHotSsi;
-                jsonDocToBrowser["7"]  = prfHotPas;
-                jsonDocToBrowser["35"] = clientId;
-                jsonDocToBrowser["36"] = prfInstrHgt;
-                jsonDocToBrowser["39"] = prfNtripCastAttr[0];
-                jsonDocToBrowser["40"] = prfNtripCastAttr[1];
-                jsonDocToBrowser["41"] = prfNtripCastAttr[2];
-                jsonDocToBrowser["42"] = prfNtripCastAct;
-
-                // - Set response. -
-                strcpy(response, "Preferences sent.");
-                jsonDocToBrowser["sendPrefsResp"] = response;
-            }
-
-            // -------------------------------------------------------------------------
-            // -- Config page. Set all preferences. --
-            // -------------------------------------------------------------------------
-            if (jsonDocFromBrowser["setPrefs"].is<JsonVariant>()) {
-
-                // - Set global vars from JSON values. -
-                strlcpy(prfUnt,          jsonDocFromBrowser["1"],  sizeof(prfUnt));  // dst, src, sizeof(dest)
-                strlcpy(prfRtcmInSource, jsonDocFromBrowser["2"],  sizeof(prfRtcmInSource));
-                strlcpy(prfHotSsi,       jsonDocFromBrowser["6"],  sizeof(prfHotSsi));
-                strlcpy(prfHotPas,       jsonDocFromBrowser["7"],  sizeof(prfHotPas));
-                strlcpy(prfNtripCastAct, jsonDocFromBrowser["42"], sizeof(prfNtripCastAct));
-                prfGnsNavRat    = (uint8_t)  atoi(jsonDocFromBrowser["5"]);   // KV values are stored in NVS as int, but set to C-string in processJsonActivity() for code clarity.
-                prfGnsMsrInt    = (uint16_t) atoi(jsonDocFromBrowser["4"]);
-                prfInstrHgt     = (uint16_t) atoi(jsonDocFromBrowser["36"]);
-
-                // - Set new preferences from global vars. -
-                prefUtility(PREF_SET);
-
-                // - Set response. -
-                strcpy(response, "Preferences saved.");
-                jsonDocToBrowser["setPrefsResp"] = response;
-            }
-
-            // -------------------------------------------------------------------------
-            // -- Config page. Reset all preferences to defaults. --
-            // -------------------------------------------------------------------------
-            if (jsonDocFromBrowser["resetPrefs"].is<JsonVariant>()) {
-
-                // - Set global vars to defaults. -
-                prefUtility(PREF_RESET);
-
-                // - Set response. -
-                strcpy(response, "Preferences reset.");
-                jsonDocToBrowser["resetPrefsResp"] = response;
-            }
-
-            // -------------------------------------------------------------------------
-            // -- Config page. Set NTRIP preference. --
-            // -------------------------------------------------------------------------
-            if (jsonDocFromBrowser["setNtripCasterPref"].is<JsonVariant>()) {
-
-                // - Set new NTRIP preference. -
-                prefUtility(PREF_SET_NTRIP);
-
-                // - Set response. -
-                strcpy(response, "Preference updated.");
-                jsonDocToBrowser["setNtripCasterPrefResp"] = response;
-            }
-
-            // -------------------------------------------------------------------------
-            // -- Files page. List files. --
-            // -------------------------------------------------------------------------
-            if (jsonDocFromBrowser["listFiles"].is<JsonVariant>()) {
-
-                // - Set JSON value: list of files. -
-                char output[2048];
-                memset(output, '\0', sizeof(output));
-                File root = SD.open("/");
-                File file = root.openNextFile();
-                while(file) {
-                    if (strlen(output) + strlen(file.name()) + 2 < sizeof(output)) {       
-                        if ((file.name()[0] != '.') && (file.name() != "") && (!file.isDirectory())) {
-                            // TODO: Flat fs for now, add directories & recursive call.
-                            strcat(output, "/");
-                            strcat(output, file.name());
-                            strcat(output, ",");
-                        }
-                    }
-                    file = root.openNextFile();
-                }
-                jsonDocToBrowser["fileList"] = output;
-
-                // - Set response. -
-                strcpy(response, "Files listed.");
-                jsonDocToBrowser["listFilesResp"] = response;
-            }
-
-            // -------------------------------------------------------------------------
-            // -- Files page. Delete file. --
-            // -------------------------------------------------------------------------
-            if (jsonDocFromBrowser["deleteFile"].is<JsonVariant>()) {
-
-                // - Delete file. -
-                const char* fileName = jsonDocFromBrowser["deleteFile"];
-                strcpy(response, SD.remove(fileName) ? "File deleted." : "File NOT deleted.");
-
-                // - Set response. -
-                jsonDocToBrowser["deleteFileResp"] = response;
-            }
-
-            // -------------------------------------------------------------------------
-            // -- Menu page. Restart GRMCU-1. --
-            // -------------------------------------------------------------------------
-            if (jsonDocFromBrowser["restartGR-MCU1"].is<JsonVariant>()) {
-
-                // - Set response. -
-                strcpy(response, "GR-MCU1 will restart.");
-                jsonDocToBrowser["restartGR-MCU1Resp"] = response;
-                restartGrMCU1 = true;
-            }
-
-            // -------------------------------------------------------------------------
-            // -- NMEA page. NMEA sentences. --
-            // -------------------------------------------------------------------------
-            // loop() -> checkZedTriggerUpdate() -> DevUBLOXGNSS::processNMEA() sets browserUpdatePending = true; -> sendDataToBrowser().
-
-            // -------------------------------------------------------------------------
-            // -- Operate page. GNSS data. --
-            // -------------------------------------------------------------------------
-            // loop() -> checkZedTriggerUpdate() -> buildOperData() sets browserUpdatePending = true; -> sendDataToBrowser().
-
-            // -------------------------------------------------------------------------
-            // -- Operate page. Laser on/off button. --
-            // -------------------------------------------------------------------------
-            //   @link https://www.build-electronic-circuits.com/arduino-laser-module-ky-008/.
-            //   @link https://docs.sparkfun.com/SparkFun_Thing_Plus_ESP32-S3/arduino_example/#rgb-led.
-            if (jsonDocFromBrowser["laserOn"].is<JsonVariant>()) {
-                digitalWrite(LSR_TRIGGER, HIGH);        // Turn laser on.
-
-                // - Set response. -
-                strcpy(response, "Laser on.");
-                jsonDocToBrowser["laserOnResp"] = response;
-                Serial.println(response);
-            }
-            if (jsonDocFromBrowser["laserOff"].is<JsonVariant>()) {
-                digitalWrite(LSR_TRIGGER, LOW);         // Turn laser off.
-
-                // - Set response. -
-                strcpy(response, "Laser off.");
-                jsonDocToBrowser["laserOffResp"] = response;
-                Serial.println(response);
-            }
-
-            // -------------------------------------------------------------------------
-            // -- Operate page. Height lock/unlock button. --
-            // -------------------------------------------------------------------------
-            if (jsonDocFromBrowser["heightLock"].is<JsonVariant>()) {
-                // ToDo: Implement.
-
-                // - Set response. -
-                strcpy(response, "Height locked.");
-                jsonDocToBrowser["heightLockResp"] = response;
-                Serial.println(response);
-            }
-            if (jsonDocFromBrowser["heightUnlock"].is<JsonVariant>()) {
-                // ToDo: Implement.
-
-                // - Set response. -
-                strcpy(response, "Height unlocked.");
-                jsonDocToBrowser["heightUnlockResp"] = response;
-                Serial.println(response);
-            }
-
-            // -------------------------------------------------------------------------
-            // -- Operate page. Position lock/unlock button. --
-            // -------------------------------------------------------------------------
-            if (jsonDocFromBrowser["positionLock"].is<JsonVariant>()) {
-                // ToDo: Implement.
-
-                // - Set response. -
-                strcpy(response, "Position locked.");
-                jsonDocToBrowser["positionLockResp"] = response;
-                Serial.println(response);
-            }
-            if (jsonDocFromBrowser["positionUnlock"].is<JsonVariant>()) {
-                // ToDo: Implement.
-
-                // - Set response. -
-                strcpy(response, "Position unlocked.");
-                jsonDocToBrowser["positionUnlockResp"] = response;
-                Serial.println(response);
-            }
-
-            // -------------------------------------------------------------------------
-            // -- NTRIP page. Was on NTRIP page, connected WiFi client, left, returned, WiFi client still connected.
-            // -------------------------------------------------------------------------
-            if (strncmp(whichPage,"ntrip", sizeof(whichPage)) == 0) {
-                if ((WiFi.status() == WL_CONNECTED) && (jsonDocFromBrowser["sendPrefs"].is<JsonVariant>())) {
-                    sendDataToBrowser();                                                    // Send prefs WS message.
-                    jsonDocToBrowser.clear();
-                    snprintf(response, sizeof(response), "WiFi CONNECTED: %s", hotspotIp);     // Second WS message. Triggers UI.
-                    jsonDocToBrowser["connectWifiClientResp"] = response;
-                }
-            }
-            
-            // -------------------------------------------------------------------------
-            // -- NTRIP page. Connect WiFi client. --
-            // -------------------------------------------------------------------------
-            if (jsonDocFromBrowser["connectWifiClient"].is<JsonVariant>()) {
-
-                // - Local vars. --
-                size_t numWifiTrys = 1;                         // Count connect attempts to STA_SSID.
-                size_t maxWifiTrys = 10;                        // Max # of trys to connect to STA_SSID, one per second.
-                IPAddress STA_IP(172, 20, 10, 2);               // Request this IP address.
-
-                // - Begin. -
-                strcpy(response, "Connecting WiFi client");
-                jsonDocToBrowser["connectWifiClientResp"] = response;
-                sendDataToBrowser();
-
-                snprintf(response, sizeof(response), "Connecting to SSID \"%s\"", prfHotSsi); 
-                jsonDocToBrowser["connectWifiClientResp"] = response;
-                sendDataToBrowser();
-
-                // - Configure & start WiFi client for RTCMin via Internet NTRIP caster. -
-                WiFi.disconnect();
-                WiFi.begin(prfHotSsi, prfHotPas);
-                for (numWifiTrys; numWifiTrys <= maxWifiTrys; numWifiTrys++) {
-                    snprintf(response, sizeof(response), "Attempt %d of %d", numWifiTrys, maxWifiTrys);
-                    jsonDocToBrowser["connectWifiClientResp"] = response;
-                    sendDataToBrowser();
-                    if (WiFi.status() == WL_CONNECTED) {
-                        break;
-                    }
-                    delay(1000);                                // Try again.
-                }
-                if (WiFi.status() == WL_CONNECTED) {
-                    strlcpy(hotspotIp, WiFi.localIP().toString().c_str(), sizeof(hotspotIp));
-                    snprintf(response, sizeof(response), "WiFi CONNECTED:  %s", hotspotIp);
-                    jsonDocToBrowser["connectWifiClientResp"] = response;
-                    ws2812LedColor = WHITE;                             // Indicates no error during setup(). 
-                    ws2812LedBlink = false;
-                    statusLedOn();
-                } else {
-                    snprintf(response, sizeof(response), "Connect ABORTED");
-                    jsonDocToBrowser["connectWifiClientResp"] = response;
-                    memset(hotspotIp, '\0', sizeof(hotspotIp));
-                    WiFi.disconnect();
-                }
-            }
-
-            // -------------------------------------------------------------------------
-            // -- NTRIP page. Disconnect WiFi client. --
-            // -------------------------------------------------------------------------
-            if (jsonDocFromBrowser["disconnectWifiClient"].is<JsonVariant>()) {
-                WiFi.disconnect();
-                strcpy(response, "WiFi client disconnected.");
-                jsonDocToBrowser["disconnectWifiClientResp"] = response;
-            }
-
-            // -------------------------------------------------------------------------
-            // -- NTRIP page. Was on NTRIP page, connected to NTRIP caster, left, returned, NTRIP caster still connected.
-            // -------------------------------------------------------------------------
-            if (strncmp(whichPage,"ntrip", sizeof(whichPage)) == 0) {
-                if ((WiFi.status() == WL_CONNECTED) && (ntripClient.connected()) && (jsonDocToBrowser["connectWifiClientResp"].is<JsonVariant>())) {
-                    snprintf(response, sizeof(response), "NTRIP CONNECTED: %s:%d@ %s ", ntripCaster.url, ntripCaster.port, ntripCaster.mount);  // Trigger UI.
-                    jsonDocToBrowser["connectNtripCasterResp"] = response;
-                    ntripConnected = true;
-                    ntripConnectRequest = false;  // taskRtcmRelay() picks this up next pass.
-                }
-            }
-
-            // -------------------------------------------------------------------------
-            // -- NTRIP page. Connect to NTRIP caster. --
-            // -------------------------------------------------------------------------
-            if (!ntripClient.connected() && jsonDocFromBrowser["connectNtripCaster"].is<JsonVariant>()) {
-                snprintf(response, sizeof(response), "Connecting to NTRIP caster\n%s\n%s:%d\n%s (version %d)",
-                    ntripCaster.name, ntripCaster.url, ntripCaster.port, ntripCaster.mount, ntripCaster.version);
-                jsonDocToBrowser["connectNtripCasterResp"] = response;
-                ntripConnected = false;
-                ntripConnectRequest = true;  // taskRtcmRelay() picks this up next pass.
-            }
-
-            // -------------------------------------------------------------------------
-            // -- NTRIP page. Disconnect NTRIP caster. --
-            // -------------------------------------------------------------------------
-            if (jsonDocFromBrowser["disconnectNtripCaster"].is<JsonVariant>()) {
-                strcpy(response, "Disconnecting from NTRIP caster.");
-                jsonDocToBrowser["disconnectNtripCasterResp"] = response;
-                ntripDisconnectRequest = true;
-            }
-
-            // -------------------------------------------------------------------------
-            // -- Test. Echo. --
-            // -------------------------------------------------------------------------
-            if (jsonDocFromBrowser["echo"].is<JsonVariant>()) {
-
-                // - Set JSON value. -
-                jsonDocToBrowser["echo"] = jsonDocFromBrowser["echo"];
-
-                // - Set response. -
-                strcpy(response, "Message echoed.");
-                jsonDocToBrowser["echoResp"] = response;
-            }
-        }
-
-        // -- Send data to browser. --
-        sendDataToBrowser();
+    if (xQueueReceive(wsRxQueue, &item, 0) != pdTRUE) {     // From browser.
+        return;
     }
 
-    // -- Step 2/2: Send periodic update to browser page (operate, nmea, ...) if pending. --
+    // -------------------------------------------------------------------------
+    // -- Process one incoming WebSocket message, if queued.
+    // -------------------------------------------------------------------------
+
+    // -- Debug. Print data received. --
+    if (commandFlag[DEBUG_WS]) {
+        Serial.printf("WS #%u: browser --> %s\n", clientId, item.data);
+    }
+
+    // -- WebSocket message - deserialize the JSON data into a JSON document (jsonDocFromBrowser). --
+    jsonDocFromBrowser.clear();
+    DeserializationError error = deserializeJson(jsonDocFromBrowser, item.data, item.len);
+
+    // -- Begin. --
+    if (error) {
+        Serial.printf("JSON deserialize failed: %s\n", error.f_str());
+        return;
+    }
+
+    // -- Process JSON. --
+    memset(response, '\0', sizeof(response));
+    jsonDocToBrowser.clear();
+
+    // -- Set page name global var.
+    if (jsonDocFromBrowser["page"].is<JsonVariant>()) {                     // Does key exist?
+        strlcpy(whichPage, jsonDocFromBrowser["page"], sizeof(whichPage));  // Important global used in loop().
+    }
+
+    // -------------------------------------------------------------------------
+    // -- All pages. Send all preferences to browser. --
+    // -------------------------------------------------------------------------
+
+    if (jsonDocFromBrowser["sendPrefs"].is<JsonVariant>()) {
+
+        // - Set global vars from preferences. -
+        prefUtility(PREF_READ);
+        
+        // - Set JSON values from global vars. -
+        jsonDocToBrowser["0"]  = buildString;
+        jsonDocToBrowser["1"]  = prfUnt;
+        jsonDocToBrowser["2"]  = prfRtcmInSource;
+        jsonDocToBrowser["4"]  = prfGnsMsrInt;
+        jsonDocToBrowser["5"]  = prfGnsNavRat;
+        jsonDocToBrowser["6"]  = prfHotSsi;
+        jsonDocToBrowser["7"]  = prfHotPas;
+        jsonDocToBrowser["35"] = clientId;
+        jsonDocToBrowser["36"] = prfInstrHgt;
+        jsonDocToBrowser["39"] = prfNtripCastAttr[0];
+        jsonDocToBrowser["40"] = prfNtripCastAttr[1];
+        jsonDocToBrowser["41"] = prfNtripCastAttr[2];
+        jsonDocToBrowser["42"] = prfNtripCastAct;
+
+        // - Set response. -
+        strcpy(response, "Preferences sent.");
+        jsonDocToBrowser["sendPrefsResp"] = response;
+    }
+
+    // -------------------------------------------------------------------------
+    // -- Config page. Set all preferences. --
+    // -------------------------------------------------------------------------
+    if (jsonDocFromBrowser["setPrefs"].is<JsonVariant>()) {
+
+        // - Set global vars from JSON values. -
+        strlcpy(prfUnt,          jsonDocFromBrowser["1"],  sizeof(prfUnt));  // dst, src, sizeof(dest)
+        strlcpy(prfRtcmInSource, jsonDocFromBrowser["2"],  sizeof(prfRtcmInSource));
+        strlcpy(prfHotSsi,       jsonDocFromBrowser["6"],  sizeof(prfHotSsi));
+        strlcpy(prfHotPas,       jsonDocFromBrowser["7"],  sizeof(prfHotPas));
+        strlcpy(prfNtripCastAct, jsonDocFromBrowser["42"], sizeof(prfNtripCastAct));
+        prfGnsNavRat    = (uint8_t)  atoi(jsonDocFromBrowser["5"]);   // KV values are stored in NVS as int, but set to C-string in processJsonActivity() for code clarity.
+        prfGnsMsrInt    = (uint16_t) atoi(jsonDocFromBrowser["4"]);
+        prfInstrHgt     = (uint16_t) atoi(jsonDocFromBrowser["36"]);
+
+        // - Set new preferences from global vars. -
+        prefUtility(PREF_SET);
+
+        // - Set response. -
+        strcpy(response, "Preferences saved.");
+        jsonDocToBrowser["setPrefsResp"] = response;
+    }
+
+    // -------------------------------------------------------------------------
+    // -- Config page. Reset all preferences to defaults. --
+    // -------------------------------------------------------------------------
+    if (jsonDocFromBrowser["resetPrefs"].is<JsonVariant>()) {
+
+        // - Set global vars to defaults. -
+        prefUtility(PREF_RESET);
+
+        // - Set response. -
+        strcpy(response, "Preferences reset.");
+        jsonDocToBrowser["resetPrefsResp"] = response;
+    }
+
+    // -------------------------------------------------------------------------
+    // -- Config page. Set NTRIP preference. --
+    // -------------------------------------------------------------------------
+    if (jsonDocFromBrowser["setNtripCasterPref"].is<JsonVariant>()) {
+
+        // - Set new NTRIP preference. -
+        prefUtility(PREF_SET_NTRIP);
+
+        // - Set response. -
+        strcpy(response, "Preference updated.");
+        jsonDocToBrowser["setNtripCasterPrefResp"] = response;
+    }
+
+    // -------------------------------------------------------------------------
+    // -- Files page. List files. --
+    // -------------------------------------------------------------------------
+    if (jsonDocFromBrowser["listFiles"].is<JsonVariant>()) {
+
+        // - Set JSON value: list of files. -
+        char output[2048];
+        memset(output, '\0', sizeof(output));
+        File root = SD.open("/");
+        File file = root.openNextFile();
+        while(file) {
+            if (strlen(output) + strlen(file.name()) + 2 < sizeof(output)) {       
+                if ((file.name()[0] != '.') && (file.name() != "") && (!file.isDirectory())) {
+                    // TODO: Flat fs for now, add directories & recursive call.
+                    strcat(output, "/");
+                    strcat(output, file.name());
+                    strcat(output, ",");
+                }
+            }
+            file = root.openNextFile();
+        }
+        jsonDocToBrowser["fileList"] = output;
+
+        // - Set response. -
+        strcpy(response, "Files listed.");
+        jsonDocToBrowser["listFilesResp"] = response;
+    }
+
+    // -------------------------------------------------------------------------
+    // -- Files page. Delete file. --
+    // -------------------------------------------------------------------------
+    if (jsonDocFromBrowser["deleteFile"].is<JsonVariant>()) {
+
+        // - Delete file. -
+        const char* fileName = jsonDocFromBrowser["deleteFile"];
+        strcpy(response, SD.remove(fileName) ? "File deleted." : "File NOT deleted.");
+
+        // - Set response. -
+        jsonDocToBrowser["deleteFileResp"] = response;
+    }
+
+    // -------------------------------------------------------------------------
+    // -- Menu page. Restart GRMCU-1. --
+    // -------------------------------------------------------------------------
+    if (jsonDocFromBrowser["restartGR-MCU1"].is<JsonVariant>()) {
+
+        // - Set response. -
+        strcpy(response, "GR-MCU1 will restart.");
+        jsonDocToBrowser["restartGR-MCU1Resp"] = response;
+        restartGrMCU1 = true;
+    }
+
+    // -------------------------------------------------------------------------
+    // -- NMEA page. NMEA sentences. --
+    // -------------------------------------------------------------------------
+    // loop() -> checkZedTriggerUpdate() -> DevUBLOXGNSS::processNMEA() sets browserUpdatePending = true; -> sendDataToBrowser().
+
+    // -------------------------------------------------------------------------
+    // -- Operate page. GNSS data. --
+    // -------------------------------------------------------------------------
+    // loop() -> checkZedTriggerUpdate() -> buildOperData() sets browserUpdatePending = true; -> sendDataToBrowser().
+
+    // -------------------------------------------------------------------------
+    // -- Operate page. Laser on/off button. --
+    // -------------------------------------------------------------------------
+    //   @link https://www.build-electronic-circuits.com/arduino-laser-module-ky-008/.
+    //   @link https://docs.sparkfun.com/SparkFun_Thing_Plus_ESP32-S3/arduino_example/#rgb-led.
+    if (jsonDocFromBrowser["laserOn"].is<JsonVariant>()) {
+        digitalWrite(LSR_TRIGGER, HIGH);        // Turn laser on.
+
+        // - Set response. -
+        strcpy(response, "Laser on.");
+        jsonDocToBrowser["laserOnResp"] = response;
+        Serial.println(response);
+    }
+    if (jsonDocFromBrowser["laserOff"].is<JsonVariant>()) {
+        digitalWrite(LSR_TRIGGER, LOW);         // Turn laser off.
+
+        // - Set response. -
+        strcpy(response, "Laser off.");
+        jsonDocToBrowser["laserOffResp"] = response;
+        Serial.println(response);
+    }
+
+    // -------------------------------------------------------------------------
+    // -- Operate page. Height lock/unlock button. --
+    // -------------------------------------------------------------------------
+    if (jsonDocFromBrowser["heightLock"].is<JsonVariant>()) {
+        // ToDo: Implement.
+
+        // - Set response. -
+        strcpy(response, "Height locked.");
+        jsonDocToBrowser["heightLockResp"] = response;
+        Serial.println(response);
+    }
+    if (jsonDocFromBrowser["heightUnlock"].is<JsonVariant>()) {
+        // ToDo: Implement.
+
+        // - Set response. -
+        strcpy(response, "Height unlocked.");
+        jsonDocToBrowser["heightUnlockResp"] = response;
+        Serial.println(response);
+    }
+
+    // -------------------------------------------------------------------------
+    // -- Operate page. Position lock/unlock button. --
+    // -------------------------------------------------------------------------
+    if (jsonDocFromBrowser["positionLock"].is<JsonVariant>()) {
+        // ToDo: Implement.
+
+        // - Set response. -
+        strcpy(response, "Position locked.");
+        jsonDocToBrowser["positionLockResp"] = response;
+        Serial.println(response);
+    }
+    if (jsonDocFromBrowser["positionUnlock"].is<JsonVariant>()) {
+        // ToDo: Implement.
+
+        // - Set response. -
+        strcpy(response, "Position unlocked.");
+        jsonDocToBrowser["positionUnlockResp"] = response;
+        Serial.println(response);
+    }
+
+    // -------------------------------------------------------------------------
+    // -- NTRIP page. Was on NTRIP page, connected WiFi client, left, returned, WiFi client still connected.
+    // -------------------------------------------------------------------------
+    if (strncmp(whichPage,"ntrip", sizeof(whichPage)) == 0) {
+        if ((WiFi.status() == WL_CONNECTED) && (jsonDocFromBrowser["sendPrefs"].is<JsonVariant>())) {
+            sendDataToBrowser();                                                    // Send prefs WS message.
+            jsonDocToBrowser.clear();
+            snprintf(response, sizeof(response), "WiFi CONNECTED: %s", hotspotIp);     // Second WS message. Triggers UI.
+            jsonDocToBrowser["connectWifiClientResp"] = response;
+        }
+    }
+    
+    // -------------------------------------------------------------------------
+    // -- NTRIP page. Connect WiFi client. --
+    // -------------------------------------------------------------------------
+    if (jsonDocFromBrowser["connectWifiClient"].is<JsonVariant>()) {
+
+        // - Local vars. --
+        size_t numWifiTrys = 1;                         // Count connect attempts to STA_SSID.
+        size_t maxWifiTrys = 10;                        // Max # of trys to connect to STA_SSID, one per second.
+        IPAddress STA_IP(172, 20, 10, 2);               // Request this IP address.
+
+        // - Begin. -
+        strcpy(response, "Connecting WiFi client");
+        jsonDocToBrowser["connectWifiClientResp"] = response;
+        sendDataToBrowser();
+
+        snprintf(response, sizeof(response), "Connecting to SSID \"%s\"", prfHotSsi); 
+        jsonDocToBrowser["connectWifiClientResp"] = response;
+        sendDataToBrowser();
+
+        // - Configure & start WiFi client for RTCMin via Internet NTRIP caster. -
+        WiFi.disconnect();
+        WiFi.begin(prfHotSsi, prfHotPas);
+        for (numWifiTrys; numWifiTrys <= maxWifiTrys; numWifiTrys++) {
+            snprintf(response, sizeof(response), "Attempt %d of %d", numWifiTrys, maxWifiTrys);
+            jsonDocToBrowser["connectWifiClientResp"] = response;
+            sendDataToBrowser();
+            if (WiFi.status() == WL_CONNECTED) {
+                break;
+            }
+            delay(1000);                                // Try again.
+        }
+        if (WiFi.status() == WL_CONNECTED) {
+            strlcpy(hotspotIp, WiFi.localIP().toString().c_str(), sizeof(hotspotIp));
+            snprintf(response, sizeof(response), "WiFi CONNECTED:  %s", hotspotIp);
+            jsonDocToBrowser["connectWifiClientResp"] = response;
+            ws2812LedColor = WHITE;                             // Indicates no error during setup(). 
+            ws2812LedBlink = false;
+            statusLedOn();
+        } else {
+            snprintf(response, sizeof(response), "Connect ABORTED");
+            jsonDocToBrowser["connectWifiClientResp"] = response;
+            memset(hotspotIp, '\0', sizeof(hotspotIp));
+            WiFi.disconnect();
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // -- NTRIP page. Disconnect WiFi client. --
+    // -------------------------------------------------------------------------
+    if (jsonDocFromBrowser["disconnectWifiClient"].is<JsonVariant>()) {
+        WiFi.disconnect();
+        strcpy(response, "WiFi client disconnected.");
+        jsonDocToBrowser["disconnectWifiClientResp"] = response;
+    }
+
+    // -------------------------------------------------------------------------
+    // -- NTRIP page. Was on NTRIP page, connected to NTRIP caster, left, returned, NTRIP caster still connected.
+    // -------------------------------------------------------------------------
+    if (strncmp(whichPage,"ntrip", sizeof(whichPage)) == 0) {
+        if ((WiFi.status() == WL_CONNECTED) && (ntripClient.connected()) && (jsonDocToBrowser["connectWifiClientResp"].is<JsonVariant>())) {
+            snprintf(response, sizeof(response), "NTRIP CONNECTED: %s:%d@ %s ", ntripCaster.url, ntripCaster.port, ntripCaster.mount);  // Trigger UI.
+            jsonDocToBrowser["connectNtripCasterResp"] = response;
+            ntripConnected = true;
+            ntripConnectRequest = false;  // taskRtcmRelay() picks this up next pass.
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // -- NTRIP page. Connect to NTRIP caster. --
+    // -------------------------------------------------------------------------
+    if (!ntripClient.connected() && jsonDocFromBrowser["connectNtripCaster"].is<JsonVariant>()) {
+        snprintf(response, sizeof(response), "Connecting to NTRIP caster\n%s\n%s:%d\n%s (version %d)",
+            ntripCaster.name, ntripCaster.url, ntripCaster.port, ntripCaster.mount, ntripCaster.version);
+        jsonDocToBrowser["connectNtripCasterResp"] = response;
+        ntripConnected = false;
+        ntripConnectRequest = true;  // taskRtcmRelay() picks this up next pass.
+    }
+
+    // -------------------------------------------------------------------------
+    // -- NTRIP page. Disconnect NTRIP caster. --
+    // -------------------------------------------------------------------------
+    if (jsonDocFromBrowser["disconnectNtripCaster"].is<JsonVariant>()) {
+        strcpy(response, "Disconnecting from NTRIP caster.");
+        jsonDocToBrowser["disconnectNtripCasterResp"] = response;
+        ntripDisconnectRequest = true;
+    }
+
+    // -------------------------------------------------------------------------
+    // -- Test. Echo. --
+    // -------------------------------------------------------------------------
+    if (jsonDocFromBrowser["echo"].is<JsonVariant>()) {
+
+        // - Set JSON value. -
+        jsonDocToBrowser["echo"] = jsonDocFromBrowser["echo"];
+
+        // - Set response. -
+        strcpy(response, "Message echoed.");
+        jsonDocToBrowser["echoResp"] = response;
+    }
+
+    // -------------------------------------------------------------------------
+    // -- Send data to browser
+    // -------------------------------------------------------------------------
+    sendDataToBrowser();
+
+    // -------------------------------------------------------------------------
+    // -- If periodic status update is pending, send to browser page.
+    // -------------------------------------------------------------------------
     if (browserUpdatePending) {
         memset(response, '\0', sizeof(response));
         jsonDocToBrowser.clear();       // Ensure a clean JSON doc for all browser pages (operate, nmea, ...).
@@ -3105,7 +3182,9 @@ void checkZedTriggerUpdate() {
         browserUpdatePending = false;
     }
 
-    // -- Step 3/3: Forward pending NTRIP status update to browser. --
+    // -------------------------------------------------------------------------
+    // -- If NTRIP status update is pending, send to browser page.
+    // -------------------------------------------------------------------------
     if (ntripStatusPending) {
         jsonDocToBrowser.clear();
         jsonDocToBrowser["connectNtripCasterResp"] = ntripStatusMsg;
@@ -3215,6 +3294,41 @@ void checkGnssLockButton() {
         // UIstate[0] = '1';                   // GNSS lock button is in downPosition.
         lastButtonPos = 1;                  // Last lock button position.
         ghostMode = true;                   // Flag for checkNMEAin().
+    }
+}
+
+/**
+ * -------------------------------------------------------------------------
+ *  Check TCP server for new/dropped GNSS Master client.
+ * -------------------------------------------------------------------------
+ *
+ * Single-client design: an incoming connection always replaces whatever
+ * client is currently held, so a reconnect (e.g. phone WiFi toggled)
+ * doesn't get stuck behind a dead socket.
+ *
+ * @return void No output is returned.
+ * @since  3.2.2 [2026-08-10-10:15am] New.
+ * @see    loop(), startTcpServer().
+ */
+void checkTcpClient() {
+
+    // --- Accept new client, replacing any existing one. ---
+    if (gnssTcpServer.hasClient()) {
+        if (gnssTcpClient) {
+            gnssTcpClient.stop();                          // Drop old client.
+        }
+        gnssTcpClient = gnssTcpServer.available();
+        gnssTcpClient.setNoDelay(true);
+        tcpClientConnected = true;
+        Serial.printf("TCP client connected: %s\n", gnssTcpClient.remoteIP().toString().c_str());
+    }
+
+    // --- Detect disconnect. ---
+    if (tcpClientConnected && !gnssTcpClient.connected()) {
+        tcpClientConnected = false;
+        gnssTcpClient.stop();
+        NMEAout = false;
+        Serial.println("TCP client disconnected.");
     }
 }
 
@@ -3397,6 +3511,7 @@ void debug() {
  * =========================================================================
  *
  * @since  3.0.3 [2025-10-13-01:00pm] New.
+ * @since 3.2.3 [2026-08-10-09:45am] Add startTcpServer().
  * @see    Global vars.
  */
 void setup() {
@@ -3406,8 +3521,9 @@ void setup() {
     initPins();                 // Initialize pin modes & pin values.
     startI2C();                 // Start I2C wire interfaces.
     startLiPo();                // Start LiPo I2C interface.
-    startWiFiServer();          // Start WiFi server.
     startSD();                  // Start & test microSD card reader.
+    startWiFiServer();          // Start WiFi server.
+    startTcpServer();           // Start TCP server for GNSS Master (NMEA out / RTCM in bridge).
     startHttpServer();          // Start HTTP server.
     startWebSocketServer();     // Start WebSocket server.
     startAndConfigGNSS();       // Start GNSS, config ZED settings.
@@ -3427,10 +3543,24 @@ void setup() {
  * @see   Event handlers.
  */
 void loop() {
+    // *** NEW. ***
+    // checkTimers();             // checkZedTriggerUpdate() -> DevUBLOXGNSS::processNMEA() -> gets NMEA, build operData.
+                                  // ntripPushGGA(), relayRtcmByte(), debug().
+                                  // FreeRTOS: send RTCM sentence count, TBD ...
+    // checkTimeOuts();           // ntripBeginClient() timeout, taskRtcmRelay() timeout, relayRtcmByte() timeout.
+    // processJsonIn();           //  Event based (queued WebSocket message from browser).
+    // buildData();               // Perform "data" tasks if flags are set.
+    // processJsonOut();       
+    // sendToBrowser();           // Send out JSON if flags are set.
+    // checkSerialUSB();          // Check serial USB for input.
+    // checkTcpClient();             // Check TCP server for new/dropped client (GNSS Master, ..).
+    // ws.cleanupClients();          // HTTP WebSocket cleanup.
+    
     checkZedTriggerUpdate();    // Check ZED to trigger DevUBLOXGNSS::processNMEA().
     processJsonActivity();      // Process queued WS messages & pending status updates. All JSON activity lives here.
     checkSerialUSB();           // Check serial USB for input.
     // checkGnssLockButton();   // Check GNSS lock button.  // ToDo: Implement.
+    checkTcpClient();           // Check TCP server for new/dropped client (GNSS Master, ..).
     ws.cleanupClients();        // HTTP WebSocket cleanup.
     debug();                    // Display debug.
 }

@@ -27,7 +27,9 @@
  * @since  3.2.1  [2026-07-25-04:00pm] Moved JSON to global.js.
  * @since  3.2.1  [2026-07-28-04:45pm] Removed NMEA out switch & preference.
  * @since  3.2.1  [2026-08-02-09:30am] Moved messageField from here to global.js.
- * @link   http://dougfoster.me.
+ * @since  3.2.3  [2026-08-12-09:00pm] Add rtcmInBtns event listener & systemOptionsMessages.
+
+* @link   http://dougfoster.me.
 */
 
 /**
@@ -53,6 +55,8 @@ const hotspotPassword         = document.querySelector('#config #hotspot-passwor
 const updateConfigBtn         = document.querySelector('#config #update-config-btn');
 const resetConfigBtn          = document.querySelector('#config #reset-config-btn');
 const updateCasterBtn         = document.querySelector('#config #ntrip-update-attributes');
+const rtcmInBtns              = document.querySelector('#config #rtcm-in-buttons');
+const systemOptionsMessages   = document.querySelector('#config #message-system-options');
 const formConfig              = document.querySelector('form#config');
 const jsConsoleMessages       = document.querySelector('#js-console-messages input');
 const ghostRoverHeight        = document.querySelector('#config #ghostrover-height');
@@ -385,6 +389,24 @@ jsConsoleMessages.addEventListener('change', () => {
         sessionStorage.setItem("displayJsConsoleMessages", 'off');
     }
     console.log('Show console messages is "' + sessionStorage.getItem("displayJsConsoleMessages") + '".');
+});
+
+rtcmInBtns.addEventListener('click', (e) => {
+switch (e.target.value) {
+    case 'off':
+        systemOptionsMessages.textContent = 'Prevent RTCM input.'
+        break;
+    case 'bridge':
+        systemOptionsMessages.innerHTML = 'RTCM from <span style="text-decoration: underline;">external</span> NTRIP client.<br>Remember to start WiFi client.';
+        break;
+    case 'ntrip':
+        systemOptionsMessages.innerHTML = 'RTCM from <span style="text-decoration: underline;">internal</span> NTRIP client.<br>Start WiFi & NTRIP clients.';
+        break;
+    case 'radio':
+        systemOptionsMessages.innerHTML = 'RTCM from base over HC-12 radio.'
+        break;
+    }    
+    setTimeout(function() { systemOptionsMessages.innerHTML = '&nbsp;' }, 10000);
 });
 
 poleSelect.addEventListener('change', () => {
