@@ -299,6 +299,7 @@ async function webSocketStop(event) {
  * @since  3.2.2  [2026-08-09-04:45pm] Completed NTRIP logic.
  * @since  3.3.0  [2026-08-14-11:15am] Added skip for incoming NMEA values of 0.
  * @since  3.3.0  [2026-08-14-01:30pm] Refactored webSocketRcvMessage() files page.
+ * @since  3.3.1  [2026-08-17-11:00pm] Corrected NMEA summary line.
  * @see    filesMessage() in files.js.
  */
 function webSocketRcvMessage(event) {
@@ -401,7 +402,7 @@ function webSocketRcvMessage(event) {
     // --- NMEA page. ---
     // if (window.location.pathname.includes('nmea') && (undefined == jsonObj["sendPrefsResp"])) {. // ToDo: Remove.
     if (window.location.pathname.includes('nmea') && ('' !== jsonObj["NMEA"])) {
-        if (nmeaSentenceCount < nmeaSentencesToDisplay) {
+        if (nmeaSentenceCount <= nmeaSentencesToDisplay) {
             if ((0 == (nmeaSentenceCount % 10)) || (0 == nmeaSentenceCount)) {
                 // --- Make a timestamp. ---
                 const date         = new Date();
@@ -429,7 +430,9 @@ function webSocketRcvMessage(event) {
                     numBytes = 0;
                 }
             }
-            nmeaDisplayArea.innerHTML += jsonObj["NMEA"] + '<br>';
+            if (nmeaSentenceCount < nmeaSentencesToDisplay) {
+                nmeaDisplayArea.innerHTML += jsonObj["NMEA"] + '<br>';
+            }
             nmeaSentenceCount++;
             numBytes += jsonObj["NMEA"].length;
         }

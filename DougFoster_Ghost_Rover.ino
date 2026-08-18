@@ -143,7 +143,7 @@
  *     - Offset height/NMEA by instrument height.
  *     - Button lock (laser/height/position).
  *     - Update RTKEverywhere for base station.
- *     - Verify RTK-FIX.
+ *     - Verify RTK-FIX. Check serial2 tx data.
  *     - Operate.js/operate.html page - add ability to select coordinates (lat/lon, ECEF, UTM northing & easting)  
  */
 
@@ -1673,7 +1673,7 @@ void startSerial() {
         serialState[2] = '-';
         logPrint("Serial1 not started");
     }
-    snprintf(diagMsg, sizeof(diagMsg), " (RTCM in = \"%s\").\n", prfRtcmInSource);
+    snprintf(diagMsg, sizeof(diagMsg), " (RTCM in = \"%s\" TCP).\n", prfRtcmInSource);
     logPrint(diagMsg);
     if (strncmp(prfRtcmInSource, "off", sizeof(prfRtcmInSource)) == 0) {
         RTCMin = false;
