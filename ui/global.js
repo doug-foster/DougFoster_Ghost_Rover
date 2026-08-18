@@ -297,6 +297,8 @@ async function webSocketStop(event) {
  * @since  3.2.1  [2026-07-28-04:45pm] Removed NMEA out switch & preference.
  * @since  3.2.1  [2026-08-03-11:30am] Remove jsonObj["21'] & jsonObj["21']. Replace displayNmeaMessage() with webSocketRcvMessage().
  * @since  3.2.2  [2026-08-09-04:45pm] Completed NTRIP logic.
+ * @since  3.3.0  [2026-08-14-11:15am] Added skip for incoming NMEA values of 0.
+ * @since  3.3.0  [2026-08-14-01:30pm] Refactored webSocketRcvMessage() files page.
  * @see    filesMessage() in files.js.
  */
 function webSocketRcvMessage(event) {
@@ -381,52 +383,55 @@ function webSocketRcvMessage(event) {
             fileListBuild(jsonObj["fileList"]);
         }
 
-        if (undefined !== jsonObj["fileDeleted"]) {
+        if (undefined !== jsonObj["deleteFileResp"]) {
+            let filename = jsonObj["deleteFileResp"].split(' ')[0];
             document.querySelectorAll('#files .selected').forEach(file => {
-                if ( value === file.textContent) {
-                    file.remove();  // Update list.
+                if ( filename === file.textContent) {
+                    if (jsonObj["deleteFileResp"].includes('NOT')) {
+                        file.classList.toggle('selected');  // Unselect the file in the list.
+                    } else {
+                        file.remove();  // Remove the file from the list.
+                    }
                 }
             });
-        }
-
-        if (undefined !== jsonObj["fileDeleted"]) {
-            alert( 'NOT DELETED: ' + value);
-            document.querySelectorAll('#files .file').forEach(file => {
-                if ( value === file.textContent) {
-                    file.classList.toggle('selected');  // Unselect all files.
-                }
-            });
+            alert(jsonObj["deleteFileResp"]);
         }
     }
 
     // --- NMEA page. ---
-    if (window.location.pathname.includes('nmea') && (undefined == jsonObj["sendPrefsResp"])) {
-        // displayNmeaMessage(jsonObj["NMEA"]);
-
-        if (solutionCount < numSolutionsToDisplay) {
-            if (jsonObj["NMEA"].includes('$GNGGA')) {
-
+    // if (window.location.pathname.includes('nmea') && (undefined == jsonObj["sendPrefsResp"])) {. // ToDo: Remove.
+    if (window.location.pathname.includes('nmea') && ('' !== jsonObj["NMEA"])) {
+        if (nmeaSentenceCount < nmeaSentencesToDisplay) {
+            if ((0 == (nmeaSentenceCount % 10)) || (0 == nmeaSentenceCount)) {
                 // --- Make a timestamp. ---
                 const date         = new Date();
                 const hours        = String(date.getHours()).padStart(2, '0');
                 const minutes      = String(date.getMinutes()).padStart(2, '0');
                 const seconds      = String(date.getSeconds()).padStart(2, '0');
                 const milliseconds = String(date.getMilliseconds()).padStart(3, '0');
-                let timeStamp      = `@${hours}:${minutes}:${seconds}.${milliseconds}`;
+                let   timeStamp    = `@${hours}:${minutes}:${seconds}.${milliseconds}`;
+                let   kbps         = 0;
 
                 // --- Calculate interval since last $GNGGA sentence. ---
-                deltaMs = Math.abs(date - lastDate); 
-                lastDate = date;
-
-                // --- Display timestamp & delta ms. ---
-                solutionCount++;
-                nmeaDisplayArea.innerHTML += '<br><br><b> #' + solutionCount + '/' + numSolutionsToDisplay + ' - ' + timeStamp + '  </b>(<b>' + deltaMs + 'ms</b> since last<b>)</b><br>';
+                if (nmeaSentenceCount > 0) {
+                    deltaMs = Math.abs(date - lastDate); 
+                    lastDate = date;
+                    kbps = (numBytes / deltaMs) * 8. * 1000. / 1024.;  // (bytes/ms) * 8bits/byte * 1000ms/1sec * 1kilobits/1024bits.
+                }
+                if (0 == nmeaSentenceCount) {
+                    lastDate = new Date();
+                    nmeaDisplayArea.innerHTML = '<b>#0/' + nmeaSentencesToDisplay + '</b> ' +
+                        timeStamp + ' (starting at <b>0</b>ms)<br>';
+                } else {
+                    nmeaDisplayArea.innerHTML += '<b>#' + nmeaSentenceCount + '/' + nmeaSentencesToDisplay + '</b> ' +
+                        timeStamp + '  </b>(<b>' + numBytes + '</b> bytes in <b>' + deltaMs + '</b> ms = <b>' + kbps.toFixed(2) + '</b> kbps since #' +
+                        (nmeaSentenceCount-10) + '/' + nmeaSentencesToDisplay + ')<br><br>';
+                    numBytes = 0;
+                }
             }
-
-            // --- Build the output. ---
-            if (solutionCount > 0) {
-                nmeaDisplayArea.innerHTML += jsonObj["NMEA"];
-            }
+            nmeaDisplayArea.innerHTML += jsonObj["NMEA"] + '<br>';
+            nmeaSentenceCount++;
+            numBytes += jsonObj["NMEA"].length;
         }
     }
 
@@ -546,32 +551,36 @@ function webSocketRcvMessage(event) {
             // -- {"20":"0h 3m 8s"}. --
             statusUptimeRoverId.textContent = jsonObj["20"];
 
-            // -- {"23":15271}. --
-            statusNmeaCountGgaId.textContent = jsonObj["23"].toLocaleString()
+            // -- Values must be defined and non-zero. --
+            if ((0 !== jsonObj["23"]) && (undefined!== jsonObj["23"])) {
 
-            // -- {"24":15271}. --
-            statusNmeaCountRmcId.textContent = jsonObj["24"].toLocaleString();
+                // -- {"23":15271}. --
+                statusNmeaCountGgaId.textContent = jsonObj["23"].toLocaleString()
 
-            // -- {"25":25450}. --
-            statusNmeaCounGsatId.textContent = jsonObj["25"].toLocaleString();
+                // -- {"24":15271}. --
+                statusNmeaCountRmcId.textContent = jsonObj["24"].toLocaleString();
 
-            // -- {"26":72946}. --
-            statusNmeaCountGsvId.textContent = jsonObj["26"].toLocaleString();
+                // -- {"25":25450}. --
+                statusNmeaCounGsatId.textContent = jsonObj["25"].toLocaleString();
 
-            // -- {"27":5090}. --
-            statusNmeaCountGstId.textContent = jsonObj["27"].toLocaleString();
+                // -- {"26":72946}. --
+                statusNmeaCountGsvId.textContent = jsonObj["26"].toLocaleString();
 
-            // -- {"28":0}. --
-            statusNmeaCountTxtId.textContent = jsonObj["28"].toLocaleString();
+                // -- {"27":5090}. --
+                statusNmeaCountGstId.textContent = jsonObj["27"].toLocaleString();
 
-            // -- {"29":3541857088}. --
-            statusNmeaCountOthrId.textContent = jsonObj["29"].toLocaleString();
+                // -- {"28":0}. --
+                statusNmeaCountTxtId.textContent = jsonObj["28"].toLocaleString();
 
-            // -- {"30":154010}. --
-            statusNmeaSentenceCountAllId.textContent = jsonObj["30"].toLocaleString();
+                // -- {"29":3541857088}. --
+                statusNmeaCountOthrId.textContent = jsonObj["29"].toLocaleString();
 
-            // -- {"31":81920} --
-            statusNmeaRateId.textContent = (jsonObj["31"] / 1000.0).toFixed();
+                // -- {"30":154010}. --
+                statusNmeaSentenceCountAllId.textContent = jsonObj["30"].toLocaleString();
+
+                // -- {"31":81920}. --
+                statusNmeaRateId.textContent = (jsonObj["31"] / 1024. / 1000000.).toFixed(2);
+            }
 
             // -- {"33":"192.168.23.1"}. --
             statusLocalIpId.textContent = jsonObj["33"];

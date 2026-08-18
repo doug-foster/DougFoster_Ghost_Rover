@@ -29,11 +29,19 @@
  * @since  3.2.2 [2026-08-09-05:30pm] Only print for DEBUG_WS.
  * @since  3.2.3 [2026-08-10-09:45am] Add TCP to replace BLE.
  * @since  3.2.3 [2026-08-10-10:15pm] Refactor rtcm3GetMessageType(), relayRtcmByte(), & taskRtcmRelay() to properly handle RTCM sentences.
+ * @since  3.3.0 [2026-08-13-12:00pm] Replaced checkZedTriggerUpdate() with checkTimers().
+ * @since  3.3.0 [2026-08-13-12:30pm] Replaced ntripPushGGA() with checkTimers().
+ * @since  3.3.0 [2026-08-13-01:00pm] Replaced debug timer with checkTimers().
+ * @since  3.3.0 [2026-08-17-09:15am] Refactored card test in startOutputs() to use log file. Changed position in setup().
+ * @since  3.3.1 [2026-08-16-12:00pm] Changed from SD (SPI) to SD_MMC (SDIO).
+ * @since  3.3.1 [2026-08-16-05:30pm] Add logPrint().
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover_BT_relay.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
  * @link   http://dougfoster.me.
  */
+
+ // ToDo: Remove i2cUp & Wire1 since being replaced by TCP.
 
 /**
  * =========================================================================
@@ -61,7 +69,7 @@
  *
  * --- Major components: rover. ---
  *     -- FQBN               "Sparkfun ESP32-S3 Thing Plus" (~/Library/Arduino15/packages/esp32/hardware/esp32/3.3.10/boards.txt).
- *     -- GR-MCU1 board      https://www.sparkfun.com/sparkfun-thing-plus-esp32-s3.html (SparkFun Thing Plus - ESP32-S3).
+ *     -- GR-MCU board       https://www.sparkfun.com/sparkfun-thing-plus-esp32-s3.html (SparkFun Thing Plus - ESP32-S3).
  *        - micro SD card    https://www.amazon.com/dp/B0BDYVC5TD (SanDisk 128GB ImageMate microSDXC UHS-1 - Up to 140MB/s).
  *     -- GR-MCU2 board      https://www.sparkfun.com/sparkfun-thing-plus-esp32-s3.html (SparkFun Thing Plus - ESP32-S3).
  *     -- GNSS board         https://www.sparkfun.com/sparkfun-gps-rtk-sma-breakout-zed-f9p-qwiic.html (SparkFun GPS-RTK-SMA Breakout - ZED-F9P (Qwiic) - I2C address 0x42).
@@ -149,11 +157,15 @@
  * @since 3.2.1 [2026-07-30-07:45am] Implement GhostRover FreeRTOS queues: refactor onWebSocketMessage() into processJsonActivity().
  * @since 3.2.2 [2026-08-09-11:45am] Add NTRIP client: add relayRtcmByte(), add ntripBeginClient(), & ntripPushGGA().
  * @since 3.2.3 [2026-08-10-09:45am] Add startTcpServer(), add checkTcpClient().
+ * @since 3.3.1 [2026-08-17-09:15am] Changed position of startOutputs() in setup().
+ * @since 3.3.1 [2026-08-16-05:30pm] Add logPrint().
  *
  *  --- Docs. ---
+ *
  *  --- Include libraries. ---
  *      -- Core.
  *      -- Additional.
+ *
  *  --- Global vars.---
  *      -- Pin assignments.
  *      -- LED.
@@ -168,6 +180,7 @@
  *      -- Oper status.
  *      -- Declaration.
  *      -- Test.
+ *
  *  --- General functions. ---
  *      -- statusLedOn()               - Turn on status LED.
  *      -- prefUtility()               - Preference utility.
@@ -176,14 +189,15 @@
  *      -- rtcm3GetMessageType()       - Return RTCM3 message type to taskRtcmRelay().
  *      -- relayRtcmByte()             - Relay RTCM byte to Serial2 (ZED UART2), tracking stats.
  *      -- ntripBeginClient()          - Connect to NTRIP caster & validate credentials.
- *      -- ntripPushGGA()              - If sendGga preference is set, push last GGA sentence to NTRIP caster.
+ *      -- logPrint                    - Save a message to log.txt, print to Serial if available.
+ *
  *  --- Setup functions. ---
- *      -- showBuild()                 - Display build & processor info. Status LED is xxx.
+ *      -- startOutputs()              - Start serial & microSD card reader. 
+ *      -- buildInfo()                 - Build & processor info.
  *      -- startSerial()               - Start serial interfaces.
  *      -- initPins()                  - Initialize pins & pin values.
  *      -- startI2C()                  - Start I2C wire interfaces.
  *      -- startLiPo()                 - Start LiPo I2C interface.
- *      -- startSD()                   - Start & test microSD card reader.
  *      -- startWiFiServer()           - Start WiFi server.
  *      -- startTcpServer()            - Start TCP server for GNSS Master (NMEA out / RTCM in bridge).
  *      -- startHttpServer()           - Start HTTP server.
@@ -192,22 +206,27 @@
  *      -- startQueues()               - Start GhostRover FreeRTOS queues.
  *      -- startTasks()                - Start GhostRover FreeRTOS tasks.
  *      -- preLoop()                   - Prepare for loop().
+ *
  *  --- GhostRover FreeRTOS functions. ---
  *      -- taskLoopStatusLed()         - GhostRover FreeRTOS task - Set Loop() status LED to blink or solid.
  *      -- taskRtcmRelay()             - GhostRover FreeRTOS task - Relay RTCM from Serial1 (HC-12) to -> Serial2 (ZED UART2).
+ *
  *  --- Event handlers for core/additional library processes. ---
  *      -- onWiFiEvent()               - <WiFi.h> & <WiFiAP.h> WiFi event handler (WiFiEvent_t).
  *      -- onHttpFileUpload()          - <ESPAsyncWebServer.h> HTTP endpoint ("/upload") event handler (AsyncWebServerRequest).
  *      -- onWebSocketEvent()          - <ESPAsyncWebServer.h> WebSocket event handler (AsyncWebSocket).
  *      -- DevUBLOXGNSS::processNMEA() - <SparkFun_u-blox_GNSS_v3.h> DevUBLOXGNSS::processNMEA event handler (char incoming).
+ *
  *  --- Loop functions. ---
- *      -- checkZedTriggerUpdate()     - Check ZED to trigger DevUBLOXGNSS::processNMEA().
+ *      -- checkTimers()               - Check all process timers.
  *      -- processJsonActivity()       - Process queued WS messages & pending status updates. All JSON activity lives here.
  *      -- checkSerialUSB()            - Check serial USB for input.
  *      -- // checkGnssLockButton()    - Check GNSS lock button (upPosition or downPosition). // ToDo: Implement.
  *      -- checkTcpClient()            - Check TCP server for new/dropped client (GNSS Master, ..).
  *      -- debug()                     - Display debug.
+ *
  *  --- Setup. ---
+ *
  *  --- Loop. ---
  */
 
@@ -219,6 +238,7 @@
  * @since 3.1.1 [2026-06-25-01:00pm] New.
  * @since 3.2.1 [2026-07-30-07:45am] Implement FreeRTOS queues: refactor onWebSocketMessage() into processJsonActivity().
  * @since 3.2.3 [2026-08-10-09:45am] Add startTcpServer(), add checkTcpClient().
+ * @since 3.3.1 [2026-08-17-09:00am] Changed position of startOutputs() in setup().
  * 
  * --- Boot. ---
  *     Include libraries.
@@ -230,13 +250,13 @@
  *     Define loop() functions.
  *
  * --- Run setup(). ---
- *     showBuild()                    - Display build & processor info.
+ *     startOutputs()                 - Start serial & microSD card reader. Status LED is YELLOW then WHITE.
+ *     buildInfo()                    - Build & processor info. Status LED is YELLOW then WHITE.
  *     prefUtility(PREF_INIT)         - Get preferences.
  *     startSerial()                  - Start serial interfaces.
  *     initPins()                     - Initialize pin modes & pin values.
  *     startI2C()                     - Start I2C wire interfaces.
  *     startLiPo()                    - Start LiPo I2C interface.
- *     startSD()                      - Start & test microSD card reader.
  *     startWiFiServer()              - Start WiFi.
  *     startTcpServer()               - Start TCP server for GNSS Master (NMEA out / RTCM in bridge).
  *     startHttpServer()              - Start HTTP server.
@@ -247,7 +267,7 @@
  *     preLoop()                      - Prepare for loop().
  *
  * --- Run loop(). ---    
- *     checkZedTriggerUpdate()        - Check ZED to trigger DevUBLOXGNSS::processNMEA().
+ *     checkTimers()        - Check all timers, check ZED to trigger DevUBLOXGNSS::processNMEA().
  *       - After THROTTLE_CHECK_ZED expires:
  *         - Run roverGNSS.checkUblox().
  *         - Call buildOperData() to set GNSS global vars.
@@ -260,7 +280,7 @@
  *         - Set page name.
  *         - Depending on page (config, files, nmea, operate, ntrip, ...):
  *           - Fill jsonDocToBrowser[] with page specific data. Run specific functions for some pages.
- *              - If "nmea" page, do nothing. Processing is loop() -> checkZedTriggerUpdate() -> DevUBLOXGNSS::processNMEA().
+ *              - If "nmea" page, do nothing. Processing is loop() -> checkTimers() -> DevUBLOXGNSS::processNMEA().
  *           - Send data to browser.
  *           - If periodic status update is pending, send to browser page.
  *           - If NTRIP status update is pending, send to browser page.
@@ -277,7 +297,6 @@
  *     rtcm3GetMessageType()          - Called by taskRtcmRelay - return RTCM3 message type.
  *     relayRtcmByte()                - Called by taskRtcmRelay - read byte from NTRIP client, write to Serial2 (ZED UART2).
  *     ntripBeginClient()             - Called by taskRtcmRelay - connect to NTRIP caster.
- *     ntripPushGGA()                 - Called by taskRtcmRelay - when connected to NTRIP caster, periodically (GGA_INTERVAL) send $GGA NMEA sentence.
  *
  * --- Event handlers for core/additional library processes. ---
  *     -- onWiFiEvent()               -- <WiFi.h> & <WiFiAP.h> WiFi event handler (WiFiEvent_t).
@@ -289,7 +308,6 @@
  *        - print status, set LED color.
  *        - if WS_EVT_DATA, push (xQueueSend) JSON struct (data & length) into GhostRover FreeRTOS QueueHandle_t wsRxQueue.
  *     -- DevUBLOXGNSS::processNMEA() -- <SparkFun_u-blox_GNSS_v3.h> DevUBLOXGNSS::processNMEA event handler (char incoming).
- *        - Gather NMEA bytes into sentences, send NMEA sentence over I2C (Wire1) to GR-MCU2.
  *        - Track counts of NMEA sentences (all & each type) for operate page, status section.
  *        - Set status LED red if I2C (Wire1) is down, call startI2C() to restart.
  */
@@ -300,25 +318,23 @@
  * -------------------------------------------------------------------------
  *
  * @since 3.1.1 [2026-06-25-01:00pm] New.
- * @since 3.2.1 [2026-06-25-01:00pm] Updated GR-MCU2 LED status.
+ * @since 3.2.1 [2026-06-25-01:00pm] Updated GR-MCU LED status.
  *
  *   ws2812LedColor = RED, YELLOW, GREEN, BLUE, WHITE.
  *   ws2812LedBlink = true, false.
+ *   "Good" LED transition from power-on to connect will be: YELLOW -> WHITE -> BLUE -> GREEN.
  * 
- * --- GR-MCU1 ----
+ * --- GR-MCU ----
  *     -- setup(). --
  *        - solid YELLOW: startup delay.
  *        - solid  WHITE: setup() started & running ok.
  *        - solid    RED: startWiFiServer() error,
- *                        startSD() error,
+ *                        startOutputs() error,
  *                        startAndConfigGNSS() error.
  *     -- loop(). --  
  *        - solid   BLUE: loop running ok with no websocket connection.
  *        - solid  GREEN: loop running ok with onWebSocketEvent(WS_EVT_CONNECT) connection.
- *        - blink  GREEN: relaySerial1toSerial2() RTCM in Serial1 out Serial2.
- *        - solid    RED: DevUBLOXGNSS::processNMEA() GRMCU1 <--> GRMCU2 I2C (NMEAout) error.
- * --- GR-MCU2 ----
- * @see DougFoster_Ghost_Rover_BT_relay.ino. 
+ *        - blink  GREEN: relaySerial1toSerial2() RTCM in Serial1 out Serial2. 
  * 
  * --- GNSS ----
  *     -- https://learn.sparkfun.com/tutorials/gps-rtk2-hookup-guide#hardware-overview. --
@@ -388,6 +404,7 @@
  * @since 3.2.2   [2026-08-09-11:45am] Add NTRIP client: add base64.h.
  * @since 3.2.2   [2026-08-09-01:45pm] Updated library <AsyncTCP.h>                from 3.4.10  to 3.5.0.
  * @since 3.2.2   [2026-08-09-01:45pm] Updated library <ESPAsyncWebServer.h>       from 3.11.1  to 3.12.0.
+ * @since 3.3.1   [2026-08-16-05:30pm] Changed SD card reader library from <SD.h> to <SD_MMC.h>.
  * @link  Arduino https://docs.arduino.cc/libraries/.
  * @link  ESP32   https://docs.espressif.com/projects/arduino-esp32/en/latest/libraries.html.
  */
@@ -396,7 +413,7 @@
 #include <Arduino.h>                                       // https://github.com/espressif/arduino-esp32.
 #include <WiFi.h>                                          // https://github.com/espressif/arduino-esp32/tree/master/libraries/WiFi.
 #include <WiFiAP.h>                                        // https://github.com/espressif/arduino-esp32/tree/master/libraries/WiFi.
-#include <SD.h>                                            // https://github.com/espressif/arduino-esp32/tree/master/libraries/SD.
+#include <SD_MMC.h>                                        // https://github.com/espressif/arduino-esp32/tree/master/libraries/SD_MMC.
 #include <FS.h>                                            // https://github.com/espressif/arduino-esp32/tree/master/libraries/FS.
 #include <SPI.h>                                           // https://github.com/espressif/arduino-esp32/tree/master/libraries/SPI.
 #include <Wire.h>                                          // https://github.com/espressif/arduino-esp32/blob/master/libraries/Wire/src/Wire.h.
@@ -426,11 +443,13 @@
  * @since 3.1.0  [2026-03-20-11:45am] Add pole height preference.
  * @since 3.1.2  [2026-07-16-09:00am] Increase jsonBuffer[768] to 1024.
  * @since 3.1.2  [2026-07-16-09:00am] Changed int16_t prfInstrHgt to uint16_t.
- * @since 3.1.2  [2026-07-16-10:00am] Moved MAJOR, MINOR, PATCH from showBuild() to "Operation" section.
+ * @since 3.1.2  [2026-07-16-10:00am] Moved MAJOR, MINOR, PATCH from buildInfo() to "Operation" section.
  * @since 3.2.1  [2026-07-24-03:30pm] Refactor JSON.
  * @since 3.2.1  [2026-07-28-04:45pm] Removed NMEA out switch & preference.
  * @since 3.2.2  [2026-08-09-11:45am] Add NTRIP client.
  * @since 3.2.3  [2026-08-10-09:45am] Add TCP to replace BLE.
+ * @since 3.3.0  [2026-08-13-01:30pm] Added global debugFlag.
+ * @since 3.3.1  [2026-08-16-05:30pm] Add LOG_FILE, outputBuffer.
  */
 
 // --- Pin assignments. ---
@@ -470,7 +489,6 @@ AsyncWebSocket ws(WEBSOCKET_SERVER_NAME);                 // HTTP WebSocket obje
 
 // --- WebSocket. ---
 const uint8_t WS_RX_QUEUE_LEN     = 5;                    // Max # of WebSocket queued incoming messages.
-bool         browserUpdatePending = false;                // Flag: update ready to send to browser page (operate, nmea, ...).
 char         lastNmea[120]      = {'\0'};                 // Snapshot of last complete NMEA sentence. @see DevUBLOXGNSS::processNMEA(), sendDataToBrowser().
 char         jsonBuffer[1024];                            // @see processJsonActivity().  // ToDo: Move to local var?
 char         response[128];                               // WebSocket message response.
@@ -486,12 +504,12 @@ struct WsQueueItem {                                      // Queued incoming Web
 // --- NTRIP client. ---
 WiFiClient ntripClient;                                    // WiFi connection to NTRIP caster.
                                                            // Owned only by taskRtcmRelay() (core 0) for connect()/stop()/read().
-                                                           // Requests/status cross task boundary as flags, same pattern as browserUpdatePending.                                                            
+                                                           // Requests/status cross task boundary as flags, same pattern as browserUpdatePendingFlag.                                                            
 bool       ntripConnected             = false;             // Status: connected to caster. Set only by taskRtcmRelay().
 bool       ntripConnectRequest        = false;             // Set by processJsonActivity(), cleared by taskRtcmRelay().
 bool       ntripDisconnectRequest     = false;             // Set by processJsonActivity(), cleared by taskRtcmRelay().
 bool       ntripStatusPending         = false;             // New ntripStatusMsg ready to forward to browser.
-bool       ntripsendRtcmSentenceCount = false;             // Flag to send rtcmSentenceCount for ntrip page. Triggered by checkZedTriggerUpdate() timer.
+bool       ntripsendRtcmSentenceCount = false;             // Flag to send rtcmSentenceCount for ntrip page. Triggered by checkTimers().
 char       ntripStatusMsg[100]        = {'\0'};            // Latest status line for "connectNtripCasterResp".
 char       lastGGA[100]               = {'\0'};            // Last complete GGA sentence (any page). @see DevUBLOXGNSS::processNMEA().
 
@@ -522,7 +540,8 @@ enum CommandIndex {                                       //  Readable index for
     DEBUG_NMEA_COUNTS,                                    // 14.
     DEBUG_PREFS,                                          // 15.
     DEBUG_NTRIP,                                          // 16.
-    NUM_COMMANDS                                          // 17 = automatic array length.
+    DEBUG_TIMERS,                                          // 17.
+    NUM_COMMANDS                                          // 18 = automatic array length.
 };     
 const char* COMMAND[NUM_COMMANDS] = {                     // Command strings; match CommandIndex.
     "testRad",                                            // TEST_RAD.
@@ -532,7 +551,7 @@ const char* COMMAND[NUM_COMMANDS] = {                     // Command strings; ma
     "debugBtn",                                           // DEBUG_BTN.
     "debugSer",                                           // DEBUG_SER.
     "debugWiFi",                                          // DEBUG_WIFI.
-    "debugWs",                                            // DEBUG_WS.
+    "debugWS",                                            // DEBUG_WS.
     "debugLiPo",                                          // DEBUG_LIPO.
     "showUpTime",                                         // SHOW_UPTIME.
     "restart",                                            // RESTART.
@@ -541,13 +560,15 @@ const char* COMMAND[NUM_COMMANDS] = {                     // Command strings; ma
     "debugNMEAhex",                                       // DEBUG_NMEA_HEX.
     "debugNMEAcounts",                                    // DEBUG_NMEA_COUNTS.
     "debugPrefs",                                         // DEBUG_PREFS.
-    "debugNTRIP"                                          // DEBUG_NTRIP.
+    "debugNTRIP",                                          // DEBUG_NTRIP.
+    "debugTimers"                                         // DEBUG_TIMERS.
 };     
 const bool    RW_MODE                   = false;          // Open preference name space as read/write.
 const bool    RO_MODE                   = true;           // Open preference name space as read only.
-const uint8_t MAJOR_VERSION             = 3;              // Current major build version (@see showBuild()).
-const uint8_t MINOR_VERSION             = 2;              // Current minor build version (@see showBuild()).
-const uint8_t PATCH_VERSION             = 3;              // Current patch build version (@see showBuild()).
+const char    LOG_FILE[]                = "/log.txt";     // Log file.
+const uint8_t MAJOR_VERSION             = 3;              // Current major build version (@see buildInfo()).
+const uint8_t MINOR_VERSION             = 3;              // Current minor build version (@see buildInfo()).
+const uint8_t PATCH_VERSION             = 1;              // Current patch build version (@see buildInfo()).
 const uint8_t MIN_SATELLITE_THRESHHOLD  = 2;              // Minimum SIV for reliable coordinate information.      
 bool          ghostMode                 = false;          // Flag, in Ghost mode (i.e. locked coordinates).
 bool          i2cUp                     = false;          // Status: true if both Wire & Wire1 up, else false.
@@ -555,14 +576,14 @@ bool          inLoop                    = false;          // In loop() indicator
 bool          RTCMin                    = false;          // RTCM being received within RTCM_TIMEOUT.
 bool          NMEAout                   = false;          // NMEA being sent OUT to MCU #2.
 bool          zeroStatusCounters        = false;          // Flag to zero status counters.
-bool          restartGrMCU1             = false;          // Flag to restart GR-MCU1.
-bool          restartGrMCU1Processes    = false;          // Flag to restart GR-MCU1 dependent processes.
+bool          todoRestartGrMCU          = false;          // Flag to restart GR-MCU.
 bool          buttonGnssLock;                             // UI - // ToDo: Implement.
 bool          buttonAltitudeLock;                         // UI - // ToDo: Implement.
 bool          buttonPositionLock;                         // UI - // ToDo: Implement.
 bool          buttonLaser;                                // UI button to turn laser pointer on/off.
 bool          buttonUnlockAll;                            // UI - // ToDo: Implement.
 bool          commandFlag[NUM_COMMANDS] = {false};        // Command flags.
+bool          debugFlag                 = false;          // Debug flag.
 char          uptime[20]                = {'\0'};         // 01h 03m 12s.
 char          operMode[2]               = {'\0'};         // Operation mode (r=rover, b=base).
 char          debugTemp[250]            = {'\0'};         // Various debug scenarios.
@@ -578,11 +599,14 @@ char          serialState[4];                             // Serial state: '-', 
                                                           // NMEA (bool) being sent OUT to MCU #2.
 char          nmeaBuffer[120]           = {'\0'};         // Buffer for NMEA sentence. @see DevUBLOXGNSS::processNMEA().  // ToDo: Move to local var?
 char          operBuffer[24]            = {'\0'};         // Buffer for Operate data.
+char          startOutputsResults[300]  = {'\0'};         // Buffered output from startOutputs().
+char          buildInfoResults[200]     = {'\0'};         // Buffered output from buildInfo().
+char          outputBuffer[200]         = {'\0'};         // Buffer for output data.
 size_t        wsSendCount               = 0;              // # of WebSocket messages sent.
 size_t        rtcmSentenceCount         = 0;              // # of RTCM sentences in.
 u_int8_t      numSatInView              = 0;              // GNSS - # OF satellites in view.
 u_int8_t      fixType                   = 0;              // GNSS - type of fix (single, RTK-float, RTK-fix).
-int64_t       startTime;                                  // Boot time.
+int64_t       bootTime;                                   // Boot time.
 float         rtcmKbps                  = 0;              // RTCM kbps (average).
 float         heightEllipsoid           = 0;              // GNSS - ellipsoid height.
 float         heightOrthometric         = 0;              // GNSS - orthometric height.
@@ -592,6 +616,9 @@ float         batterySoc                = 0;              // Battery State Of Ch
 float         batteryChangeRate         = 0;              // Battery charge - rate of change.
 double        lat                       = 0;              // GNSS - latitude.
 double        lon                       = 0;              // GNSS - longitude.
+
+// --- Flags. ---
+bool          browserUpdatePendingFlag  = false;          // Update ready to send to browser page (operate, nmea, ...).
 
 // --- Preferences. ---
 const uint16_t NTRIP_CAST_ATTR_LEN      = 512;            // Length of character array for NTRIP caster attibute profile.
@@ -636,7 +663,6 @@ size_t  nmeaCountGSV       = 0;
 size_t  nmeaCountGST       = 0;
 size_t  nmeaCountTXT       = 0;
 size_t  nmeaCountOther     = 0;
-int64_t lastGGAsendTime    = 0; 
 int64_t nmeaRate           = 0;
 int64_t lastRTCMtime       = esp_timer_get_time();      // Last time (us) when RTCM input received.
 
@@ -652,6 +678,9 @@ int64_t lastRTCMtime       = esp_timer_get_time();      // Last time (us) when R
  * @since 3.2.1  [2026-07-25-11:00am] Removed wsKey().
  * @since 3.2.1  [2026-07-26-09:00am] Add sendDataToBrowser().
  * @since 3.2.2  [2026-08-09-11:45am] Add NTRIP client: add relayRtcmByte(), add ntripBeginClient(), & ntripPushGGA().
+ * @since 3.3.0  [2026-08-13-12:30pm] Replaced ntripPushGGA() with checkTimers().
+ * @since 3.3.1  [2026-08-16-05:30pm] Add logPrint().
+ * @see   logPrint()              - Save a message to LOG_FILE, print to Serial if available.
  * @see   statusLedOn()           - Turn on status LED.
  * @see   prefUtility()           - Preference utility.
  * @see   buildOperData()         - Build data for operate page.
@@ -659,8 +688,36 @@ int64_t lastRTCMtime       = esp_timer_get_time();      // Last time (us) when R
  * @see   rtcm3GetMessageType()   - Return RTCM3 message type to taskRtcmRelay().
  * @see   relayRtcmByte()         - Relay RTCM byte to Serial2 (ZED UART2), tracking stats.
  * @see   ntripBeginClient()      - Connect to NTRIP caster & validate credentials.
- * @see   ntripPushGGA().         - If sendGga preference is set, push last GGA sentence to NTRIP caster.
  */
+
+ /**
+ * -------------------------------------------------------------------------
+ *  Print text to USB if Serial available. Add text to LOG_FILE.
+ * -------------------------------------------------------------------------
+ *
+ * @param  char* textToBuffer Text to log/print.
+ * @return void No output is returned.
+ * @since  3.3.1 [2026-08-16-05:15pm] New.
+ */
+void logPrint(const char* textToLogPrint = NULL) {
+
+    if (textToLogPrint == NULL)  {
+        return;
+    } else {
+
+        // --- Print to Serial. ---
+        if (serialState[0] == 'u') {
+            Serial.print(textToLogPrint);
+        }
+
+        // --- Send to log file. ---
+        File file = SD_MMC.open(LOG_FILE, FILE_APPEND);
+        if (file) {
+            file.print(textToLogPrint);
+            file.close();
+        }
+    }
+}
 
 /**
  * -------------------------------------------------------------------------
@@ -669,7 +726,7 @@ int64_t lastRTCMtime       = esp_timer_get_time();      // Last time (us) when R
  * 
  * @return void  No output is returned.
  * @since  3.0.12 [2026-02-10-10:45pm] New.
- * @see showBuild(), startWiFiServer(), startSD(), startAndConfigGNSS(), taskLoopStatusLed().
+ * @see buildInfo(), startWiFiServer(), startOutputs(), startAndConfigGNSS(), taskLoopStatusLed().
  */
 void statusLedOn() {
     switch (ws2812LedColor) {
@@ -738,7 +795,9 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
     const uint16_t  DEF_GNS_MSR_INT         = 100;              // Default ZED interval (ms): CREATE a new solution.                                11 - Matching global var: uint16_t prfGnsMsrInt.
     const uint16_t  DEF_INSTR_HGT           = 128;              // Default instrument height (mm - includes rover height [128] + pole height [0]).  12 - Matching global var: uint16_t prfInstrHgt.
     const uint16_t  NUM_PREFS               = 12;               // Number of preferences being used.
+    size_t remaining                        = 0;                // Number of bytes remaining that can be written to char array. 
     bool            hasKey                  = false;
+    char diagMsg[100]                       = {'\0'};
     DeserializationError ntripError;
 
     // --- Which action? ---
@@ -755,7 +814,8 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
 
             // -- Close name space. --
             roverPrefs.end();
-            Serial.printf("NVS namespace %s using %u entries with %u available.\n", NAMESPACE, NUM_PREFS, roverPrefs.freeEntries());
+            snprintf(diagMsg, sizeof(diagMsg), "NVS namespace %s using %u entries with %u available.\n", NAMESPACE, NUM_PREFS, roverPrefs.freeEntries());
+            logPrint(diagMsg);
             break;
 
         case PREF_READ:
@@ -781,12 +841,13 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             JsonDocNtrip.clear();
             ntripError = deserializeJson(JsonDocNtrip, prfNtripCastAttr[atoi(prfNtripCastAct)-1]);
             if (ntripError) {
-                Serial.printf("JSON deserialize failed: %s\n", ntripError.f_str());
+                snprintf(diagMsg, sizeof(diagMsg), "JSON deserialize failed: %s\n", ntripError.f_str());
+                logPrint(diagMsg);
                 return;
             }
             // Serial.print("prfNtripCastAct=");
             // Serial.println(prfNtripCastAct);
-            //           Serial.print("prfNtripCastAttr[atoi(prfNtripCastAct)]=");
+            // Serial.print("prfNtripCastAttr[atoi(prfNtripCastAct)]=");
             // Serial.println(prfNtripCastAttr[atoi(prfNtripCastAct)]);
 
             // - Set global vars from JSON values. -
@@ -802,7 +863,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
 
             // -- Close name space. --
             roverPrefs.end();
-            Serial.println("Preferences read.");
+            logPrint("Preferences read.\n");
             break;
 
         case PREF_SET:
@@ -825,9 +886,9 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
 
             // -- Close name space. --
             roverPrefs.end();
-            Serial.println("Preferences saved.");
-            restartGrMCU1Processes = true;
-            Serial.println("\nGR-MCU1 will restart dependent processes.");
+            logPrint("Preferences saved.\n");
+            todoRestartGrMCU = true;
+            logPrint("\nGR-MCU will restart.\n");
             break;
 
         case PREF_RESET:
@@ -847,9 +908,9 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
 
             // -- Close name space. --
             roverPrefs.end();
-            Serial.println("Resetting all preferences.");
-            restartGrMCU1Processes = true;
-            Serial.println("\nGR-MCU1 will restart dependent processes.");
+            logPrint("Resetting all preferences.\n");
+            todoRestartGrMCU = true;
+            logPrint("\nGR-MCU will restart.\n");
             break;
 
         case PREF_PRINT:
@@ -917,9 +978,9 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
 
             // -- Close name space. --
             roverPrefs.end();
-            Serial.println("NTRIP preference set.");
-            restartGrMCU1Processes = true;
-            Serial.println("\nGR-MCU1 will restart dependent processes.");
+            logPrint("NTRIP preference set.\n");
+            todoRestartGrMCU = true;
+            logPrint("\nGR-MCU will restart.\n");
             break;
     }
 }
@@ -933,7 +994,8 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
  * @since  3.0.10 [2026-01-08-01:30pm] New
  * @since  3.0.12 [2026-02-18-11:00pm] Shorten RTCM & NMEA status.
  * @since  3.2.1  [2026-07-26-06:30pm] Refactor.
- * @since  3.2.3  [2026-08-11-09:00am] Moved browserUpdatePending flag to DevUBLOXGNSS::processNMEA().
+ * @since  3.2.3  [2026-08-11-09:00am] Moved browserUpdatePendingFlag to DevUBLOXGNSS::processNMEA().
+ * @since  3.3.1  [2026-08-17-09:15pm] Changed from Serial.print() to logPrint().
  * @see    Global vars: WebSockets, setup().
  */
  void buildOperData() {
@@ -996,10 +1058,14 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
         batteryChangeRate = lipo.getChangeRate();
 
         // -- Status. --
-        int32_t seconds = (esp_timer_get_time() - startTime)/1000000;
+        int32_t seconds = (esp_timer_get_time() - bootTime)/1000000;
         int32_t minutes = seconds / 60;
         int32_t hours = minutes / 60;
         snprintf(uptime, sizeof(uptime), "%uh %um %us", hours % 24, minutes % 60, seconds % 60);
+
+        if (commandFlag[DEBUG_TIMERS]) {
+            Serial.print("buildOperData() executed.\n");
+        }
     }
 }
 
@@ -1013,7 +1079,8 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
  * @since  3.2.1 [2026-07-30-10:30am] jsonDocToBrowser["NMEA"] '= lastNmea' was '= nmeaBuffer'.
  * @since  3.2.1 [2026-07-31-01:30pm] Moved "Wrap up" section from processJsonActivity() to here.
  * @since  3.2.2 [2026-08-09-05:30pm] Only print for DEBUG_WS.
- * @see    checkZedTriggerUpdate(), processJsonActivity(), DevUBLOXGNSS::processNMEA().
+ * @since  3.3.0 [2026-08-15-12:00pm] Moved restarts to checkToDoFlags().
+ * @see    checkTimers(), processJsonActivity(), DevUBLOXGNSS::processNMEA().
  * @see    processJsonActivity() for description of exchange protocol.
  */
 void sendDataToBrowser() {      // Browser sets state: 1) respond to from browser or 2)periodic update (nmea, operate) to browser, 
@@ -1021,6 +1088,7 @@ void sendDataToBrowser() {      // Browser sets state: 1) respond to from browse
     // --- NMEA page. ---
     if (strcmp(whichPage, "nmea") == 0) {
         jsonDocToBrowser["NMEA"] = lastNmea;
+        browserUpdatePendingFlag = true;
     }
 
     // --- NTRIP page. ---
@@ -1095,21 +1163,6 @@ void sendDataToBrowser() {      // Browser sets state: 1) respond to from browse
     wsSendCount++;
     if (commandFlag[DEBUG_WS]) {                    // Debug.
         Serial.printf("WS #%u: browser <-- %s\n\n", clientId, jsonBuffer);
-    }
-
-    // -- Wrap up. Additional post processing. --
-    if (restartGrMCU1) {            // Restart MCU. Restart button pressed.
-        delay(2000);
-        esp_restart();
-    }
-    if (restartGrMCU1Processes) {   // Restart dependent processes. Preferences were updated.
-        startSerial();
-        startTasks();
-        if (WiFi.status() == WL_CONNECTED) {
-            WiFi.disconnect();
-        }
-        startAndConfigGNSS();
-        restartGrMCU1Processes = false;
     }
 }
 
@@ -1282,7 +1335,8 @@ void relayRtcmByte(char inputChar, char* rtcmSentence, uint16_t &byteCount, uint
  *
  * @return bool true if caster responded 200 OK, false otherwise.
  * @since  3.2.2 [2026-08-09-12:30pm] New.
- * @see    taskRtcmRelay(), ntripPushGGA(), prefUtility(), Global vars: NTRIP client.
+ * @since  3.3.0 [2026-08-13-12:30pm] Replaced ntripPushGGA() with checkTimers().
+ * @see    taskRtcmRelay(), checkTimers(), prefUtility(), Global vars: NTRIP client.
  * @link   https://github.com/sparkfun/SparkFun_u-blox_GNSS_Arduino_Library/blob/main/examples/ZED-F9P/Example17_NTRIPClient_With_GGA_Callback/Example17_NTRIPClient_With_GGA_Callback.ino.
  * @link   https://www.use-snip.com/kb/knowledge-base/ntrip-rev1-versus-rev2-formats/.
  * @link   https://www.use-snip.com/kb/knowledge-base/subtle-issues-with-using-ntrip-client-nmea-183-strings/.
@@ -1344,7 +1398,7 @@ bool ntripBeginClient() {
     ntripClient.write(serverRequest, strlen(serverRequest));
 
     // --- Wait for response. ---
-    startTime = esp_timer_get_time();
+    startTime = esp_timer_get_time();       // Localized timeout watch, does not belong in checkTimers().
     while (ntripClient.available() == 0) {
 
         // -- Timed out waiting for caster's HTTP response. --
@@ -1399,53 +1453,20 @@ bool ntripBeginClient() {
 }
 
 /**
- * -------------------------------------------------------------------------
- *  If sendGga preference is set, push last GGA sentence to NTRIP caster.
- * -------------------------------------------------------------------------
- *
- * @return void No output is returned.
- * @since  3.2.2 [2026-08-09-12:45pm] New.
- * @see    taskRtcmRelay(), DevUBLOXGNSS::processNMEA(), Global vars: NTRIP client.
- * @link   https://www.use-snip.com/kb/knowledge-base/subtle-issues-with-using-ntrip-client-nmea-183-strings/.
- */
-void ntripPushGGA() {
-
-    // --- Local vars. ---
-    const  int64_t  GGA_INTERVAL        = 10000000;              // Time (us) between GGA sends (10 sec, matches Ex17).
-    static int64_t  lastGgaToCasterTime = 0;                     // Throttle - persists across calls.
-
-    // --- Only if preference set & a sentence is available. ---
-    if ((ntripCaster.sendGga == false) || (lastGGA[0] == '\0')) {
-        return;
-    }
-
-    // --- Throttle. ---
-    if ((esp_timer_get_time() - lastGgaToCasterTime) < GGA_INTERVAL) {
-        return;
-    }
-    lastGgaToCasterTime = esp_timer_get_time();
-
-    // --- Push GGA to caster. ---
-    ntripClient.print(lastGGA);
-    if ((commandFlag[DEBUG_RTCM]) || (commandFlag[DEBUG_NTRIP])) {
-        Serial.printf("Pushed to NTRIP caster: %s", lastGGA);
-    }
-}
-
-/**
  * =========================================================================
  *  Setup functions.
  * =========================================================================
  *
  * @since 3.0.11 [2026-01-08-10:30am] Browser initiated updates.
- * @since 3.2.3 [2026-08-10-09:45am] Add startTcpServer().
- * @see   showBuild()            - Display build & processor info.
+ * @since 3.2.3  [2026-08-10-09:45am] Add startTcpServer().
+ * @since 3.3.1  [2026-08-17-09:00am] Changed position of startOutputs() in setup().
+ * @see   startOutputs()         - Start serial & microSD card reader.
+ * @see   buildInfo()            - Display build & processor info.
  * @see   prefUtility(PREF_INIT) - Preference utility (get preferences).
  * @see   startSerial()          - Start serial interfaces.
  * @see   initPins()             - Initialize pins & pin values.
  * @see   startI2C()             - Start I2C wire interfaces.
  * @see   startLiPo()            - Start LiPo I2C interface.
- * @see   startSD()              - Start & test microSD card reader.
  * @see   startWiFiServer()      - Start WiFi server.
  * @see   startTcpServer()       - Start TCP server for GNSS Master (NMEA out / RTCM in bridge).
  * @see   startHttpServer()      - Start HTTP server.
@@ -1458,48 +1479,152 @@ void ntripPushGGA() {
 
 /**
  * -------------------------------------------------------------------------
- *  Display build & processor info.
+ *  Start serial & microSD card reader.
  * -------------------------------------------------------------------------
+ *
+ * Using SanDisk 128GB ImageMate microSDXC UHS-1 - Up to 140MB/s.
  * 
  * Default pins for ESP32-S3 Thing Plus using Arduino core:
  *   GPIO 19 - Serial USB UART0 used as Communication Device Class interface D- (negative data line).
  *   GPIO 20 - Serial USB UART0 used as Communication Device Class interface D+ (positive data line).
+ *   GPIO 33 - SDIO3.
+ *   GPIO 34 - SDIO_CMD.
+ *   GPIO 38 - SDIO_CLK.
+ *   GPIO 39 - SDIO0.
+ *   GPIO 40 - SDIO1.
+ *   GPIO 47 - SDIO2.
+ *   GPIO 48 - SDIO_~{DET}.
+ * 
+ * @return void  No output is returned.
+ * @since  3.0.3  [2025-10-13-01:00pm].
+ * @since  3.0.10 [2026-01-07-11:30am] Local vars.
+ * @since  3.3.0  [2026-08-16-12:00pm] Refactored test to use log file.
+ * @since  3.3.0  [2026-08-16-12:00pm] Changed from SD (SPI) to SD_MMC (SDIO).
+ * @since  3.3.1  [2026-08-17-02:15pm] Refactored for logPrint().
+ * @see    buildInfo(), setup().
+ * @link   https://github.com/espressif/arduino-esp32/tree/master/libraries/SD_MMC.
+ * @link   https://github.com/espressif/arduino-esp32/tree/master/libraries/FS.
+ * @link   https://github.com/espressif/arduino-esp32/tree/master/libraries/SPI.
+ * @link   https://docs.sparkfun.com/SparkFun_Thing_Plus_ESP32-S3/hardware_overview/#sd-card-slot.
+ * @link   https://github.com/sparkfun/SparkFun_Thing_Plus_ESP32-S3/blob/main/Firmware/SD_SDIO_Benchmark/SD_SDIO_Benchmark.ino.
+ * @link   https://github.com/espressif/arduino-esp32/blob/master/libraries/SD_MMC/examples/SDMMC_Test/SDMMC_Test.ino.
+ * @link   https://randomnerdtutorials.com/arduino-ide-2-install-esp32-littlefs/.
+ */
+void startOutputs() {
+
+    // --- Local vars. ---
+    const uint8_t  SDIO_CLK         = 38;
+    const uint8_t  SDIO_CMD         = 34;
+    const uint8_t  SDIO_D0          = 39;
+    const uint8_t  SDIO_D1          = 40;
+    const uint8_t  SDIO_D2          = 47;
+    const uint8_t  SDIO_D3          = 33;
+    const uint32_t SERIAL_USB_SPEED = 115200;   // Serial USB speed.
+    size_t remaining                = 0;        // Number of bytes remaining that can be written to char array. 
+    bool   startedSd                = true;
+
+    // --- Set initial state. ---
+    ws2812LedColor = YELLOW;
+    ws2812LedBlink = false;
+    statusLedOn();
+    memset(startOutputsResults, '\0', sizeof(startOutputsResults));
+
+     // --- Start Serial USB. ---
+    Serial.begin(SERIAL_USB_SPEED);
+    if (Serial) {
+        serialState[0] = 'u';   // USB interface is up.
+        snprintf(startOutputsResults, sizeof(startOutputsResults), "Serial USB started @ %d.\n", SERIAL_USB_SPEED);
+    } else {
+        serialState[0] = 'd';   // USB interface is down.
+        snprintf(startOutputsResults, sizeof(startOutputsResults), "USB not connected. Serial NOT started.\n");
+    };
+
+    // --- Assign SDIO pins for SD card reader. ---
+    if (SD_MMC.setPins(SDIO_CLK, SDIO_CMD, SDIO_D0, SDIO_D1, SDIO_D2, SDIO_D3)) {
+        remaining = sizeof(startOutputsResults) - strlen(startOutputsResults) - 1;
+        strncat(startOutputsResults, "SDIO pins assigned.\n", remaining);
+    } else {
+        startedSd = false;
+    }
+
+    // --- Mount SD card. ---
+    if (SD_MMC.begin()) {
+        remaining = sizeof(startOutputsResults) - strlen(startOutputsResults) - 1;
+        strncat(startOutputsResults, "SD card started.\n", remaining);
+    } else {
+        startedSd = false;
+    };
+
+    // --- Test SD card & reader by writing new LOG_FILE. ---
+    if (SD_MMC.exists(LOG_FILE)) {                          // Create a fresh log file for every boot.
+        SD_MMC.remove(LOG_FILE);
+    }
+    File file = SD_MMC.open(LOG_FILE, FILE_WRITE);          // FILE_WRITE to write to log file, FILE_APPEND to append to log file.
+    if (file) {
+        char diagMsg[100] = {'\0'};
+        snprintf(diagMsg, sizeof(diagMsg), "Log file created.\n");
+        remaining = sizeof(startOutputsResults) - strlen(startOutputsResults) - 1;
+        strncat(startOutputsResults, diagMsg, remaining);
+        file.print("#");
+        file.close();
+    } else  {
+        startedSd = false;
+    }
+
+    // --- Error starting SD? ---
+    if (!startedSd)  {
+        ws2812LedColor = RED;
+        ws2812LedBlink = true;
+        statusLedOn();
+
+        // -- SD card contains UI files, do not continue. --
+        if (Serial) {
+            Serial.print("ERROR SD card. Freezing.");
+        }
+        while (true);
+    }
+
+    // --- Continue. ---
+    // Display startOutputsResults[] at end of buildInfo().
+}
+
+/**
+ * -------------------------------------------------------------------------
+ *  Build & processor info. Status LED is YELLOW then WHITE.
+ * -------------------------------------------------------------------------
  * 
  * @return void  No output is returned.
  * @since  3.0.10 [2025-12-30-02:00pm].
  * @since  3.0.10 [2026-01-07-09:45am] Local vars.
  * @since  3.1.1  [2026-06-25-01:00pm] Updated version, added startup delay, transition LED YELLOW->WHITE.
- * @since  3.1.2  [2026-07-16-10:00am] Moved MAJOR, MINOR, PATCH from showBuild() to "Operation" section.
- * @see    Global vars: Version, setup().
+ * @since  3.1.2  [2026-07-16-10:00am] Moved MAJOR, MINOR, PATCH from buildInfo() to "Operation" section.
+ * @since  3.3.1. [2026-08-17-11:00am] Refactored. Renamed from showBuild() to buildInfo().
+ * @since  3.3.1  [2026-08-17-02:15pm] Refactored for logPrint().
+ * @see    startOutputs(), setup().
  * @link   https://github.com/pycom/pycom-esp-idf.
  */
-void showBuild() {
+void buildInfo() {
 
     // --- Local vars. ---
-    const char      NAME[]           = "Ghost Rover 3";
-    const uint32_t  SERIAL_USB_SPEED = 115200;   // Serial USB speed.
-    const uint64_t  START_DELAY      = 4000000;  // 4 second startup delay.
+    const char NAME[] = "Ghost Rover 3";
     esp_chip_info_t chip_info;
 
-    // --- Run. ---
-    startTime = esp_timer_get_time();
-    ws2812LedColor = YELLOW;
-    ws2812LedBlink = false;
-    statusLedOn();
-    Serial.begin(SERIAL_USB_SPEED);
-    serialState[0] = 'u';   // USB interface.
+    // --- Set build message. ---
     esp_chip_info(&chip_info);
-    sprintf(buildString, "%u.%u.%u - %s @ %s", MAJOR_VERSION, MINOR_VERSION, PATCH_VERSION, __DATE__, __TIME__);
-    while ((esp_timer_get_time() - startTime) < START_DELAY) {
-        vTaskDelay(1);  // busy-wait; yield to RTOS if needed
-    }
+    memset(buildInfoResults, '\0', sizeof(buildInfoResults));
+    snprintf(buildInfoResults, sizeof(buildInfoResults),
+        "\n%s\n"
+        "%u.%u.%u - built on %s @ %s\n"
+        "Using %s, Rev %d, %d core(s), ID (MAC) %012llX.\n",
+        NAME,
+        MAJOR_VERSION, MINOR_VERSION, PATCH_VERSION, __DATE__, __TIME__,
+        ESP.getChipModel(), chip_info.revision, chip_info.cores, ESP.getEfuseMac()
+    );
+
+    // --- Continue. ---
+    logPrint(buildInfoResults);
+    logPrint(startOutputsResults);
     ws2812LedColor = WHITE;
-    // Serial.print("\033[2J");   // Clear screen before displaying boot messages.
-    Serial.println('\n');         // Empty lines before displaying boot messages.
-    Serial.printf("%s\n%s\n", NAME, buildString);
-    Serial.printf("Using %s, Rev %d, %d core(s), ID (MAC) %012llX.\n", ESP.getChipModel(), chip_info.revision, chip_info.cores, ESP.getEfuseMac());
-    Serial.println("Setup started.");
-    Serial.printf("SerialUSB started @ %u bps.\n", SERIAL_USB_SPEED);
 }
 
 /**
@@ -1518,7 +1643,8 @@ void showBuild() {
  * @since  3.0.10 [2025-12-27-06:00pm] Add Serial2.
  * @since  3.0.10 [2025-12-30-02:00pm] Add Serial USB.
  * @since  3.0.10 [2026-01-07-09:45am] Local vars.
- * @see    showBuild(), setup().
+ * @since  3.3.1  [2026-08-17-02:45pm] Changed from Serial.print() to logPrint().
+ * @see    buildInfo(), setup().
  * @link   https://github.com/G6EJD/ESP32-Using-Hardware-Serial-Ports.
  * @link   https://randomnerdtutorials.com/esp32-uart-communication-serial-arduino/#esp32-custom-uart-pins.
  */
@@ -1532,20 +1658,23 @@ void startSerial() {
     const uint32_t SERIAL1_SPEED = 9600;                            // HC-12 default speed is 9600.
     // const uint32_t SERIAL2_SPEED = 57600;                        // ZED UART2 default speed is 38400.
     const uint32_t SERIAL2_SPEED = 38400;                           // ZED UART2 default speed is 38400.
+    char diagMsg[100] = {'\0'};
 
     // --- Start serial interfaces. ---
     serialState[1] = '-';
-    Serial.println("Serial0 is not used.");
+    logPrint("Serial0 is not used.\n");
 
     if (strncmp(prfRtcmInSource, "radio", sizeof(prfRtcmInSource)) == 0) {
         Serial1.begin(SERIAL1_SPEED, SERIAL_8N1, HC12_TX, HC12_RX); // UART1 object. RX, TX.
         serialState[2] = 'u';
-        Serial.printf("Serial1 started @ %i bps", SERIAL1_SPEED);
+        snprintf(diagMsg, sizeof(diagMsg), "Serial1 started @ %i bps", SERIAL1_SPEED);
+        logPrint(diagMsg);
     } else {        // prfRtcmInSource is other than radio.
         serialState[2] = '-';
-        Serial.print("Serial1 not started");
+        logPrint("Serial1 not started");
     }
-    Serial.printf(" (RTCM in = \"%s\").\n", prfRtcmInSource);
+    snprintf(diagMsg, sizeof(diagMsg), " (RTCM in = \"%s\").\n", prfRtcmInSource);
+    logPrint(diagMsg);
     if (strncmp(prfRtcmInSource, "off", sizeof(prfRtcmInSource)) == 0) {
         RTCMin = false;
     }
@@ -1553,7 +1682,8 @@ void startSerial() {
     // -- RTCM out is always over Serial2 (to ZED UART2).
     Serial2.begin(SERIAL2_SPEED, SERIAL_8N1, ZED_RX2, ZED_TX2);     // UART2 object. RX, TX.  
     serialState[3] = 'u';
-    Serial.printf("Serial2 started @ %i bps (RTCM out to ZED UART2).\n", SERIAL2_SPEED);
+    snprintf(diagMsg, sizeof(diagMsg), "Serial2 started @ %i bps (RTCM out to ZED UART2).\n", SERIAL2_SPEED);
+    logPrint(diagMsg);
 }
 
 /**
@@ -1564,13 +1694,14 @@ void startSerial() {
  * @return void No output is returned.
  * @since  3.0.3  [2025-10-13-01:00pm].
  * @since  3.0.10 [2025-12-27-06:00pm] Add HC12_SET & LSR_TRIGGER.
+ * @since  3.3.1  [2026-08-17-02:45pm] Changed from Serial.print() to logPrint().
  * @see    setup().
  */
 void initPins() {
     pinMode(HC12_SET, OUTPUT);          // HC-12 - set pin for AT command mode.
     digitalWrite(HC12_SET, HIGH);       // HC-12 - initially set pin for transparent mode.
     pinMode(LSR_TRIGGER, OUTPUT);       // KY-008 trigger pin.
-    Serial.println("Init pins.");
+    logPrint("Init HC-12 & laser pins.\n");
 }
 
 /**
@@ -1588,6 +1719,7 @@ void initPins() {
  * @since  3.0.9  [2025-12-05-05:00pm] New.
  * @since  3.0.10 [2025-12-27-07:00pm] Combine wire & wire1.
  * @since  3.0.10 [2026-01-07-10:00am] Local vars.
+ * @since  3.3.1  [2026-08-17-02:45pm] Changed from Serial.print() to logPrint().
  * @see    setup().
  * @link   https://github.com/espressif/arduino-esp32/blob/master/libraries/Wire/src/Wire.h.
  * @link   https://docs.arduino.cc/language-reference/en/functions/communication/wire/. 
@@ -1607,10 +1739,10 @@ void startI2C() {
     if ((Wire.begin()) && (Wire1.begin(I2C1_SDA,I2C1_SCL))) {
         Wire.setClock(WIRE_SPEED);
         Wire1.setClock(WIRE_SPEED);
-        Serial.printf("Wire & Wire1 started @ 4kHz.\n");
+        logPrint("Wire & Wire1 started @ 4kHz.\n");
         i2cUp = true;
     } else {
-        Serial.println("Wire & Wire1 failed to start. Retrying.");
+        logPrint("Wire & Wire1 failed to start. Retrying.\n");
         delay(RETRY);
         startI2C();
     };
@@ -1626,89 +1758,17 @@ void startI2C() {
  * @return void  No output is returned.
  * @since  3.0.7  [2025-11-09-10:15pm].
  * @since  3.0.10 [2026-01-06-11:15am]. Spelling, move lipo.enableDebugging().
+ * @since  3.3.1  [2026-08-17-02:45pm] Changed from Serial.print() to logPrint().
  * @see    setup().
  * @link   https://github.com/sparkfun/SparkFun_MAX1704x_Fuel_Gauge_Arduino_Library.
  */
 void startLiPo() {
     if (lipo.begin() == false) {    // Uses I2C0.
-        Serial.println("LiPo not started. MAX17048 not detected.");
+        logPrint("LiPo not started. MAX17048 not detected.\n");
     } else {
         lipo.quickStart();          // Restart for a more accurate initial SOC guess.
-        Serial.println("LiPo started.");
+        logPrint("LiPo started.\n");
     }
-}
-
-/**
- * -------------------------------------------------------------------------
- *  Start & test microSD card reader.
- * -------------------------------------------------------------------------
- *
- * Using SanDisk 128GB ImageMate microSDXC UHS-1 - Up to 140MB/s.
- * 
- * Default pins for ESP32-S3 Thing Plus using Arduino core:
- *   GPIO 33 - SDIO3.
- *   GPIO 34 - SDIO_CMD.
- *   GPIO 38 - SDIO_CLK.
- *   GPIO 39 - SDIO0.
- *   GPIO 40 - SDIO1.
- *   GPIO 47 - SDIO2.
- *   GPIO 48 - SDIO_~{DET}.
- * 
- * @return void  No output is returned.
- * @since  3.0.3 [2025-10-13-01:00pm].
- * @since  3.0.10 [2026-01-07-11:30am] Local vars.
- * @see    setup().
- * @link   https://github.com/espressif/arduino-esp32/tree/master/libraries/SD.
- * @link   https://github.com/espressif/arduino-esp32/tree/master/libraries/FS.
- * @link   https://github.com/espressif/arduino-esp32/tree/master/libraries/SPI.
- * @link   https://docs.sparkfun.com/SparkFun_Thing_Plus_ESP32-S3/hardware_overview/#sd-card-slot.
- * @link   https://randomnerdtutorials.com/arduino-ide-2-install-esp32-littlefs/.
- */
-void startSD() {
-
-    // --- Local vars. ---
-    const uint8_t  SPI_CS      = 33;                // SPI chip select.
-    const uint8_t  SPI_PICO    = 34;                // microSD SDI.
-    const uint8_t  SPI_SCK     = 38;                // ESP32-S3 Thing+ SPI serial clock.
-    const uint8_t  SPI_POCI    = 39;                // microSD SDO.
-    const uint16_t STARTUP     = 750;               // Allow time for SDIO to start up.
-    const char     TEST_FILE[] = "/index.html";     // Test file (should always exist).
-
-    // --- Start SDIO interface. ---
-    if (!SPI.begin(SPI_SCK, SPI_POCI, SPI_PICO, SPI_CS)) {
-        Serial.println("SDIO not started. Freezing.");
-        while (true) {
-            ws2812LedColor = RED;
-            ws2812LedBlink = false;
-            statusLedOn();
-        };
-    }
-    Serial.println("SDIO started.");
-
-    // --- Start SD reader. ---
-    delay(STARTUP);
-    if (!SD.begin(SPI_CS)) {
-        Serial.println("SD card not started. Freezing.");
-        ws2812LedColor = RED;
-        ws2812LedBlink = false;
-        statusLedOn();
-        while (true);
-    }
-    Serial.println("SD card started.");
-
-    // --- Test card. ---
-    delay(STARTUP);
-    Serial.print("SD card test - ");
-    File file = SD.open(TEST_FILE, "r");
-    if (file == false) {
-        Serial.println("failed. Freezing.");
-        ws2812LedColor = RED;
-        ws2812LedBlink = false;
-        statusLedOn();
-        while (true);
-    }
-    Serial.println("OK.");
-    file.close();
 }
 
 /**
@@ -1722,6 +1782,7 @@ void startSD() {
  * @since  3.0.12 [2026-01-27-04:00pm] Refactor from AP mode to AP+Station mode.
  * @since  3.0.12 [2026-02-01-05:30pm] Use preferences.
  * @since  3.2.1  [2026-07-31-12:30pm] Add WiFi client for NTRIP access. Refactor.
+ * @since  3.3.1  [2026-08-17-02:45pm] Changed from Serial.print() to logPrint().
  * @see    setup(), prefUtility().
  * @link   https://github.com/espressif/arduino-esp32/tree/master/libraries/WiFi.
  * @link   https://docs.espressif.com/projects/arduino-esp32/en/latest/api/wifi.html.
@@ -1741,7 +1802,7 @@ void startWiFiServer() {
 
     // --- Config & start WiFi server (Access Point) for easy browser access. ---
     if (!WiFi.softAPConfig(AP_LOCAL_IP, AP_GATEWAY, AP_SUBNET)) {   // Configure IP network.
-        Serial.println("Soft AP - config failed.");
+        logPrint("Soft AP - config failed.\n");
         while (true) {
             ws2812LedColor = RED;                                   // Indicates error during setup(). 
             ws2812LedBlink = false;
@@ -1749,7 +1810,7 @@ void startWiFiServer() {
         };
     }
     if (!WiFi.softAP(AP_SSID)) {                                    // Open access point - set SSID, omit password.
-        Serial.println("Soft AP - create failed. Freezing.");
+        logPrint("Soft AP - create failed. Freezing.");
         while (true) {
             ws2812LedColor = RED;                                   // Indicates error during setup(). 
             ws2812LedBlink = false;
@@ -1760,7 +1821,9 @@ void startWiFiServer() {
     WiFi.onEvent(onWiFiEvent);                                      // Add event handler WiFiEvent().
     IPAddress ip = WiFi.softAPIP();                                 // Start WiFi & check status (get IP).
     snprintf(localIp, sizeof(localIp), "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
-    Serial.printf("WiFi server \"%s\" started @ %s.\n", AP_SSID, localIp);
+    char diagMsg[100] = {'\0'};
+    snprintf(diagMsg, sizeof(diagMsg), "WiFi server \"%s\" started @ %s.\n", AP_SSID, localIp);
+    logPrint(diagMsg);
 }
 
 /**
@@ -1772,12 +1835,15 @@ void startWiFiServer() {
  *
  * @return void No output is returned.
  * @since  3.2.3 [2026-08-10-10:45am] New.
+ * @since  3.3.1 [2026-08-17-02:45pm] Changed from Serial.print() to logPrint().
  * @see    setup(), checkTcpClient().
  */
 void startTcpServer() {
     gnssTcpServer.begin();
     gnssTcpServer.setNoDelay(true);                        // Disable Nagle - don't batch NMEA/RTCM bytes.
-    Serial.printf("TCP server started on port %u.\n", TCP_SERVER_PORT);
+    char diagMsg[100] = {'\0'};
+    snprintf(diagMsg, sizeof(diagMsg), "TCP server started on port %u.\n", TCP_SERVER_PORT);
+    logPrint(diagMsg);
 }
 
 /**
@@ -1791,6 +1857,7 @@ void startTcpServer() {
  * @since  3.0.7 [2025-11-11-06:15pm].
  * @since  3.0.10 [2026-01-07-11:30am] Local vars.
  * @see    setup(), onHttpFileUpload().
+ * @since  3.3.1 [2026-08-17-02:45pm] Changed from Serial.print() to logPrint().
  * @link   https://github.com/ESP32Async/ESPAsyncWebServer/wiki#get-post-and-file-parameters.
  * @link   https://github.com/ESP32Async/AsyncTCP.
  * @link   https://github.com/ESP32Async/ESPAsyncWebServer.
@@ -1804,14 +1871,16 @@ void startHttpServer() {
 
     // --- Route: root. ---
     httpServer.on(PAGE_ROOT, HTTP_GET, [](AsyncWebServerRequest *request) {
-        Serial.printf("httpServer - Page \"%s\" requested.\n", request->url().c_str());
-        request->send(SD, "/index.html", "text/html");      // Set root.
+        char diagMsg[100]          = {'\0'};
+        snprintf(diagMsg, sizeof(diagMsg), "httpServer - Page \"%s\" requested.\n", request->url().c_str());
+        logPrint(diagMsg);
+        request->send(SD_MMC, "/index.html", "text/html");      // Set root.
     }) ;
 
     // --- Route: file upload. ---   
     httpServer.on(PAGE_UPLOAD, HTTP_POST, [](AsyncWebServerRequest *req) {
         req->send(200, "text/plain", "Upload complete");
-        Serial.println("httpServer - File upload complete.");
+        logPrint("httpServer - File upload complete.\n");
     }, onHttpFileUpload);                                   // Register endpoint handler.
 
     // --- Route: file download. ---
@@ -1819,12 +1888,15 @@ void startHttpServer() {
         if (request->hasParam("file")) {                    // Process request.
             String filename = request->getParam("file")->value();
             String filepath = "/" + filename;
-            if (SD.exists(filepath)) {
-                request->send(SD, filepath, "application/octet-stream", true);
-                Serial.printf("httpServer - Downloading file: %s\n", filename.c_str());
+            char diagMsg[100]          = {'\0'};
+            if (SD_MMC.exists(filepath)) {
+                request->send(SD_MMC, filepath, "application/octet-stream", true);
+                snprintf(diagMsg, sizeof(diagMsg), "httpServer - Downloading file: %s\n", filename.c_str());
+                logPrint(diagMsg);
             } else {
                 request->send(404, "text/plain", "File not found");
-                Serial.printf("File not found: %s\n", filename.c_str());
+                snprintf(diagMsg, sizeof(diagMsg), "File not found: %s\n", filename.c_str());
+                logPrint(diagMsg);
             }
         } else {
             request->send(400, "text/plain", "File parameter required");
@@ -1832,9 +1904,9 @@ void startHttpServer() {
     });
 
     // --- Start server. ---
-    httpServer.serveStatic(PAGE_ROOT, SD, PAGE_ROOT);       // File system root ("/") is on SD card.
+    httpServer.serveStatic(PAGE_ROOT, SD_MMC, PAGE_ROOT);       // File system root ("/") is on SD card.
     httpServer.begin();
-    Serial.println("httpServer started.");
+    logPrint("httpServer started.\n");
 }
 
 /**
@@ -1843,9 +1915,10 @@ void startHttpServer() {
  * -------------------------------------------------------------------------
  *
  * @return void  No output is returned.
- * @since  3.0.3 [2025-10-13-01:00pm].
+ * @since  3.0.3  [2025-10-13-01:00pm].
  * @since  3.0.10 [2026-01-07-12:00pm] WEBSOCKET_SERVER_NAME.
  * @since  3.0.12 [2026-02-14-06:00pm] Add softwareResetGNSSOnly().
+ * @since  3.3.1  [2026-08-17-02:45pm] Changed from Serial.print() to logPrint().
  * @see    setup(), onWebSocketEvent().
  * @link   https://randomnerdtutorials.com/esp32-websocket-server-arduino/.
  * @link   https://shawnhymel.com/1882/how-to-create-a-web-server-with-websockets-using-an-esp32-in-arduino/.
@@ -1853,7 +1926,9 @@ void startHttpServer() {
 void startWebSocketServer() {
     ws.onEvent(onWebSocketEvent);
     httpServer.addHandler(&ws);     // startWebServer() must run first.
-    Serial.printf("WebSocket server \"%s\" started.\n", WEBSOCKET_SERVER_NAME);
+    char diagMsg[100] = {'\0'};
+    snprintf(diagMsg, sizeof(diagMsg), "WebSocket server \"%s\" started.\n", WEBSOCKET_SERVER_NAME);
+    logPrint(diagMsg);
 }
 
 /**
@@ -1874,6 +1949,7 @@ void startWebSocketServer() {
  * @since  3.0.11 [2026-01-14-10:45am] Cleanup.
  * @since  3.0.11 [2026-01-26-04:15pm] Rework config, see wiring diagram.
  * @since  3.0.12 [2026-02-01-12:15pm] Changed to prfGnsNavRat & prfGnsMsrInt.
+ * @since  3.3.1  [2026-08-17-02:45pm] Changed from Serial.print() to logPrint().
  * @see    Global vars: GNSS, prefUtility(), startSerial(), beginI2C().
  * @link   https://github.com/sparkfun/SparkFun_u-blox_GNSS_v3/blob/main/examples/Example1_PositionVelocityTime/Example1_PositionVelocityTime.ino.
  * @link   https://github.com/sparkfun/SparkFun_u-blox_GNSS_v3/blob/main/src/u-blox_config_keys.h.
@@ -1887,18 +1963,21 @@ void startWebSocketServer() {
  */
 void startAndConfigGNSS() {
 
+    // --- Local vars. ---
+    char diagMsg[100] = {'\0'};
+
     // --- Start GNSS interface on I2C-1. ---
     if (roverGNSS.begin() == false) {
-        Serial.println("Start roverGNSS failed. Freezing ...");     // Something is wrong, freeze.
+        logPrint("Start roverGNSS failed. Freezing ...");           // Something is wrong, freeze.
         ws2812LedColor = RED;
         ws2812LedBlink = false;
         statusLedOn();
-        while (true);                                                // Infinite loop.
+        while (true);                                               // Infinite loop.
     } else {
 
         // -- Software reset. --
         roverGNSS.softwareResetGNSSOnly();
-        Serial.println("RoverGNSS started.\nEnumerating satellite constellations.");
+        logPrint("RoverGNSS started.\nEnumerating satellite constellations.\n");
         delay(1000); // Short delay to allow the module to complete the reset process.
 
         // uint16_t    prfGnsMsrInt;  // ZED: MEASURE every Y (e.g. 100) ms.
@@ -1906,7 +1985,8 @@ void startAndConfigGNSS() {
         // roverGNSS.setNavigationFrequency(2) will produce 1 solution every 500ms, but only uses 2 (not 5) measurements per second.
         roverGNSS.setNavigationRate(prfGnsNavRat, VAL_LAYER_RAM);
         roverGNSS.setMeasurementRate(prfGnsMsrInt, VAL_LAYER_RAM);
-        Serial.printf("Solution output every (%u * %u) ms.\n", prfGnsNavRat, prfGnsMsrInt);
+        snprintf(diagMsg, sizeof(diagMsg), "Solution output every (%u * %u) ms.\n", prfGnsNavRat, prfGnsMsrInt);
+        logPrint(diagMsg);
     }
 
     // --- New config template. ---
@@ -1937,7 +2017,7 @@ void startAndConfigGNSS() {
     roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_GST_I2C, 3);    // I2C messages - Enable GSA to 1 per 3 solutions  (default is 1 per 1 solution).
                                                                     // ZDA & GNS sentences are off by default.
     // --- Send the config. ---
-    roverGNSS.sendCfgValset() ? Serial.println("roverGNSS configured using valset keys.") : Serial.println("roverGNSS config failed!");
+    roverGNSS.sendCfgValset() ? logPrint("roverGNSS configured using valset keys.\n") : logPrint("roverGNSS config failed!\n");
 
     // --- Not used. ---
     // roverGNSS.newCfgValset(VAL_LAYER_RAM_BBR);
@@ -1957,18 +2037,19 @@ void startAndConfigGNSS() {
  *
  * @return void No output is returned.
  * @since  3.2.2 [2026-07-29] New. Threadsafe queues shared by FreeRTOS tasks and loop() functions.
+ * @since  3.3.1  [2026-08-17-02:45pm] Changed from Serial.print() to logPrint().
  * @see    setup(), onWebSocketEvent(), processJsonActivity().
  */
 void startQueues() {
     wsRxQueue = xQueueCreate(WS_RX_QUEUE_LEN, sizeof(WsQueueItem));
     if (wsRxQueue == NULL) {
-        Serial.println("Failed to create wsRxQueue. Freezing.");
+        logPrint("Failed to create wsRxQueue. Freezing.");
         ws2812LedColor = RED;
         ws2812LedBlink = false;
         statusLedOn();
         while (true);
     }
-    Serial.println("GhostRover FreeRTOS queue \"wsRxQueue\" created.");
+    logPrint("GhostRover FreeRTOS queue \"wsRxQueue\" created.\n");
 }
 
 /**
@@ -1980,6 +2061,7 @@ void startQueues() {
  * @since  3.0.7  [2025-11-14-04:30pm].
  * @since  3.0.11 [2026-01-08-10:30am] Remove taskSendGnss() & taskSendBatteryStatus().
  * @since  3.1.2  [2026-07-03-07:30pm] xTaskCreatePinnedToCore from 4096 to 8192.
+ * @since  3.3.1  [2026-08-17-02:45pm] Changed from Serial.print() to logPrint().
  * @see    Global vars: FreeRTOS handles.
  * @see    setup().
  * @link   https://www.freertos.org/Documentation/02-Kernel/04-API-references/01-Task-creation/01-xTaskCreate.
@@ -1988,7 +2070,7 @@ void startTasks() {
 
     // --- Loop status LED. ---
     xTaskCreate(taskLoopStatusLed, "Loop status LED", 2048, NULL, 2, &taskLoopStatusLedHandle);
-    Serial.println("GhostRover FreeRTOS task \"Loop status LED\" started.");
+    logPrint("GhostRover FreeRTOS task \"Loop status LED\" started.\n");
 
     // --- RTCM relay. ---
     // Arduino-ESP32 core 0 defaults: WiFi/BT.
@@ -1996,7 +2078,7 @@ void startTasks() {
     // Pin taskRtcmRelay() to core 0 for parallel execution instead of round-robin in loop() since I2C calls block and don't yield.
     if (strncmp(prfRtcmInSource, "off", sizeof(prfRtcmInSource)) != 0) {    // Relay RTCM, skip for "off".
         xTaskCreatePinnedToCore(taskRtcmRelay, "RTCM_Relay", 8192, NULL, 2, &taskRtcmRelayHandle, 0);
-        Serial.println("GhostRover FreeRTOS task \"RTCM relay\" started.");
+        logPrint("GhostRover FreeRTOS task \"RTCM relay\" started.\n");
     }
     if (strncmp(prfRtcmInSource, "off", sizeof(prfRtcmInSource)) != 0) {
         RTCMin = false;
@@ -2010,14 +2092,19 @@ void startTasks() {
  *
  * @return void  No output is returned.
  * @since  3.0.7 [2025-11-21-06:00pm] Added inLoop.
+ * @since  3.3.1 [2026-08-17-03:45pm] Changed from Serial.print() to logPrint().
  * @see    setup().
  */
 void preLoop() {
-    ws2812LedColor = BLUE;
-    ws2812LedBlink = false;
-    operMode[0]    = 'r';
-    inLoop         = true;
-    Serial.println("Loop starting.");
+
+    ws2812LedColor    = BLUE;
+    ws2812LedBlink    = false;
+    operMode[0]       = 'r';
+    inLoop            = true;
+    float seconds     = (esp_timer_get_time() - bootTime)/1000000.;
+    char diagMsg[100] = {'\0'};
+    snprintf(diagMsg, sizeof(diagMsg), "Loop starting. Boot time: %.2f seconds.\n", seconds);
+    logPrint(diagMsg);
 }
 
 /**
@@ -2078,7 +2165,7 @@ void taskLoopStatusLed(void * pvParameters) {
  *  ESP32-S3 Serial2 (ZED UART2) is set to 57,600 bps in Global Vars.
  *  RTK-SMA (ZED UART2) is set to 57,600 bps by default (could change in startAndConfigGNSS() ).
  * 
- * Runs independently of loop() so blocking I2C calls in checkZedTriggerUpdate()
+ * Runs independently of loop() so blocking I2C calls in checkZedTriggerUpdate(). // ToDo: Update description.
  * (NMEA-over-I2C forwarding) can't starve the RTCM relay. Drains Serial1 fully
  * on every wake so any backlog from a stall clears immediately instead of
  * trickling out one byte per loop() pass.
@@ -2092,6 +2179,7 @@ void taskLoopStatusLed(void * pvParameters) {
  * @since  3.2.1  [2026-07-29-09:30am] Added guard to prevent rtcmKbps form calculating as null.
  * @since  3.2.2  [2026-08-09-12:45pm] Add NTRIP client: add logic for "// prfRtcmInSource preference is set to "ntrip."
  * @since  3.2.3  [2026-08-10-10:30pm] Add bytesLeftInFrame, unify "radio" branch onto relayRtcmByte() helper.
+ * @since  3.3.0 [2026-08-13-12:30pm] Replaced ntripPushGGA() with checkTimers().
  * @see    startTasks().
  * @see    rtcm3GetMessageType().
  * @see    Global vars: Serial, startSerialInterfaces(), loop().
@@ -2159,9 +2247,7 @@ void taskRtcmRelay(void *pvParameters) {
                         char inputChar = ntripClient.read();
                         relayRtcmByte(inputChar, rtcmSentence, byteCount, bytesLeftInFrame, msg_type);
                         lastNtripRtcmTime = esp_timer_get_time();
-                    }  
-                    ntripPushGGA();
-
+                    }
                     if ((esp_timer_get_time() - lastNtripRtcmTime) > NTRIP_RTCM_TIMEOUT) {
 
                         // RTCM hangup timeout.
@@ -2221,6 +2307,7 @@ void taskRtcmRelay(void *pvParameters) {
  * @param  WiFiEvent_t event WiFi event object.
  * @return void No output is returned.
  * @since  3.0.8 [2025-11-21] New.
+ * @since  3.3.1 [2026-08-17-03:45pm] Changed from Serial.print() to logPrint().
  * @see    startWiFiServer().
  * @link   https://docs.espressif.com/projects/arduino-esp32/en/latest/api/wifi.html.
  */
@@ -2239,7 +2326,9 @@ void onWiFiEvent(WiFiEvent_t event) {
             case ARDUINO_EVENT_WIFI_AP_GOT_IP6:         Serial.println("AP IPv6 is preferred"); break;
             default:                                    break;
         }
-        Serial.printf("[WiFi-event] Clients connected: %i\n", WiFi.softAPgetStationNum());
+        char diagMsg[100] = {'\0'};
+        snprintf(diagMsg, sizeof(diagMsg), "[WiFi-event] Clients connected: %i\n", WiFi.softAPgetStationNum());
+        logPrint(diagMsg);
     }
 }
 
@@ -2253,6 +2342,7 @@ void onWiFiEvent(WiFiEvent_t event) {
  * @return void   No output is returned.
  * @since  3.0.7  [2025-11-11-06:00pm].
  * @since  3.0.10 [2026-01-07-12:00pm] Local vars.
+ * @since  3.3.1  [2026-08-17-03:45pm] Changed from Serial.print() to logPrint().
  * @see    startHttpServer().
  * @link   https://randomnerdtutorials.com/esp32-async-web-server-espasyncwebserver-library/.
  */
@@ -2260,18 +2350,22 @@ void onHttpFileUpload(AsyncWebServerRequest *request, String filename, size_t in
 
     // --- Local vars. ---
     static File uploadFile;                                 // HTTP upload file.
+    char diagMsg[100] = {'\0'};
 
     // --- Begin. ---
     if (index == 0) {                                       // Start.
-        Serial.println("\nhttpServer endpoint \"/upload\".\nonHttpFileUpload() running.");
-        SD.remove("/" + filename);                          // Delete file.
-        Serial.printf("%s deleted on SD.\n", filename.c_str());
-        uploadFile = SD.open("/" + filename, FILE_WRITE);   // Open file for writing.
+        logPrint("\nhttpServer endpoint \"/upload\".\nonHttpFileUpload() running.\n");
+        SD_MMC.remove("/" + filename);                          // Delete file.
+        snprintf(diagMsg, sizeof(diagMsg), "%s deleted on SD.\n", filename.c_str());
+        logPrint(diagMsg);
+        uploadFile = SD_MMC.open("/" + filename, FILE_WRITE);   // Open file for writing.
         if (uploadFile) {
-            Serial.printf("%s opened on SD.\n", filename.c_str());
+            snprintf(diagMsg, sizeof(diagMsg), "%s opened on SD.\n", filename.c_str());
+            logPrint(diagMsg);
         } else {
             request->send(500, "text/plain", "Cannot open file for writing on SD.");
-            Serial.printf("Cannot open %s on SD for writing.\n", filename.c_str());
+            snprintf(diagMsg, sizeof(diagMsg), "Cannot open %s on SD for writing.\n", filename.c_str());
+            logPrint(diagMsg);
             return;  
         }
     }
@@ -2279,13 +2373,15 @@ void onHttpFileUpload(AsyncWebServerRequest *request, String filename, size_t in
     // --- Continue (write data to SD). ---
     if (len) {                                              // Data chunk.                                            
         uploadFile.write(data, len);                        // Write received data to file.
-        Serial.printf("%u total bytes written.\n", (unsigned int)(index + len));
+        snprintf(diagMsg, sizeof(diagMsg), "%u total bytes written.\n", (unsigned int)(index + len));
+        logPrint(diagMsg);
     }
 
     // --- Finish. ---
     if (final) {                                            // Complete.
         uploadFile.close();
-        Serial.printf("%s closed on SD.\n", filename.c_str());
+        snprintf(diagMsg, sizeof(diagMsg), "%s closed on SD.\n", filename.c_str());
+        logPrint(diagMsg);
         request->send(200, "text/plain", "Upload complete. File saved to SD.");
     }
 }
@@ -2305,16 +2401,22 @@ void onHttpFileUpload(AsyncWebServerRequest *request, String filename, size_t in
  * @link   https://shawnhymel.com/1882/how-to-create-a-web-server-with-websockets-using-an-esp32-in-arduino/.
  */
 void onWebSocketEvent(AsyncWebSocket *httpServer, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
+
+    char diagMsg[100] = {'\0'};
+
     clientId = client->id();
     switch (type) {
         case WS_EVT_CONNECT:
-            Serial.printf("WS #%u: %s connected to server.\n", clientId, client->remoteIP().toString().c_str());
+
+            snprintf(diagMsg, sizeof(diagMsg), "WS #%u: %s connected to server.\n", clientId, client->remoteIP().toString().c_str());
+            logPrint(diagMsg);
             ws2812LedColor = GREEN;                         // Loop status indicator LED.
             ws2812LedBlink = false;
             wsSendCount    = 0;                             // Reset counter.
             break;
         case WS_EVT_DISCONNECT:
-            Serial.printf("WS #%u: disconnected.\n\n", clientId);
+            snprintf(diagMsg, sizeof(diagMsg), "WS #%u: disconnected.\n\n", clientId);
+            logPrint(diagMsg);
             ws2812LedColor = BLUE;
             ws2812LedBlink = false;
             wsSendCount    = 0;                             // Reset counter.
@@ -2327,7 +2429,7 @@ void onWebSocketEvent(AsyncWebSocket *httpServer, AsyncWebSocketClient *client, 
                     memcpy(item.data, data, item.len);
                     item.data[item.len] = '\0';                                                         // For debug printing.
                     if (xQueueSend(wsRxQueue, &item, 0) != pdTRUE) {                                    // Non-blocking; drop if full.
-                        Serial.println("wsRxQueue full, message dropped.");
+                        logPrint("wsRxQueue full, message dropped.");
                     }
                 }
             }
@@ -2363,105 +2465,109 @@ void onWebSocketEvent(AsyncWebSocket *httpServer, AsyncWebSocketClient *client, 
  * @since  3.0.11 [2026-01-23-10:15am] Added startI2C(), DEBUG_NMEA_HEX.
  * @since  3.0.12 [2026-02-18-11:00pm] Shorten RTCM & NMEA status.
  * @since  3.2.1  [2026-07-28-04:45pm] Removed NMEA out switch & preference.
- * @since  3.2.1  [2026-07-30-10:30am] Global browserUpdatePending flag added.
+ * @since  3.2.1  [2026-07-30-10:30am] Global browserUpdatePendingFlag added.
  * @since  3.2.2  [2026-08-09-11:45am] Add NTRIP client: add char lastGGA[100].
- * @since  3.2.3  [2026-08-10-10:30am] Refactor from Wire1 to TCP.
+ * @since  3.2.3  [2026-08-14-03:15pm] Refactor from Wire1 to TCP.
  * @see    nmeaBuffer[] in Operation section of Global vars.
- * @see    ntripPushGGA().
  * @link   https://docs.espressif.com/projects/arduino-esp32/en/latest/api/wifi.html.
  * @link   https://github.com/sparkfun/SparkFun_u-blox_GNSS_v3/tree/main/examples/Basics/Example2_NMEAParsing.
  */
 void DevUBLOXGNSS::processNMEA(char incoming) {
 
     // --- Local vars. ---
-    // nmeaBuffer[] is a global var.
-    uint8_t writeStatus;                                                    // Return value from Wire.endTransmission().
-    static  uint64_t nmeaSolutionLength        = 1;
-    static  bool     nmeaSolutionBlockComplete = false;
+    // char nmeaBuffer[120] is a global var, holds (1) NMEA sentence.
+    static size_t nmeaSentenceCounter  = 0;
+    static size_t nmeaBytesCounter     = 0;
+    int64_t       countBeginTime       = esp_timer_get_time();
+    const  size_t nmeaSentenceCountMax = 80;
 
     // --- Loop. ---
     if (inLoop) {
-        strncat(nmeaBuffer, &incoming, 1);                                  // Add NMEA byte from RTK-SMA to outbound buffer.
-        // ToDo: Here is where the NMEA sentence should get modified for instrument hieght and lock button.
-        // ToDo: i2cUp/startI2C() for Wire1 are no longer referenced by this function. Remove references.
+        strncat(nmeaBuffer, &incoming, 1);                              // Add NMEA byte from RTK-SMA to outbound buffer.
+        nmeaBytesCounter++;
+        if ((incoming == '\n') && (nmeaBuffer[0] == '$')) {             // Full sentence.
 
-        if ((incoming == '\n') && (nmeaBuffer[0] == '$')) {              // Full sentence.
+            // ToDo: Modify the NMEA sentence here for height (+instrument) and position lock.
 
+            // -- Output full NMEA sentence to TCP client (aka "GNSS Master" Android app).
             size_t bytesWritten = 0;
             if (tcpClientConnected) {
                 bytesWritten = gnssTcpClient.write((const uint8_t*)nmeaBuffer, strlen(nmeaBuffer));
             }
 
-            if (bytesWritten > 0) {                                      // Success.
-                nmeaCountAll++;
-                if (strncmp(&nmeaBuffer[3], "GGA", 3) == 0) {
-                    lastGGAsendTime = esp_timer_get_time();
-                    nmeaCountGGA++;
-                    nmeaSolutionBlockComplete = true;
-                    strlcpy(lastGGA, nmeaBuffer, sizeof(lastGGA));       // @since 3.2.2 - for ntripPushGGA().
-                } else if (strncmp(&nmeaBuffer[3], "RMC", 3) == 0) {
-                    nmeaCountRMC++;
-                } else if (strncmp(&nmeaBuffer[3], "GSA", 3) == 0) {
-                    nmeaCountGSA++;
-                } else if (strncmp(&nmeaBuffer[3], "GSV", 3) == 0) {
-                    nmeaCountGSV++;
-                } else if (strncmp(&nmeaBuffer[3], "GST", 3) == 0) {
-                    nmeaCountGST++;
-                } else if (strncmp(&nmeaBuffer[3], "TXT", 3) == 0) {
-                    nmeaCountTXT++;
-                } else {
-                    nmeaCountOther++;
-                    if (commandFlag[DEBUG_NMEA_COUNTS]) {
-                        Serial.println(nmeaBuffer);
-                    }
-                }
-                if (zeroStatusCounters) {
-                    nmeaCountAll = 0; nmeaCountGGA = 0; nmeaCountRMC = 0; nmeaCountGSA = 0;
-                    nmeaCountGSV = 0; nmeaCountGST = 0; nmeaCountTXT = 0; nmeaCountOther = 0;
-                    zeroStatusCounters = false;
-                }
+            // -- Did TCP client receive the sentence? --
+            if (bytesWritten > 0) {
+                NMEAout = true;
+            } else {
+                NMEAout = false;
+            }
+
+            // -- Track stats for NMEA generated by ZED-F9P. ---
+            nmeaSentenceCounter++;
+            nmeaCountAll++;
+            if (strncmp(&nmeaBuffer[3], "GGA", 3) == 0) {
+                nmeaCountGGA++;
+            } else if (strncmp(&nmeaBuffer[3], "RMC", 3) == 0) {
+                nmeaCountRMC++;
+            } else if (strncmp(&nmeaBuffer[3], "GSA", 3) == 0) {
+                nmeaCountGSA++;
+            } else if (strncmp(&nmeaBuffer[3], "GSV", 3) == 0) {
+                nmeaCountGSV++;
+            } else if (strncmp(&nmeaBuffer[3], "GST", 3) == 0) {
+                nmeaCountGST++;
+            } else if (strncmp(&nmeaBuffer[3], "TXT", 3) == 0) {
+                nmeaCountTXT++;
+            } else {
+                nmeaCountOther++;
                 if (commandFlag[DEBUG_NMEA_COUNTS]) {
-                    Serial.printf("All=%u, GGA=%u, RMC=%u, GSA=%u, GSV=%u, GST=%u, TXT=%u, other=%u.\n",
-                        nmeaCountAll, nmeaCountGGA, nmeaCountRMC, nmeaCountGSA, nmeaCountGSV, nmeaCountGST, nmeaCountTXT, nmeaCountOther);
+                    Serial.println(nmeaBuffer);
                 }
-                if (commandFlag[DEBUG_NMEA]) {
-                    if (strncmp("$GNGGA", nmeaBuffer, 6) == 0) {
-                        Serial.print('\n');
-                    }
-                    Serial.printf("%u %s", nmeaCountAll, nmeaBuffer);
+            }
+            if (zeroStatusCounters) {
+                nmeaCountAll = 0; nmeaCountGGA = 0; nmeaCountRMC = 0; nmeaCountGSA = 0;
+                nmeaCountGSV = 0; nmeaCountGST = 0; nmeaCountTXT = 0; nmeaCountOther = 0;
+                zeroStatusCounters = false;
+            }
+            if (nmeaSentenceCounter == nmeaSentenceCountMax) {
+                nmeaRate = nmeaBytesCounter / (esp_timer_get_time() - countBeginTime) * 8. * 1000000.;  // bps = (bytes/us) * 8bits/byte * 1000000us/1sec.
+                nmeaBytesCounter    = 0;
+                nmeaSentenceCounter = 0;
+                countBeginTime      = esp_timer_get_time();
+            }
+
+            // -- Debug NMEA generated by ZED-F9P. ---
+            if (commandFlag[DEBUG_NMEA_COUNTS]) {
+                Serial.printf("All=%u, GGA=%u, RMC=%u, GSA=%u, GSV=%u, GST=%u, TXT=%u, other=%u.\n",
+                    nmeaCountAll, nmeaCountGGA, nmeaCountRMC, nmeaCountGSA, nmeaCountGSV, nmeaCountGST, nmeaCountTXT, nmeaCountOther);
+            }
+            if (commandFlag[DEBUG_NMEA]) {
+                if (strncmp("$GNGGA", nmeaBuffer, 6) == 0) {
+                    Serial.print('\n');
                 }
-                if (commandFlag[DEBUG_NMEA_HEX]) {
-                    if (strncmp("$GNGGA", nmeaBuffer, 6) == 0) {
-                        Serial.println('\n');
-                    }
-                    Serial.printf("%u %s", nmeaCountAll, nmeaBuffer);
-                    for (int i = 0; i < strlen(nmeaBuffer); i++) {
-                        Serial.printf("[\"%c\" 0x%02X] ", nmeaBuffer[i], nmeaBuffer[i]);
-                    }
+                Serial.printf("%u %s", nmeaCountAll, nmeaBuffer);
+            }
+            if (commandFlag[DEBUG_NMEA_HEX]) {
+                if (strncmp("$GNGGA", nmeaBuffer, 6) == 0) {
                     Serial.println('\n');
                 }
-
-                // -- If on NMEA page, save sentence for processJsonActivity() call in next loop() & flag update. --
-                if (strcmp(whichPage, "nmea") == 0) {
-                    strlcpy(lastNmea, nmeaBuffer, sizeof(lastNmea));
-                    browserUpdatePending = true;
+                Serial.printf("%u %s", nmeaCountAll, nmeaBuffer);
+                for (int i = 0; i < strlen(nmeaBuffer); i++) {
+                    Serial.printf("[\"%c\" 0x%02X] ", nmeaBuffer[i], nmeaBuffer[i]);
                 }
-
-                NMEAout = true;                                          // NMEA sent out succesfully over TCP.
-
-                if (nmeaSolutionBlockComplete) {
-                    nmeaRate = (nmeaSolutionLength * 1024) / (esp_timer_get_time() - lastGGAsendTime);
-                    lastGGAsendTime = esp_timer_get_time();
-                    nmeaSolutionBlockComplete = false;
-                    nmeaSolutionLength = 0;
-                }
-                nmeaSolutionLength += strlen(nmeaBuffer);
-            } else {
-                NMEAout = false;                                          // No client, or write failed.
+                Serial.println('\n');
             }
+
+            // -- If on NMEA page, save sentence for processJsonActivity() to send to browser. --
+            if (strcmp(whichPage, "nmea") == 0) {
+                strlcpy(lastNmea, nmeaBuffer, sizeof(lastNmea));
+                browserUpdatePendingFlag = true;
+            }
+
+            // -- Clear the buffer. --
             memset(nmeaBuffer, '\0', sizeof(nmeaBuffer));
-        }
-    }
+
+        }   // End of full sentence.
+    }       // End of if in loop().
 }
 
 /**
@@ -2470,7 +2576,8 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
  * =========================================================================
  * 
  * @since 3.0.11 [2026-01-12-06:00pm] Browser initiated updates.
- * @see checkZedTriggerUpdate()   - Check ZED to trigger DevUBLOXGNSS::processNMEA().
+ * @since 3.3.0  [2026-08-13-12:00pm] Replaced checkZedTriggerUpdate() with checkTimers().
+ * @see checkTimers()             - Check all process timers.
  * @see checkSerialUSB()          - Check serial USB for input.
  * @see debug()                   - Display debug.
  * @see checkGnssLockButton()     - Check GNSS lock button. // ToDo: Implement.
@@ -2480,49 +2587,106 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
 
  /**
  * -------------------------------------------------------------------------
- *  Check ZED to trigger DevUBLOXGNSS::processNMEA().
+ *  Check all processing timers.
  * -------------------------------------------------------------------------
  * 
- * Throttle roverGNSS.checkUblox() calls, which throttles DevUBLOXGNSS::processNMEA().
+ * // ToDo: DevUBLOXGNSS::processNMEA()  - NMEA setences on nme page
+ * // ToDo: relayRtcmByte(), taskRTCMRelay(), 
+ *   - FreeRTOS: send RTCM sentence count, TBD ...
  * 
- * (prfGnsNavRat * prfGnsMsrInt) = interval (ms) to query ZED for PVT data.
- * 
+ * Does not include timeouts, those stay in each specific function.
  *
  * @return void No output is returned.
- * @since  3.0.12 [2026-02-08-05:00pm] New.
- * @since  3.0.12 [2026-02-14-06:15pm] Replace prfRqsPvtInt with (prfGnsNavRat * prfGnsMsrInt).
- * @since  3.2.1  [2026-07-30-11:15am] Moved jsonDocToBrowser.clear() to processJsonActivity().
- * @since  3.2.3  [2026-08-11-09:00am] Moved browserUpdatePending flag from buildOperData().
- * @see    loop().
+ * @since  3.3.0 [2026-08-13-12:00pm] New. Replaces checkZedTriggerUpdate().
+ * @since  3.3.0 [2026-08-13-03:30pm] Refactored.
  * @see    DevUBLOXGNSS::processNMEA().
+ * @see    processJsonActivity().
  */
-void checkZedTriggerUpdate() {
+void checkTimers() {
 
-    // -- Local vars. --
-    const  int64_t THROTTLE_CHECK_ZED = (prfGnsNavRat * prfGnsMsrInt) * 1000;   // Convert from (us) to (ms), time between checkZedTriggerUpdate().
-    static int64_t lastZedCheck = esp_timer_get_time();                         // Throttle. Initialize only once, then persist.
+    // --- Local vars. ---
+    const  int64_t CHECK_UBLOX_WAIT   = (prfGnsNavRat * prfGnsMsrInt) * 1000;   // Convert from (ms) to (us), time between checkZedTriggerUpdate().
+    const  int64_t SEND_GGA_INTERVAL  = 10000000;                               // Time (us) between GGA sends (10 sec, matches Ex17).
+    const  int64_t DEBUG_INTERVAL     = 1000000;                                // Time (us) between debug() = (every 1 sec).
+    static int64_t lastCheckUbloxTime = esp_timer_get_time();                   // Initialize only once, then persist.
+    static int64_t lastSendGgaTime    = esp_timer_get_time();
+    static int64_t lastDebugTime      = esp_timer_get_time();
 
-    // -- Throttle loop() calls. --
-    if ((esp_timer_get_time() - lastZedCheck) < THROTTLE_CHECK_ZED) {           // Not time to run.
-        return; 
+    // --- Snapshot now time. ---
+    int64_t espTime = esp_timer_get_time();
+
+    // --- Check timer for operate and nmea pages. ---
+    if ((strcmp(whichPage, "operate") == 0) || (strcmp(whichPage, "nmea") == 0)) {
+        if ((espTime - lastCheckUbloxTime) > CHECK_UBLOX_WAIT) {
+
+            // -- Debug timer. --
+            if (commandFlag[DEBUG_TIMERS]) {
+                Serial.printf("CHECK_UBLOX_WAIT (%lld) expired: espTime(%lld) - lastCheckUbloxTime(%lld) = %lld.\n",
+                    CHECK_UBLOX_WAIT, espTime, lastCheckUbloxTime, (espTime-lastCheckUbloxTime));
+            }
+
+            // -- Reset last check time. --
+            lastCheckUbloxTime = esp_timer_get_time();
+
+            // -- Force ZED update. --
+            roverGNSS.checkUblox();
+
+            // --- Build data for operate page. ---
+            if (strcmp(whichPage, "operate") == 0) {
+                buildOperData();
+            }
+
+            // -- Send to browser. --
+             browserUpdatePendingFlag = true;
+        }
     }
-    lastZedCheck = esp_timer_get_time();                                        // Time to run. Reset timer.
 
-    // -- Check ZED. --
-    roverGNSS.checkUblox();
-
-    // --- Build data for operate page. ---
-    if (strcmp(whichPage, "operate") == 0) {
-        buildOperData();
-    }
-
-    // --- Flag to send rtcmSentenceCount for ntrip page. ---
+    // --- Check timer for ntrip page - push last $GGA to caster. ---
     if (strcmp(whichPage, "ntrip") == 0) {
-        ntripsendRtcmSentenceCount = true;
+
+        // -- Only if preference set & a sentence is available & timer has expired. --
+        if ((ntripCaster.sendGga == true) && (lastGGA[0] != '\0')) {
+            if ((espTime - lastSendGgaTime) > SEND_GGA_INTERVAL) {
+
+                // - Debug timer. -
+                if (commandFlag[DEBUG_TIMERS]) {
+                    Serial.printf("SEND_GGA_INTERVAL (%lld) expired: espTime(%lld) - lastSendGgaTime(%lld) = %lld.\n",
+                    SEND_GGA_INTERVAL, espTime, lastSendGgaTime, (espTime-lastSendGgaTime));
+                }
+                
+                // - Reset last send time. -
+                lastSendGgaTime = esp_timer_get_time();
+
+                // - Push GGA to caster. -
+                ntripClient.print(lastGGA);
+                if ((commandFlag[DEBUG_RTCM]) || (commandFlag[DEBUG_NTRIP])) {
+                    Serial.printf("Pushed to NTRIP caster: %s", lastGGA);
+                }
+
+                // - Flag to send rtcmSentenceCount. -
+                ntripsendRtcmSentenceCount = true;
+                browserUpdatePendingFlag       = true;
+            }
+        }
     }
 
-    // -- Flag pending browser update. Global vars are sent as JSON by processJsonActivity(). --
-    browserUpdatePending = true;
+    // --- Check timer for debug serial print. ---
+    if (debugFlag) {
+        if ((espTime - lastDebugTime) > DEBUG_INTERVAL) {
+
+            // - Debug timer. -
+            if (commandFlag[DEBUG_TIMERS]) {
+                Serial.printf("DEBUG_INTERVAL (%lld) expired: espTime(%lld) - lastDebugTime(%lld) = %lld.\n",
+                DEBUG_INTERVAL, espTime, lastDebugTime, (espTime-lastDebugTime));
+            }
+
+            // - Reset last send time. -
+            lastDebugTime = esp_timer_get_time();
+
+            // - Debug. -
+            debug();
+        }
+    }
 }
 
 /**
@@ -2538,12 +2702,12 @@ void checkZedTriggerUpdate() {
  *  4. Save browser page name as global var.
  *  5. Set global vars. from jsonDocFromBrowser. Read/set preferences if on config page.
  *  6. Fill jsonDocToBrowser with simple response or data (depends on which browser page).
- *  7. If preferences changed, restart dependent processes (restartGrMCU1Processes).
+ *  7. If preferences changed, restart ESP32 (todoRestartGrMCU).
  *  8. sendDataToBrowser().
  *     8.1. Fill jsonDocToBrowser if browser page is constantly updated (operate, nmea, ...). 
  *     8.2  WebSocket send.
- *  9. If jsonDocFromBrowser["restartGR-MCU1"], restart ESP32 (restartGrMCU1).
- * 10. If browserUpdatePending flag is true, sendDataToBrowser() & flip flag.
+ *  9. If jsonDocFromBrowser["restartGR-MCU"], restart ESP32 (todoRestartGrMCU).
+ * 10. If browserUpdatePendingFlag is true, sendDataToBrowser() & flip flag.
  * 
  * jsonDocFromBrowser is ONLY touched by this function.
  * jsonDocToBrowser & response are ONLY touched by 1) this function and 2) sendDataToBrowser() (which is ONLY called by this function).
@@ -2700,8 +2864,8 @@ void checkZedTriggerUpdate() {
  *     - Hello. -
  *
  *     - Restart GRMCU-1. -
- *       browser (sends)    --> {"page":"menu","restartGR-MCU1":""}.
- *       browser (receives) <-- {"restartGR-MCU1Resp":"GR-MCU1 will restart."}.
+ *       browser (sends)    --> {"page":"menu","restartGR-MCU":""}.
+ *       browser (receives) <-- {"restartGR-MCUResp":"GR-MCU will restart."}.
  *
  *  -- Operate page. --
  *     - Hello. -
@@ -2771,9 +2935,9 @@ void checkZedTriggerUpdate() {
  *  -- Restart page. --
  *     - Hello. -
  *
- *     - Restart GR-MCU1. -
- *       browser (sends)    --> {"page":"restart","restartGR-MCU1":""}'.
- *       browser (receives) <-- {"restartGR-MCU1Resp":"GR-MCU1 will restart."}
+ *     - Restart GR-MCU. -
+ *       browser (sends)    --> {"page":"restart","restartGR-MCU":""}'.
+ *       browser (receives) <-- {"restartGR-MCUResp":"GR-MCU will restart."}
  * 
  *  -- Test. --
  *     - Echo. -
@@ -2814,20 +2978,35 @@ void checkZedTriggerUpdate() {
  void  processJsonActivity() {      // From browser, to browser, periodic.
 
     // --- Debug. ---
+    // Cannot use print()/println()/printf() to debug JSON doc value. Use these lines:
     // serializeJson(jsonDocToBrowser, Serial); // Debug.
     // Serial.println();
 
     // --- Local vars. ---
     // jsonDocFromBrowser, jsonDocToBrowser, &  JsonDocNtrip are global vars.
+    char diagMsg[100] = {'\0'};
     WsQueueItem item;
 
-    if (xQueueReceive(wsRxQueue, &item, 0) != pdTRUE) {     // From browser.
+    // --- If periodic status update is pending, send to browser page. ---
+    if (browserUpdatePendingFlag) {
+        memset(response, '\0', sizeof(response));
+        jsonDocToBrowser.clear();       // Globals are set & will be sent. Ensure clean JSON doc for al periodic updates.
+        if (ntripStatusPending) {
+            jsonDocToBrowser["connectNtripCasterResp"] = ntripStatusMsg;
+            ntripStatusPending = false;
+        }
+        sendDataToBrowser();
+        browserUpdatePendingFlag = false;
         return;
     }
 
+
     // -------------------------------------------------------------------------
-    // -- Process one incoming WebSocket message, if queued.
+    // -- If incoming WebSocket message is NOT queued, return.
     // -------------------------------------------------------------------------
+    if (xQueueReceive(wsRxQueue, &item, 0) != pdTRUE) {     // WebSocket message from browser?
+        return;
+    }
 
     // -- Debug. Print data received. --
     if (commandFlag[DEBUG_WS]) {
@@ -2840,7 +3019,8 @@ void checkZedTriggerUpdate() {
 
     // -- Begin. --
     if (error) {
-        Serial.printf("JSON deserialize failed: %s\n", error.f_str());
+        snprintf(diagMsg, sizeof(diagMsg), "JSON deserialize failed: %s\n", error.f_str());
+        logPrint(diagMsg);
         return;
     }
 
@@ -2939,7 +3119,7 @@ void checkZedTriggerUpdate() {
         // - Set JSON value: list of files. -
         char output[2048];
         memset(output, '\0', sizeof(output));
-        File root = SD.open("/");
+        File root = SD_MMC.open("/");
         File file = root.openNextFile();
         while(file) {
             if (strlen(output) + strlen(file.name()) + 2 < sizeof(output)) {       
@@ -2962,12 +3142,13 @@ void checkZedTriggerUpdate() {
     // -------------------------------------------------------------------------
     // -- Files page. Delete file. --
     // -------------------------------------------------------------------------
+
     if (jsonDocFromBrowser["deleteFile"].is<JsonVariant>()) {
 
         // - Delete file. -
         const char* fileName = jsonDocFromBrowser["deleteFile"];
-        strcpy(response, SD.remove(fileName) ? "File deleted." : "File NOT deleted.");
-
+        strcpy(response, fileName);
+        strcat(response, SD_MMC.remove(fileName) ? " deleted." : " NOT deleted.");
         // - Set response. -
         jsonDocToBrowser["deleteFileResp"] = response;
     }
@@ -2975,23 +3156,23 @@ void checkZedTriggerUpdate() {
     // -------------------------------------------------------------------------
     // -- Menu page. Restart GRMCU-1. --
     // -------------------------------------------------------------------------
-    if (jsonDocFromBrowser["restartGR-MCU1"].is<JsonVariant>()) {
+    if (jsonDocFromBrowser["restartGR-MCU"].is<JsonVariant>()) {
 
         // - Set response. -
-        strcpy(response, "GR-MCU1 will restart.");
-        jsonDocToBrowser["restartGR-MCU1Resp"] = response;
-        restartGrMCU1 = true;
+        strcpy(response, "GR-MCU will restart.");
+        jsonDocToBrowser["restartGR-MCUResp"] = response;
+        todoRestartGrMCU = true;
     }
 
     // -------------------------------------------------------------------------
     // -- NMEA page. NMEA sentences. --
     // -------------------------------------------------------------------------
-    // loop() -> checkZedTriggerUpdate() -> DevUBLOXGNSS::processNMEA() sets browserUpdatePending = true; -> sendDataToBrowser().
+    // loop() -> checkTimers() -> DevUBLOXGNSS::processNMEA() sets browserUpdatePendingFlag = true; -> sendDataToBrowser().
 
     // -------------------------------------------------------------------------
     // -- Operate page. GNSS data. --
     // -------------------------------------------------------------------------
-    // loop() -> checkZedTriggerUpdate() -> buildOperData() sets browserUpdatePending = true; -> sendDataToBrowser().
+    // loop() -> checkTimers() -> buildOperData() sets browserUpdatePendingFlag = true; -> sendDataToBrowser().
 
     // -------------------------------------------------------------------------
     // -- Operate page. Laser on/off button. --
@@ -3004,7 +3185,8 @@ void checkZedTriggerUpdate() {
         // - Set response. -
         strcpy(response, "Laser on.");
         jsonDocToBrowser["laserOnResp"] = response;
-        Serial.println(response);
+        snprintf(diagMsg, sizeof(diagMsg), "%s.\n", response);
+        logPrint(diagMsg);
     }
     if (jsonDocFromBrowser["laserOff"].is<JsonVariant>()) {
         digitalWrite(LSR_TRIGGER, LOW);         // Turn laser off.
@@ -3012,7 +3194,8 @@ void checkZedTriggerUpdate() {
         // - Set response. -
         strcpy(response, "Laser off.");
         jsonDocToBrowser["laserOffResp"] = response;
-        Serial.println(response);
+        snprintf(diagMsg, sizeof(diagMsg), "%s.\n", response);
+        logPrint(diagMsg);
     }
 
     // -------------------------------------------------------------------------
@@ -3024,7 +3207,8 @@ void checkZedTriggerUpdate() {
         // - Set response. -
         strcpy(response, "Height locked.");
         jsonDocToBrowser["heightLockResp"] = response;
-        Serial.println(response);
+        snprintf(diagMsg, sizeof(diagMsg), "%s.\n", response);
+        logPrint(diagMsg);
     }
     if (jsonDocFromBrowser["heightUnlock"].is<JsonVariant>()) {
         // ToDo: Implement.
@@ -3032,7 +3216,8 @@ void checkZedTriggerUpdate() {
         // - Set response. -
         strcpy(response, "Height unlocked.");
         jsonDocToBrowser["heightUnlockResp"] = response;
-        Serial.println(response);
+        snprintf(diagMsg, sizeof(diagMsg), "%s.\n", response);
+        logPrint(diagMsg);
     }
 
     // -------------------------------------------------------------------------
@@ -3044,7 +3229,8 @@ void checkZedTriggerUpdate() {
         // - Set response. -
         strcpy(response, "Position locked.");
         jsonDocToBrowser["positionLockResp"] = response;
-        Serial.println(response);
+        snprintf(diagMsg, sizeof(diagMsg), "%s.\n", response);
+        logPrint(diagMsg);
     }
     if (jsonDocFromBrowser["positionUnlock"].is<JsonVariant>()) {
         // ToDo: Implement.
@@ -3052,7 +3238,8 @@ void checkZedTriggerUpdate() {
         // - Set response. -
         strcpy(response, "Position unlocked.");
         jsonDocToBrowser["positionUnlockResp"] = response;
-        Serial.println(response);
+        snprintf(diagMsg, sizeof(diagMsg), "%s.\n", response);
+        logPrint(diagMsg);
     }
 
     // -------------------------------------------------------------------------
@@ -3171,26 +3358,6 @@ void checkZedTriggerUpdate() {
     // -- Send data to browser
     // -------------------------------------------------------------------------
     sendDataToBrowser();
-
-    // -------------------------------------------------------------------------
-    // -- If periodic status update is pending, send to browser page.
-    // -------------------------------------------------------------------------
-    if (browserUpdatePending) {
-        memset(response, '\0', sizeof(response));
-        jsonDocToBrowser.clear();       // Ensure a clean JSON doc for all browser pages (operate, nmea, ...).
-        sendDataToBrowser();
-        browserUpdatePending = false;
-    }
-
-    // -------------------------------------------------------------------------
-    // -- If NTRIP status update is pending, send to browser page.
-    // -------------------------------------------------------------------------
-    if (ntripStatusPending) {
-        jsonDocToBrowser.clear();
-        jsonDocToBrowser["connectNtripCasterResp"] = ntripStatusMsg;
-        sendDataToBrowser();
-        ntripStatusPending = false;
-    }
 }
 
 /**
@@ -3205,59 +3372,62 @@ void checkZedTriggerUpdate() {
  * @since  3.0.11 [2026-01-12-02:00pm] Refactor.
  * @since  3.0.11 [2026-01-16-08:40pm] if (Serial.available() == 0).
  * @since  3.0.12 [2026-02-15-05:00pm] Add "z" zero status counters.
+ * @since  3.3.0  [2026-08-13-01:30pm] Added logic for global debugFlag.
  * @see    loop().
  */
 void checkSerialUSB() {
 
-    if (Serial.available() == 0) {                              // Nothing to see, move on.
+    if (Serial.available() == 0) {                      // No serial USB input.
         return;
     }
 
     // --- Local vars. ---
-    static size_t posn        = 0;                              // Input position for command buffer.
-    static char   command[20] = {'\0'};                         // Serial USB command buffer.
+    static size_t posn        = 0;                      // Input position for command buffer.
+    static char   command[20] = {'\0'};                 // Serial USB command buffer.
     static char   inputChar   = '\0';
 
     // --- Fill command buffer. ---
     while ((Serial.available() > 0) )  {
-        inputChar = Serial.read();                              // Read char from USB Serial.
+        inputChar = Serial.read();                      // Read char from USB Serial.
         if ((inputChar != '\n') && (inputChar != '\r')) {
-            command[posn] = inputChar;                          // Add input to buffer.
+            command[posn] = inputChar;                  // Add input to buffer.
             posn++;
         }
     }
 
     // --- Process command. ---
     if (inputChar == '\n')  {
-        if ((command[0]) == '?') {                              // List commands.
-            Serial.print("\nGR-MCU1:\n\"?\" Print commands.\n\"!\" Disable all debug.\n\"z\" Zero status counters.\nCommands:");
+        if ((command[0]) == '?') {                      // List commands.
+            Serial.print("\nGR-MCU:\n\"?\" Print commands.\n\"!\" Disable all debug.\n\"z\" Zero status counters.\nCommands:");
             for (size_t i = 0; i <= NUM_COMMANDS-1; i++) {
                 Serial.printf(" %s", COMMAND[i]);
             }
             Serial.println('.');
-        } else if ((command[0]) == '!') {                       // Disable all debugs.
+        } else if ((command[0]) == '!') {               // Disable all debugs.
             for (size_t i = 0; i <= NUM_COMMANDS; i++) {
                 commandFlag[i] = false;
             }
             Serial.println("All debug disabled.");
-        } else if ((command[0]) == 'z') {                       // Zero all status counters.
+            debugFlag = false;
+        } else if ((command[0]) == 'z') {               // Zero all status counters.
             Serial.println("Zero all counters.");
             zeroStatusCounters = true;
-        } else {                                                // Possible command.
+        } else {                                        // Possible command.
             size_t i;
             for (i = 0; i < NUM_COMMANDS; i++) {
                 if (strcmp(COMMAND[i], command) == 0) {
                     break;
                 }
             }
-            if (i == NUM_COMMANDS) {                            // Invalid command.
+            if (i == NUM_COMMANDS) {                    // Invalid command.
                 Serial.printf("%s is not a command. \n", command);
             } else {
-                commandFlag[i] = !commandFlag[i];               // Toggle the debug flag.
+                commandFlag[i] = !commandFlag[i];       // Toggle the specific debug flag.
                 Serial.printf("%s %s\n", COMMAND[i], (commandFlag[i]  ? "enabled." : "disabled."));
+                commandFlag[i] ? (debugFlag = true) : (debugFlag = false);  // Set the global debug flag.
             }
         }
-        posn = 0;                                               // Prepare for next command.
+        posn = 0;                                       // Prepare for next command.
         memset(command, '\0', sizeof(command));
         inputChar = 0;
     }
@@ -3312,6 +3482,8 @@ void checkGnssLockButton() {
  */
 void checkTcpClient() {
 
+    char diagMsg[100] = {'\0'};
+
     // --- Accept new client, replacing any existing one. ---
     if (gnssTcpServer.hasClient()) {
         if (gnssTcpClient) {
@@ -3320,7 +3492,8 @@ void checkTcpClient() {
         gnssTcpClient = gnssTcpServer.available();
         gnssTcpClient.setNoDelay(true);
         tcpClientConnected = true;
-        Serial.printf("TCP client connected: %s\n", gnssTcpClient.remoteIP().toString().c_str());
+        snprintf(diagMsg, sizeof(diagMsg), "TCP client connected: %s\n", gnssTcpClient.remoteIP().toString().c_str());
+        logPrint(diagMsg);
     }
 
     // --- Detect disconnect. ---
@@ -3328,7 +3501,25 @@ void checkTcpClient() {
         tcpClientConnected = false;
         gnssTcpClient.stop();
         NMEAout = false;
-        Serial.println("TCP client disconnected.");
+        logPrint("TCP client disconnected.");
+    }
+}
+
+/**
+ * -------------------------------------------------------------------------
+ *  "To do tasks" flagged in other functions or FreeRTOS tasks.
+ * -------------------------------------------------------------------------
+ *
+ * @return void No output is returned.
+ * @since  3.3.0 [2026-08-15-12:00pm] New.
+ * @see    loop().
+ */
+void checkToDoFlags() {
+
+    // --- Restart MCU. ---
+    if (todoRestartGrMCU) {
+        delay(2000);
+        esp_restart();
     }
 }
 
@@ -3347,20 +3538,14 @@ void checkTcpClient() {
  * @since  3.0.11 [2026-01-15-10:45am] Moved THROTTLE_DEBUG from global to local var.
  * @since  3.0.11 [2026-01-22-02:00pm] Add DEBUG_TEMP.
  * @since  3.1.1  [2026-06-25-04:00pm] Change DEBUG_SER output.
+ * @since  3.3.0  [2026-08-13-01:45pm] Move timer logic to checkTimers().
  * @see    checkSerialUSB().
  */
 void debug() {
 
-    // --- Local vars. ---
-    const int64_t  THROTTLE_DEBUG = 1000000;                            // Time (us) between debug() = (every 1 sec).
-    static int64_t lastThrottleTime = esp_timer_get_time();             // Throttle. Initialize only once, then persist.
-           int64_t lastTime;
-
-    // --- Throttle loop() calls. ---
-    if ((esp_timer_get_time() - lastThrottleTime) < THROTTLE_DEBUG) {   // Not time to run.
-        return; 
+    if (!Serial) {                                          // Nothing to see, move on.
+        return;
     }
-    lastThrottleTime = esp_timer_get_time();                // Time to run. Reset timer.
 
     // --- Test radio. ---
     if (commandFlag[TEST_RAD]) {
@@ -3411,7 +3596,6 @@ void debug() {
                     char outoutChar = Serial1.read();
                     if (((int) outoutChar > 31) && ((int) outoutChar < 128)) {
                         Serial.printf("%c",outoutChar);     // Display character from HC-12.
-                        lastTime = esp_timer_get_time();    // ToDo: Delete, not used?
                     }
                 }
             }
@@ -3459,7 +3643,7 @@ void debug() {
 
     // --- Uptime. ---
     if (commandFlag[SHOW_UPTIME]) {
-        int32_t seconds = (esp_timer_get_time() - startTime)/1000000;
+        int32_t seconds = (esp_timer_get_time() - bootTime)/1000000;
         int32_t minutes = seconds / 60;
         int32_t hours = minutes / 60;
         Serial.printf("Uptime: %u hrs %u min %u sec\n", hours % 24, minutes % 60, seconds % 60);
@@ -3511,17 +3695,18 @@ void debug() {
  * =========================================================================
  *
  * @since  3.0.3 [2025-10-13-01:00pm] New.
- * @since 3.2.3 [2026-08-10-09:45am] Add startTcpServer().
+ * @since 3.2.3  [2026-08-10-09:45am] Add startTcpServer().
+ * @since 3.3.0  [2026-08-17-09:00am] Changed position of startOutputs() in setup().
  * @see    Global vars.
  */
 void setup() {
-    showBuild();                // Display build & processor info.
+    startOutputs();             // Start serial & microSD card reader.
+    buildInfo();                // Build & processor info.
     prefUtility(PREF_INIT);     // Get preferences.
     startSerial();              // Start serial interfaces.
     initPins();                 // Initialize pin modes & pin values.
     startI2C();                 // Start I2C wire interfaces.
     startLiPo();                // Start LiPo I2C interface.
-    startSD();                  // Start & test microSD card reader.
     startWiFiServer();          // Start WiFi server.
     startTcpServer();           // Start TCP server for GNSS Master (NMEA out / RTCM in bridge).
     startHttpServer();          // Start HTTP server.
@@ -3538,29 +3723,25 @@ void setup() {
  * =========================================================================
  * 
  * @since 3.0.10 [2025-12-27-08:00pm] New.
+ * @since 3.3.0  [2026-08-13-12:00pm] Replaced checkZedTriggerUpdate() with checkTimers().
+ * @since  3.3.0 [2026-08-13-01:00pm] Replaced debug timer with checkTimers().
  * @see   startTasks().
  * @see   GhostRover FreeRTOS functions.
  * @see   Event handlers.
  */
 void loop() {
-    // *** NEW. ***
-    // checkTimers();             // checkZedTriggerUpdate() -> DevUBLOXGNSS::processNMEA() -> gets NMEA, build operData.
-                                  // ntripPushGGA(), relayRtcmByte(), debug().
-                                  // FreeRTOS: send RTCM sentence count, TBD ...
+    // *** Proposed sequence. ***
     // checkTimeOuts();           // ntripBeginClient() timeout, taskRtcmRelay() timeout, relayRtcmByte() timeout.
     // processJsonIn();           //  Event based (queued WebSocket message from browser).
-    // buildData();               // Perform "data" tasks if flags are set.
     // processJsonOut();       
     // sendToBrowser();           // Send out JSON if flags are set.
-    // checkSerialUSB();          // Check serial USB for input.
-    // checkTcpClient();             // Check TCP server for new/dropped client (GNSS Master, ..).
-    // ws.cleanupClients();          // HTTP WebSocket cleanup.
-    
-    checkZedTriggerUpdate();    // Check ZED to trigger DevUBLOXGNSS::processNMEA().
+
     processJsonActivity();      // Process queued WS messages & pending status updates. All JSON activity lives here.
+    checkTimers();              // Check all processing timers.
     checkSerialUSB();           // Check serial USB for input.
+    checkToDoFlags();           // "To do tasks" flagged in other functions or FreeRTOS tasks.
     // checkGnssLockButton();   // Check GNSS lock button.  // ToDo: Implement.
     checkTcpClient();           // Check TCP server for new/dropped client (GNSS Master, ..).
     ws.cleanupClients();        // HTTP WebSocket cleanup.
-    debug();                    // Display debug.
+    vTaskDelay(1);
 }

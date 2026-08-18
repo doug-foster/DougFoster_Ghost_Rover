@@ -30,13 +30,14 @@
  * @since 3.0.12 [2026-02-15-01:30pm] Removed summary statistics.
  * @since 3.0.12 [2026-02-25-05:45pm] Websocket send - preserve KV pair order by changing JSON data to array.
  */
-const SEND_PREFS            = '{"page":"nmea","sendPrefs":""}';
-const nmeaDisplayArea       = document.querySelector('#nmeaOutput #nmeaDisplay');
-const nmeaMessageLine       = document.querySelector('#nmeaOutput #nmeaMessage')
-const numSolutionsToDisplay = 20;
-let   solutionCount         = 0;
-let   deltaMs               = 0;
+const SEND_PREFS             = '{"page":"nmea","sendPrefs":""}';
+const nmeaDisplayArea        = document.querySelector('#nmeaOutput #nmeaDisplay');
+const nmeaMessageLine        = document.querySelector('#nmeaOutput #nmeaMessage')
+const nmeaSentencesToDisplay = 80;
+let   nmeaSentenceCount      = 0;
+let   deltaMs                = 0;
 let   lastDate;
+let   numBytes               = 0;
 
 /**
  * =========================================================================
@@ -80,7 +81,7 @@ function update() {
 //  */
 // function displayNmeaMessage(message) {
 
-//     if (solutionCount < numSolutionsToDisplay) {
+//     if (nmeaSentenceCount < nmeaSentencesToDisplay) {
 //         if (message.includes('$GNGGA')) {
 
 //             // --- Make a timestamp. ---
@@ -96,12 +97,12 @@ function update() {
 //             lastDate = date;
 
 //             // --- Display timestamp & delta ms. ---
-//             solutionCount++;
-//             nmeaDisplayArea.innerHTML += '<br><br><b> #' + solutionCount + '/' + numSolutionsToDisplay + ' - ' + timeStamp + '  </b>(<b>' + deltaMs + 'ms</b> since last<b>)</b><br>';
+//             nmeaSentenceCount++;
+//             nmeaDisplayArea.innerHTML += '<br><br><b> #' + nmeaSentenceCount + '/' + nmeaSentencesToDisplay + ' - ' + timeStamp + '  </b>(<b>' + deltaMs + 'ms</b> since last<b>)</b><br>';
 //         }
 
 //         // --- Build the output. ---
-//         if (solutionCount > 0) {
+//         if (nmeaSentenceCount > 0) {
 //             nmeaDisplayArea.innerHTML += message;
 //         }
 //     }

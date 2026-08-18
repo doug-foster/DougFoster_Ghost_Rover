@@ -20,7 +20,7 @@
 
 const btnRestart = document.querySelector('#restart-items #restart');
 const SEND_PREFS = '{"page":"restart","sendPrefs":""}';
-const RESTART    = '{"page":"restart","restartGR-MCU1":""}';
+const RESTART    = '{"page":"restart","restartGR-MCU":""}';
 
 /**
  * =========================================================================

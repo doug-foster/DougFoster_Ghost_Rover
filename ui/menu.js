@@ -29,7 +29,7 @@
 
 const btnRestart = document.querySelector('#menu-items #restart');
 const SEND_PREFS = '{"page":"menu","sendPrefs":""}';
-const RESTART    = '{"page":"menu","restartGR-MCU1":""}';
+const RESTART    = '{"page":"menu","restartGR-MCU":""}';
 
 /**
  * =========================================================================

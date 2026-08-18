@@ -16,6 +16,7 @@
  * @since  3.1.2  [2026-07-05-08:30pm] General cleanup.
  * @since  3.2.1  [2026-07-25-08:45pm] Update JSON messages.
  * @since  3.2.1  [2026-07-27-10:00am] Removed filesMessage(), moved to webSocketRcvMessage() in global.js.
+ * @since  3.2.1  [2026-08-16-11:45am] Removed [] from "Button: delete a file."
  * @link   http://dougfoster.me.
 */
 
@@ -287,7 +288,7 @@ document.querySelector('#download').addEventListener('click', (event) => {
 document.querySelector('#delete').addEventListener('click', (event) => {
     document.querySelectorAll('#files .selected').forEach(file => {
         if (confirm('delete "' + file.textContent + '"')) {
-            let message = '[{"deleteFileResp":"' + file.innerText + '"}]';
+            let message = '{"deleteFile":"' + file.innerText + '"}';
             websocket.send(message);
             console.log('browser --> ' + message);
         }
