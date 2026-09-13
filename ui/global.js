@@ -32,7 +32,8 @@
  * @since  3.3.5  [2026-09-08-07:45pm] Add MIN_SATELLITE_THRESHHOLD & logic for #start in webSocketRcvMessage().
  * @since  3.3.5  [2026-09-08-08:00pm] Changed timeout from 6s to 8s in clearMessageField().
  * @since  3.3.5  [2026-09-11-03:30pm] In webSocketRcvMessage(): increase decimal places: numLatitude & numLongitude from 8 to 9 decimal, numHeightElip & numHeightOrth from 3 to 4.
- * @link   http://dougfoster.me.
+ * @since  3.4.0  [2026-09-13-05:30pm] Update RTCM in & NMEA out. Remove rtcmSource in webSocketRcvMessage().
+* @link   http://dougfoster.me.
 */
 
 /**
@@ -309,7 +310,8 @@ async function webSocketStop(event) {
  * @since  3.3.1  [2026-08-17-11:00pm] Corrected NMEA summary line.
  * @since  3.3.5  [2026-09-08-07:45pm] Add MIN_SATELLITE_THRESHHOLD & logic for #start on "operate" page.
  * @since  3.3.5  [2026-09-11-03:30pm] Increase decimal places: numLatitude & numLongitude from 8 to 9 decimal, numHeightElip & numHeightOrth from 3 to 4.
- * @see    filesMessage() in files.js.
+ * @since  3.4.0  [2026-09-13-05:30pm] Update RTCM in & NMEA out. Remove rtcmSource for "operate" page.
+* @see    filesMessage() in files.js.
  */
 function webSocketRcvMessage(event) {
 
@@ -473,19 +475,15 @@ function webSocketRcvMessage(event) {
             switch (jsonObj["2"]) {
                 case 'bridge':
                     statusRtcmInId.innerText = 'Bridge';
-                    rtcmSource.innerText = 'Bridge';
                     break;
                 case 'radio':
                     statusRtcmInId.innerText = 'Radio';
-                    rtcmSource.innerText = 'Radio';
                     break;
                 case 'ntrip':
                     statusRtcmInId.innerText = 'NTRIP';
-                    rtcmSource.innerText = 'NTRIP';
                     break;
                 case 'off':
                     statusRtcmInId.innerText = 'Off';
-                    rtcmSource.innerText = 'Off';
                     break;
                 default:
                     statusRtcmInId.innerText = jsonObj["2"];

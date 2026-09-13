@@ -23,6 +23,7 @@
  * @since  3.2.1  [2026-07-28-04:45pm] Removed NMEA out switch & preference.
  * @since  3.2.1  [2026-09-01-12:45pm] NMEA out changed from "BLE serial" to "TCP (9099)".
  * @since  3.3.5  [2026-09-08-07:30pm] Add #sivDisplay & spans to #state.
+ * @since  3.4.0  [2026-09-13-05:30pm] Update RTCM in & NMEA out.
  * @link   http://dougfoster.me.
 -->
 
@@ -147,8 +148,8 @@
                         <div class='bar' data-power='90'></div>
                         <div class='bar' data-power='100'></div>
                     </div>
-                    <div id="rtcm-label" class="item">RTCM<br>&rarr;<span class="spacer">&nbsp;</span><div id="rtcm-source" class="sub-row"></div></div>
-                    <div id="ble-label"  class="item">NMEA<br><div class="sub-row descriptor">BLE<span class="spacer">&nbsp;</span>&rarr;</div></div>
+                    <div id="rtcm-label" class="item">RTCM<br>&rarr;<span class="spacer">&nbsp;</span><div id="rtcm-source" class="sub-row">In</div></div>
+                    <div id="ble-label"  class="item">NMEA<br><div class="sub-row descriptor">Out<span class="spacer">&nbsp;</span>&rarr;</div></div>
                     <div id="battery-label" class="item">
                         <div id="battery-status"></div>
                     </div>

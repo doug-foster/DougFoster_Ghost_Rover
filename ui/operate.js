@@ -28,6 +28,7 @@
  * @since  3.2.1  [2026-07-31-02:00pm] Status display tweaks.
  * @since  3.3.5  [2026-09-08-07:45pm] Add MIN_SATELLITE_THRESHHOLD & logic for #start on "operate" page.
  * @since  3.3.5  [2026-09-12-11:15am] Add laser on/off logic to btnLaser.addEventListener().
+ * @since  3.4.0  [2026-09-13-02:30pm] Height/position lock/unlock.
  * @link   http://dougfoster.me.
 */
 
@@ -78,6 +79,7 @@ const btnPositionLabel             = document.querySelector('.buttons #position 
 const btnLockUnlock                = document.querySelector('.buttons #lock-unlock');
 const btnLockUnlockLabel           = document.querySelector('.buttons #lock-unlock .label');
 const btns                         = document.querySelectorAll('.btn');
+const lockIcons                    = document.querySelectorAll('.icon .lock');
 
 // --- Section: Comm. ---
 const commRtcm                     = document.querySelector('.info #rtcm');
@@ -124,14 +126,15 @@ const statusInstrumentHeight       = document.querySelector('.status #instrument
 const SEND_PREFS                   = '{"page":"operate","sendPrefs":""}';
 const LASER_ON                     = '{"laserOn":""}';
 const LASER_OFF                    = '{"laserOff":""}';
-const wsMessageWindowMaxCount      = 10;    // WebSocket message status tracking window (# messages).
+// const wsMessageWindowMaxCount      = 10;         // Not used? WebSocket message status tracking window (# messages).
+const LOCK_AVERAGE_DURATION_MS     = 2000;          // Two second window for averaging before lock engages.
 let prfGnsMsrInt                   = 0;
 let prfGnsNavRat                   = 0;
 let startTime;
-let wsMessageCountTotal            = 0;     // Total # of WebSocket messages received. 
+let wsMessageCountTotal            = 0;             // Total # of WebSocket messages received. 
 let wsWindowStartTime              = 0;
 let wsWindowInterval               = 0;
-let convert                        = 1;     // Conversion for default units preference (which is 'meter');
+let convert                        = 1;             // Conversion for default units preference (which is 'meter');
 
 /**
  * =========================================================================
@@ -237,6 +240,7 @@ function fix(state) {
  * @since  3.0.11 [2026-01-20-07:00pm] Change altitude to height.
  * @since  3.0.11 [2026-01-21-09:00am] Check websocket.readyState.
  * @since  3.0.12 [2026-02-25-05:45pm] Websocket send - preserve KV pair order by changing JSON data to array.
+ * @since  3.4.0  [2026-09-12-07:15pm] Height/position lock/unlock.
  */
 function button(which, action) {
     let icon = null, label = null;
@@ -256,10 +260,10 @@ function button(which, action) {
             break;
     }
     switch (action) {
-        case 'lock':  // Command to server.
+        case 'Lock':                                                // Command to server.
             icon.classList.add('show-column');
             label.classList.add('remove-left-border-radius');
-            message = '[{"' + which + '":"' + action + '"}]';       // [{"hgt":"lock"}].
+            message = '{"' + which + action + '":""}';               // [{"heightLock":"""}].
             if (1 == websocket.readyState) {
                 websocket.send(message);
             }
@@ -267,13 +271,13 @@ function button(which, action) {
             btnLockUnlockLabel.innerText = 'UNLOCK';                // Udpate lock/unlock button.  
             btnLockUnlock.classList.add('locked');
             break;
-        case 'locked':  // Command confirmation from server.
+        case 'Locked':                                              // Command confirmation from server.
             label.classList.add('shadow');
             break;
-        case 'unlock':
+        case 'Unlock':
             icon.classList.remove('show-column');
             label.classList.remove('remove-left-border-radius');
-            message = '[{"' + which + '":"' + action + '"}]';       // [{"hgt":"unlock"}].
+            message = '{"' + which + action + '":""}';                // [{"heightUnlock":"""}].
             if (1 == websocket.readyState) {
                 websocket.send(message);
             }
@@ -281,7 +285,7 @@ function button(which, action) {
             btnLockUnlockLabel.innerText = 'LOCK';                  // Udpate lock/unlock button.
             btnLockUnlock.classList.remove('locked');  
             break;
-        case 'unlocked':
+        case 'Unlocked':
             label.classList.remove('shadow');
     }
 }
@@ -292,9 +296,10 @@ function button(which, action) {
  * -------------------------------------------------------------------------
  *
  * @return void  No output is returned.
- * @since  3.0.3 [2025-10-13-02:15pm].
+ * @since  3.0.3  [2025-10-13-02:15pm].
  * @since  3.0.11 [2026-01-20-07:00pm] Change altitude to height.
  * @since  3.0.11 [2026-01-22-10:30am] Refactor.
+ * @since  3.4.0  [2026-09-12-10:15pm] Height/position lock/unlock.
  */
 function toggleButtons(which) {
     let buttonIcon = null;
@@ -311,7 +316,7 @@ function toggleButtons(which) {
             break;
     }
     if (buttonIcon !== null) {
-        buttonState = (buttonIcon.classList.contains('show-column')) ? 'unlock' : 'lock';
+        buttonState = (buttonIcon.classList.contains('show-column')) ? 'Unlock' : 'Lock';
         button(which, buttonState);
     }
 }
@@ -401,6 +406,7 @@ function flashRtcm() {
  * @since  3.0.12 [2026-02-08-05:00pm] Add uptime timer.
  * @since  3.1.0  [2026-03-20-11:15am] Update var names.
  * @since  3.3.5  [2026-09-12-11:15am] Add laser on/off logic to btnLaser.addEventListener().
+ * @since  3.4.0  [2026-09-13-02:30pm] Height/position lock/unlock.
  * @see global.js.
  */
 
@@ -438,36 +444,40 @@ btnLaser.addEventListener('click', async () => {
         websocket.send(LASER_ON);          // Send message to rover.
         console.log('browser --> ' + LASER_ON);
     }
-    // Work with this for lock buttons.
-    // for (let i = 0; i < 10; i++) {
-    //     await new Promise(resolve => setTimeout(resolve, 2000));
-    //     console.log(`iteration ${i}`);  // replace with your command
-    // }
 });
 btnHeight.addEventListener('click', () => {
     btnHeightLabel.classList.add('shadow');                 // Visual feedback.
     setTimeout(function() { btnHeightLabel.classList.remove('shadow'); }, 100);
     toggleButtons('height');
+    lockIcons[1].classList.add('blink-fast');
+    setTimeout(function() { lockIcons[1].classList.remove('blink-fast')}, LOCK_AVERAGE_DURATION_MS);
 });
 btnPosition.addEventListener('click', () => {
     btnPositionLabel.classList.add('shadow');               // Visual feedback.
     setTimeout(function() { btnPositionLabel.classList.remove('shadow'); }, 100);
     toggleButtons('position');
+    lockIcons[2].classList.add('blink-fast');
+    setTimeout(function() { lockIcons[2].classList.remove('blink-fast')}, LOCK_AVERAGE_DURATION_MS);
 });
 btnLockUnlock.addEventListener('click', () => {
     btnLockUnlockLabel.classList.add('shadow');             // Visual feedback.
     setTimeout(function() { btnLockUnlockLabel.classList.remove('shadow'); }, 100);
     if(btnLockUnlock.classList.contains('locked')) {
-        button('laser', 'unlock');
-        button('height', 'unlock');
-        button('position', 'unlock');
+        button('laser', 'Unlock');
+        button('height', 'Unlock');
+        button('position', 'Unlock');
         btnLockUnlockLabel.innerText = 'LOCK';              // Udpate lock/unlock button.
         btnLockUnlock.classList.remove('locked');
     } else {
-        button('height', 'lock');
-        button('position', 'lock');
+        button('height', 'Lock');
+        button('position', 'Lock');
         btnLockUnlockLabel.innerText = 'UNLOCK';            // Udpate lock/unlock button.
         btnLockUnlock.classList.add('locked');
+        lockIcons[1].classList.add('blink-fast');
+        lockIcons[2].classList.add('blink-fast');
+        setTimeout(function() { lockIcons[1].classList.remove('blink-fast');
+            lockIcons[2].classList.remove('blink-fast');
+         }, LOCK_AVERAGE_DURATION_MS);
     }
 });
 btnStatus.addEventListener('click', () => {

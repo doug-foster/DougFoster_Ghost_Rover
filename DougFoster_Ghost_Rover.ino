@@ -40,6 +40,7 @@
  * @since  3.3.3 [2026-08-31-05:00pm] More cleanup.
  * @since  3.3.4 [2026-09-07-11:45am] Cleanup & memory management.
  * @since  3.3.5 [2026-09-07-01:15pm] Removed checkLoopTimers() in loop(), replaced with FreeRTOS tasks.
+ * @since  3.4.0 [2026-09-13-05:30pm] Height/position lock/unlock.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover_BT_relay.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
@@ -140,12 +141,8 @@
  *     -- 0.5.1 -> 0.6.1 builds: Moved BLE relay from primary MCU to secondary MCU since BleSerial library is a space pig.
  *
  * --- // ToDo: ---
- *     - Add NTRIP bridge mode.
- *     - Add RTCM page.
- *     - Offset height/NMEA by instrument height.
- *     - Button lock (laser/height/position).
  *     - Update RTKEverywhere for base station.
- *     - Verify RTK-FIX. Check serial2 tx data.
+ *     - Add RTCM page.
  *     - Operate.js/operate.html page - add ability to select coordinates (lat/lon, ECEF, UTM northing & easting)  
  */
 
@@ -162,6 +159,7 @@
  * @since 3.3.1 [2026-08-17-09:15am] Changed position of startOutputs() in setup().
  * @since 3.3.1 [2026-08-16-05:30pm] Add logPrint().
  * @since 3.3.2 [2026-08-30-03:30pm] Add taskBuildOperData().
+ * @since 3.4.0 [2026-09-12-07:15pm] Height/position lock/unlock: add nmeaChecksum(), nmeaSetFields(), decimalDegreesToNmea(), substituteLockedNmea().
  *
  *  --- Docs. ---
  *
@@ -185,6 +183,7 @@
  *      -- Test.
  *
  *  --- General functions. ---
+ *      -- uptime()                    - Display time since boot.
  *      -- logPrint                    - Save a message to log.txt, print to Serial if available.
  *      -- statusLedOn()               - Turn on status LED.
  *      -- prefUtility()               - Preference utility.
@@ -192,8 +191,10 @@
  *      -- sendDataToBrowser()         - Send data to browser.
  *      -- rtcm3GetMessageType()       - Return RTCM3 message type to taskRtcmRelay().
  *      -- relayRtcmByte()             - Relay RTCM byte to Serial2 (ZED UART2), tracking stats.
- *      -- ntripBeginClient()          - Connect to NTRIP caster.
- *      -- uptime                      - Display time since boot.
+ *      -- nmeaChecksum()              - Compute NMEA checksum (XOR of all bytes between '$' and '*').
+ *      -- nmeaSetFields()             - Replace comma-delimited fields in NMEA sentence, recompute and append checksum.
+ *      -- decimalDegreesToNmea()      - Convert decimal degrees to NMEA ddmm.mmmmmmm / dddmm.mmmmmmm format.
+ *      -- substituteLockedNmea()      - Substitute locked position/height values into full NMEA sentence.
  *
  *  --- Setup functions. ---
  *      -- startOutputs()              - Start serial & microSD card reader. 
@@ -225,7 +226,6 @@
  *  --- Loop functions. ---
  *      -- processMessagesIn()         - Process queued WS messages. All JSON activity lives here & sendDataToBrowser().
  *      -- checkSerialUSB()            - Check serial USB for input.
- *      -- // checkGnssLockButton()    - Check GNSS lock button (upPosition or downPosition). // ToDo: Implement.
  *      -- checkTCPServer()            - Check TCP server for new/dropped NMEA client.
  *      -- debug()                     - Display debug.
  *
@@ -284,7 +284,6 @@
  *           - If NTRIP status update is pending, send to browser page.
  * 
  *     checkSerialUSB()               - Check serial USB for input.
- *     // checkGnssLockButton()       - Check GNSS lock button.
  *     checkTCPServer()               - Check TCP server for new/dropped client.
  *     ws.cleanupClients()            - HTTP WebSocket cleanup.
  *     debug()                        - Display debug.
@@ -453,6 +452,7 @@
  * @since 3.3.1  [2026-08-16-05:30pm] Add LOG_FILE, outputBuffer.
  * @since 3.3.1  [2026-08-27-02:00pm] Add PREF_RESET_NO_REBOOT.
  * @since 3.3.1  [2026-08-29-03:00pm] New debug vars. Remove CHECK_WIRE1.
+ * @since  3.4.0 [2026-09-12-07:15pm] Height/position lock/unlock.
  */
 
 // --- Increase default ESP32 stack size from 8KB to 16KB.
@@ -521,7 +521,7 @@ enum CommandIndex {                                             //  Readable ind
     DEBUG_RTCM,                                                 //  1.
     DEBUG_GNSS,                                                 //  2.
     DEBUG_NMEA,                                                 //  3.
-    DEBUG_BTN,                                                  //  4.
+    DEBUG_BTNS,                                                 //  4.
     DEBUG_SER,                                                  //  5.
     DEBUG_WIFI_EVENTS,                                          //  6.
     DEBUG_WS_EVENTS,                                            //  7.
@@ -545,7 +545,7 @@ const char* COMMAND[NUM_COMMANDS] = {                           // Command strin
     "debug-rtcm",                                               // DEBUG_RTCM.
     "debug-gnss",                                               // DEBUG_GNSS.
     "debug-nmea",                                               // DEBUG_NMEA.
-    "debug-btn",                                                // DEBUG_BTN.
+    "debug-btns",                                               // DEBUG_BTNS.
     "debug-ser",                                                // DEBUG_SER.
     "debug-wifi-events",                                        // DEBUG_WIFI_EVENTS.
     "debug-ws-events",                                          // DEBUG_WS_EVENTS.
@@ -567,14 +567,9 @@ const bool    RW_MODE                    = false;               // Open preferen
 const bool    RO_MODE                    = true;                // Open preference name space as read only.
 const char    LOG_FILE[]                 = "/log.txt";          // Log file.
 const uint8_t MAJOR_VERSION              = 3;                   // Current major build version (@see buildInfo()).
-const uint8_t MINOR_VERSION              = 3;                   // Current minor build version (@see buildInfo()).
-const uint8_t PATCH_VERSION              = 5;                   // Current patch build version (@see buildInfo()).
+const uint8_t MINOR_VERSION              = 4;                   // Current minor build version (@see buildInfo()).
+const uint8_t PATCH_VERSION              = 0;                   // Current patch build version (@see buildInfo()).
 const uint8_t MIN_SATELLITE_THRESHHOLD   = 2;                   // Minimum SIV for reliable coordinate information.      
-      bool     buttonGnssLock;                                  // UI - // ToDo: Implement.
-      bool     buttonAltitudeLock;                              // UI - // ToDo: Implement.
-      bool     buttonPositionLock;                              // UI - // ToDo: Implement.
-      bool     buttonLaser;                                     // UI button to turn laser pointer on/off.
-      bool     buttonUnlockAll;                                 // UI - // ToDo: Implement.
       char     operMode[2]               = {'\0'};              // Operation mode (r=rover, b=base).
       char     debugTemp[250]            = {'\0'};              // Various debug scenarios.
       char     whichPage[10]             = {'\0'};              // Current browser page served by startHttpServer().
@@ -612,7 +607,6 @@ const uint8_t MIN_SATELLITE_THRESHHOLD   = 2;                   // Minimum SIV f
 bool browserUpdatePendingFlag       = false;                    // Update ready to send to browser page (operate, nmea, ...).
 bool restartGrMcuFlag               = false;                    // Restart MCU.
 bool debugFlag                      = false;                    // Debug active.
-bool ghostModeFlag                  = false;                    // In Ghost mode (i.e. locked coordinates).
 bool inLoopFlag                     = false;                    // In loop() indicator.
 bool zeroStatusCountersFlag         = false;                    // Zero out status counters.
 bool NMEAoutFlag                    = false;                    // NMEA being sent out.
@@ -620,6 +614,11 @@ bool RTCMinFlag                     = false;                    // RTCM being re
 bool tcpClientConnectedFlag         = false;                    // TCP client connected.
 bool ntripStatusPendingFlag         = false;                    // New ntripStatusMsg ready to forward to browser.
 bool ntripSendRtcmSentenceCountFlag = false;                    // Flag to send rtcmSentenceCount for ntrip page. Triggered by taskEvery1000Ms().
+bool heightLockFlag                 = false;                    // Height currently locked - substituting NMEA.
+bool positionLockFlag               = false;                    // Position currently locked - substituting NMEA.
+bool heightLockAveragingFlag        = false;                    // Averaging window in progress for height lock.
+bool positionLockAveragingFlag      = false;                    // Averaging window in progress for position lock.
+bool laserOnFlag                    = false;                    // Laser state.
 bool commandFlag[NUM_COMMANDS]      = {false};                  // Debug command flags.
 
 // --- Preferences. ---
@@ -686,6 +685,21 @@ const TickType_t EVERY_1000MS_INTERVAL  = 1000/portTICK_PERIOD_MS;              
 const TickType_t EVERY_10000MS_INTERVAL = 10000/portTICK_PERIOD_MS;                          // Do these every 1 second.
       TickType_t buildOperDataInterval  = (prfGnsNavRat * prfGnsMsrInt)/portTICK_PERIOD_MS;  // Time (ms) [pref based] between operate page updates.
 
+// --- Lock/average state. ---
+const int64_t  LOCK_AVERAGE_DURATION_US   = 2000000;   // Two second window for averaging before lock engages.
+      int64_t  heightLockAveragingStart   = 0;
+      int64_t  positionLockAveragingStart = 0;
+      double   heightLockSumOrtho         = 0;
+      double   heightLockSumGeoidSep      = 0;
+      uint32_t heightLockSampleCount      = 0;
+      double   positionLockSumLat         = 0;
+      double   positionLockSumLon         = 0;
+      uint32_t positionLockSampleCount    = 0;
+      double   lockedLat                  = 0;
+      double   lockedLon                  = 0;
+      float    lockedHeightOrtho          = 0;
+      float    lockedGeoidSep             = 0;       // heightEllipsoid - heightOrthometric, frozen at lock time.
+
 // --- Declaration. ---
 // --- Test. ---
 
@@ -709,7 +723,10 @@ const TickType_t EVERY_10000MS_INTERVAL = 10000/portTICK_PERIOD_MS;             
  * @see   sendDataToBrowser()     - Fill & send jsonDocToBrowser.
  * @see   rtcm3GetMessageType()   - Return RTCM3 message type to taskRtcmRelay().
  * @see   relayRtcmByte()         - Relay RTCM byte to Serial2 (ZED UART2), tracking stats.
- * @see   ntripBeginClient()      - Connect to NTRIP caster.
+ * @see   nmeaChecksum()          - Compute NMEA checksum (XOR of all bytes between '$' and '*').
+ * @see   nmeaSetFields()         - Replace comma-delimited fields in NMEA sentence, recompute and append checksum.
+ * @see   decimalDegreesToNmea()  - Convert decimal degrees to NMEA ddmm.mmmmmmm / dddmm.mmmmmmm format.
+ * @see   substituteLockedNmea()  - Substitute locked position/height values into full NMEA sentence.
  */
 
   /**
@@ -1071,6 +1088,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
  * @since  3.2.1  [2026-07-26-06:30pm] Refactor.
  * @since  3.2.3  [2026-08-11-09:00am] Moved browserUpdatePendingFlag to DevUBLOXGNSS::processNMEA().
  * @since  3.3.1  [2026-08-17-09:15pm] Changed from Serial.print() to logPrint().
+ * @since  3.4.0  [2026-09-13-04:00pm] Height/position lock/unlock.
  * @see    Global vars: WebSockets, setup().
  */
  void buildOperData() {
@@ -1103,6 +1121,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
          * u-blox receivers use EGM96 (Earth Gravitational Model 1996).
          * EGM96 is an irregular, gravity-based surface geoid model, based on a 10° x 10° grid, and interpolated to the receiver's position.
          * WGS84 is a mathematical ellipsoid (smooth, idealized shape).
+         * prfInstrHgt is instrument height in mm.
          */
 
         // -- Height - ellipsoid (h). --
@@ -1113,7 +1132,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
         // -- Height - orthometric (H). --
         int32_t msl               = roverGNSS.getMeanSeaLevel();            // a.k.a getAltitudeMSL()?
         int8_t  mslHp             = roverGNSS.getMeanSeaLevelHp();
-        heightOrthometric = (msl * 10 + mslHp) / 10000.0;
+        heightOrthometric = ((msl * 10 + mslHp) / 10000.0) - (float)prfInstrHgt;
 
         // -- Latitude. --
         int32_t latitude   = roverGNSS.getHighResLatitude();                // Degrees * 10^-7.
@@ -1130,6 +1149,49 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
         // -- Horizontal & vertical accuracy. --
         accuracyHorizontal = roverGNSS.getHorizontalAccuracy() / 10000.0;
         accuracyVertical   = roverGNSS.getVerticalAccuracy() / 10000.0;
+
+        // -- Height lock averaging. --
+        if (heightLockAveragingFlag) {
+            heightLockSumOrtho    += heightOrthometric;
+            heightLockSumGeoidSep += (heightEllipsoid - heightOrthometric);
+            heightLockSampleCount++;
+            if ((esp_timer_get_time() - heightLockAveragingStart) >= LOCK_AVERAGE_DURATION_US) {
+                lockedHeightOrtho       = heightLockSumOrtho / heightLockSampleCount;
+                lockedGeoidSep          = heightLockSumGeoidSep / heightLockSampleCount;
+                heightLockAveragingFlag = false;
+                heightLockFlag          = true;
+                snprintf(outputBuffer, sizeof(outputBuffer), "Height locked @ %.4f m (%u samples).", lockedHeightOrtho, heightLockSampleCount);
+                if (commandFlag[DEBUG_BTNS]) {                      // Debug.    
+                    logPrint(outputBuffer);
+                }
+            }
+        }
+        if (heightLockFlag) {
+            heightOrthometric = lockedHeightOrtho;
+            heightEllipsoid = lockedHeightOrtho + lockedGeoidSep;
+        }
+
+        // -- Position lock averaging. --
+        if (positionLockAveragingFlag) {
+            positionLockSumLat += lat;
+            positionLockSumLon += lon;
+            positionLockSampleCount++;
+            if ((esp_timer_get_time() - positionLockAveragingStart) >= LOCK_AVERAGE_DURATION_US) {
+                lockedLat                 = positionLockSumLat / positionLockSampleCount;
+                lockedLon                 = positionLockSumLon / positionLockSampleCount;
+                positionLockAveragingFlag = false;
+                positionLockFlag          = true;
+                snprintf(outputBuffer, sizeof(outputBuffer), "Position locked @ Lat %.9f, Lon %.9f (%u samples).", lockedLat, lockedLon, positionLockSampleCount);
+                if (commandFlag[DEBUG_BTNS]) {                      // Debug.
+                    logPrint(outputBuffer);
+                }
+            }
+        }
+
+        if (positionLockFlag) {
+            lat = lockedLat;
+            lon = lockedLon;
+        }
 
         // -- Battery. --
         batterySoc        = lipo.getSOC();
@@ -1230,6 +1292,18 @@ void sendDataToBrowser() {
             jsonDocToBrowser["34"] = hotspotIp;
             jsonDocToBrowser["37"] = rtcmSentenceCount;
             jsonDocToBrowser["38"] = rtcmKbps;
+            if (laserOnFlag) {
+                snprintf(operBuffer, sizeof(operBuffer), "Laser on.");
+                jsonDocToBrowser["laserOnResp"] = operBuffer;
+            }
+            if (heightLockFlag) {
+                snprintf(operBuffer, sizeof(operBuffer), "Height locked.");
+                jsonDocToBrowser["heightLockResp"] = operBuffer;
+            }
+            if (positionLockFlag) {
+                snprintf(operBuffer, sizeof(operBuffer), "Position locked.");
+                jsonDocToBrowser["positionLockResp"] = operBuffer;
+            }
         }
     }
 
@@ -1273,55 +1347,6 @@ uint16_t rtcm3GetMessageType(const char* rtcmSentence) {
     uint16_t message_type = ((uint16_t)(uint8_t)rtcmSentence[3] << 4) | ((uint8_t)rtcmSentence[4] >> 4);
     return message_type;
 }
-
-// /**. // ToDo: Delete after verifying new version.
-//  * -------------------------------------------------------------------------
-//  *  Relay RTCM byte to Serial2 (ZED UART2), tracking stats.
-//  * -------------------------------------------------------------------------
-//  *
-//  * Extracted so the "ntrip" branch of taskRtcmRelay() can reuse the same
-//  * preamble-detection/stats logic as the "radio" branch without duplicating
-//  * it. The "radio" branch itself is left as-is for now.
-//  *
-//  * @param  char      inputChar     Byte to relay.
-//  * @param  char*     rtcmSentence  Sentence buffer (caller-owned, sized 1030).
-//  * @param  uint16_t  &byteCount    Caller-owned running byte count.
-//  * @param  uint16_t  &msg_type     Caller-owned last parsed message type.
-//  * @return void No output is returned.
-//  * @since  3.2.2 [2026-08-09-12:00pm] New.
-//  * @see    taskRtcmRelay(), rtcm3GetMessageType().
-//  */
-// void relayRtcmByte(char inputChar, char* rtcmSentence, uint16_t &byteCount, uint16_t &msg_type) {
-//     Serial2.write(inputChar);
-//     if (byteCount < 1030 - 1) {                                     // Bounds check.
-//         rtcmSentence[byteCount] = inputChar;
-//     }
-//     RTCMinFlag = true;
-//     ws2812LedColor = GREEN;
-//     ws2812LedBlink = true;
-
-//     if (inputChar == (char)0xd3) {                                  // Start of new sentence.
-//         rtcmSentenceCount++;
-//         msg_type = rtcm3GetMessageType(rtcmSentence);
-//         int64_t RTCMinFlagtervalUs = esp_timer_get_time() - lastRTCMtime;
-//         if (RTCMinFlagtervalUs > 0) {
-//             rtcmKbps = ((float)byteCount * 8.0f * 1000.0f) / (float)RTCMinFlagtervalUs;
-//         }
-//         if (commandFlag[DEBUG_RTCM]) {
-//             Serial.printf("\nRTCM3 (%s) active(%d) #%zu Type:%u bytes:%u kbps:%.2f\n\nd3 ",
-//                 prfRtcmInSource, RTCMinFlag, rtcmSentenceCount, msg_type, byteCount, rtcmKbps);
-//         }
-//         lastRTCMtime = esp_timer_get_time();
-//         memset(rtcmSentence, '\0', 1030);
-//         rtcmSentence[0] = 0xd3;
-//         byteCount = 1;
-//     } else {
-//         if (commandFlag[DEBUG_RTCM]) {
-//             Serial.printf("%02x ", inputChar);
-//         }
-//         byteCount++;
-//     }
-// }
 
 /**
  * -------------------------------------------------------------------------
@@ -1403,6 +1428,204 @@ void relayRtcmByte(char inputChar, char* rtcmSentence, uint16_t &byteCount, uint
     }
     lastRTCMtime = esp_timer_get_time();
     // bytesLeftInFrame is already 0 - next byte in is treated as the next preamble.
+}
+
+/**
+ * -------------------------------------------------------------------------
+ *  Compute NMEA checksum (XOR of all bytes between '$' and '*').
+ *    e.g. $GLGSV,1,1,01,77,06,333,10,3*4F\r\n
+ * -------------------------------------------------------------------------
+ *
+ * @param  char *sentence             NMEA sentence.
+ * @return uint8_t                    Checksum for NMEA sentence.
+ * @since  3.4.0 [2026-09-12-07:15pm] Height/position lock/unlock.
+ * @see    nmeaSetFields().
+ */
+uint8_t nmeaChecksum(const char *sentence) {
+
+    // --- Local vars. ---
+    const char    *p       = sentence + 1;          // Skip leading '$'.
+          uint8_t checksum = 0;
+
+    // XOR each byte between beginning of sentence ('$') and end('*'). 
+    while (*p && *p != '*') {
+        checksum ^= (uint8_t)*p;
+        p++;
+    }
+    return checksum;
+}
+
+/**
+ * -------------------------------------------------------------------------
+ *  Replace one or more comma-delimited fields in a NMEA sentence, then
+ *  recompute and append the checksum.
+ * -------------------------------------------------------------------------
+ * 
+ *  Field numbering: 0 = message ID (e.g. "GNGGA"), 1 = first field after the ID,
+ *    matching standard NMEA field numbering conventions.
+ *
+ * @param  sentence   In/out buffer. Must currently hold a valid, complete NMEA "$....*CS\r\n" sentence.
+ * @param  maxLen     Size of sentence buffer.
+ * @param  fieldNums  Array of field numbers to replace.
+ * @param  newValues  Array of replacement strings (parallel to fieldNums).
+ * @param  count      Number of entries in fieldNums/newValues.
+ * @return bool       True on success, false if the rebuilt sentence would overflow maxLen (original buffer left untouched).
+ * @since  3.4.0      [2026-09-12-09:15pm] Height/position lock/unlock.
+ * @see    substituteLockedNmea().
+ */
+bool nmeaSetFields(char *sentence, size_t maxLen, const uint8_t *fieldNums, const char **newValues, uint8_t count) {
+    const char    *p           = sentence;
+          char    rebuilt[136] = {'\0'};           // Headroom above the typical 120-byte sentence.
+          uint8_t currentField = 0;
+          size_t  rebuiltLen   = 0;
+
+    // --- Copy message ID (field 0). ---
+    while (*p && *p != ',' && *p != '*' && rebuiltLen < sizeof(rebuilt) - 1) {
+        rebuilt[rebuiltLen++] = *p++;
+    }
+
+    // --- Walk remaining fields, substituting where requested. ---
+    while (*p && *p != '*') {
+        if (*p != ',') { p++; continue; }              // Defensive; shouldn't happen.
+        rebuilt[rebuiltLen++] = ',';
+        p++;
+        currentField++;
+
+        bool replaced = false;
+        for (uint8_t i = 0; i < count; i++) {
+            if (fieldNums[i] == currentField) {
+                size_t vlen = strlen(newValues[i]);
+                if (rebuiltLen + vlen >= sizeof(rebuilt) - 1) return false;
+                memcpy(&rebuilt[rebuiltLen], newValues[i], vlen);
+                rebuiltLen += vlen;
+                while (*p && *p != ',' && *p != '*') p++;   // Skip original field content.
+                replaced = true;
+                break;
+            }
+        }
+        if (!replaced) {
+            while (*p && *p != ',' && *p != '*' && rebuiltLen < sizeof(rebuilt) - 1) {
+                rebuilt[rebuiltLen++] = *p++;
+            }
+        }
+    }
+
+    // --- Recompute checksum, append CRLF. ---
+    uint8_t cs = nmeaChecksum(rebuilt);
+    char csStr[6];
+    snprintf(csStr, sizeof(csStr), "*%02X", cs);
+    size_t csLen = strlen(csStr);
+    if (rebuiltLen + csLen + 2 >= sizeof(rebuilt)) return false;
+    memcpy(&rebuilt[rebuiltLen], csStr, csLen);
+    rebuiltLen += csLen;
+    rebuilt[rebuiltLen++] = '\r';
+    rebuilt[rebuiltLen++] = '\n';
+    rebuilt[rebuiltLen] = '\0';
+
+    // --- Copy back only if it fits caller's buffer. ---
+    if (rebuiltLen >= maxLen) return false;
+    strlcpy(sentence, rebuilt, maxLen);
+    return true;
+}
+
+/**
+ * -------------------------------------------------------------------------
+ *  Convert decimal degrees to NMEA ddmm.mmmmmmm / dddmm.mmmmmmm format
+ *  (7 decimal places, matching UBLOX_CFG_NMEA_HIGHPREC).
+ * -------------------------------------------------------------------------
+ *
+ * @param  double decDeg     Decimal degrees.
+ * @param  bool   isLatitude Lattitude?
+ * @param  char*  outVal     Converted to NMEA format.
+ * @param  size_t outLen     outVal length.
+ * @param  char*  hemisphere Which hemisphere.
+ * @return void   No output is returned.
+ * @since  3.4.0 [2026-09-12-09:15pm] Height/position lock/unlock.
+ * @see    substituteLockedNmea().
+ */
+void decimalDegreesToNmea(double decDeg, bool isLatitude, char *outVal, size_t outLen, char *hemisphere) {
+    *hemisphere = isLatitude ? (decDeg >= 0 ? 'N' : 'S') : (decDeg >= 0 ? 'E' : 'W');
+    double absDeg   = fabs(decDeg);
+    int    deg      = (int)absDeg;
+    double minutes  = (absDeg - deg) * 60.0;
+    if (isLatitude) {
+        snprintf(outVal, outLen, "%02d%010.7f", deg, minutes);   // ddmm.mmmmmmm.
+    } else {
+        snprintf(outVal, outLen, "%03d%010.7f", deg, minutes);   // dddmm.mmmmmmm.
+    }
+}
+
+/**
+ * -------------------------------------------------------------------------
+ *  Substitute locked position/height values into a completed NMEA
+ *  sentence, if the relevant lock is active.
+ * -------------------------------------------------------------------------
+ *
+ * @param  sentence  In/out buffer holding a complete "$....*CS\r\n" sentence.
+ * @param  maxLen    Size of sentence buffer.
+ * @return void   No output is returned.
+ * @since  3.4.0 [2026-09-12-09:15pm] Height/position lock/unlock.
+ * @since  3.4.0 [2026-09-13-03:30pm] Undersized field arrays. Dangling pointers to out-of-scope locals.
+ * @see    DevUBLOXGNSS::processNMEA().
+ */
+void substituteLockedNmea(char *sentence, size_t maxLen) {
+    char    latStr[14], lonStr[14], altStr[16], geoidStr[16];
+    char    latHemiStr[2], lonHemiStr[2];
+    char    latHemi, lonHemi;
+    uint8_t fieldNums[6];              // Max: 4 position + 2 height fields (GGA combined case).
+    const char *newValues[6];
+    uint8_t count;
+
+    // --- GGA: lat/lon (fields 2-5), altitude/geoid (fields 9, 11). ---
+    if (strncmp(&sentence[3], "GGA", 3) == 0) {
+        count = 0;
+        if (positionLockFlag) {
+            decimalDegreesToNmea(lockedLat, true,  latStr, sizeof(latStr), &latHemi);
+            decimalDegreesToNmea(lockedLon, false, lonStr, sizeof(lonStr), &lonHemi);
+            latHemiStr[0] = latHemi; latHemiStr[1] = '\0';
+            lonHemiStr[0] = lonHemi; lonHemiStr[1] = '\0';
+            fieldNums[count] = 2; newValues[count++] = latStr;
+            fieldNums[count] = 3; newValues[count++] = latHemiStr;
+            fieldNums[count] = 4; newValues[count++] = lonStr;
+            fieldNums[count] = 5; newValues[count++] = lonHemiStr;
+        }
+        if (heightLockFlag) {
+            snprintf(altStr,   sizeof(altStr),   "%.3f", lockedHeightOrtho);
+            snprintf(geoidStr, sizeof(geoidStr), "%.3f", lockedGeoidSep);
+            fieldNums[count] = 9;  newValues[count++] = altStr;
+            fieldNums[count] = 11; newValues[count++] = geoidStr;
+        }
+        if (count > 0) {
+            nmeaSetFields(sentence, maxLen, fieldNums, newValues, count);
+        }
+        return;
+    }
+
+    // --- RMC: lat/lon (fields 3-6). ---
+    if (strncmp(&sentence[3], "RMC", 3) == 0) {
+        if (!positionLockFlag) return;
+        decimalDegreesToNmea(lockedLat, true,  latStr, sizeof(latStr), &latHemi);
+        decimalDegreesToNmea(lockedLon, false, lonStr, sizeof(lonStr), &lonHemi);
+        latHemiStr[0] = latHemi; latHemiStr[1] = '\0';
+        lonHemiStr[0] = lonHemi; lonHemiStr[1] = '\0';
+        uint8_t fn[4]     = {3, 4, 5, 6};
+        const char *nv[4] = {latStr, latHemiStr, lonStr, lonHemiStr};
+        nmeaSetFields(sentence, maxLen, fn, nv, 4);
+        return;
+    }
+
+    // --- GLL: lat/lon (fields 1-4). Currently disabled in config, included for completeness. ---
+    if (strncmp(&sentence[3], "GLL", 3) == 0) {
+        if (!positionLockFlag) return;
+        decimalDegreesToNmea(lockedLat, true,  latStr, sizeof(latStr), &latHemi);
+        decimalDegreesToNmea(lockedLon, false, lonStr, sizeof(lonStr), &lonHemi);
+        latHemiStr[0] = latHemi; latHemiStr[1] = '\0';
+        lonHemiStr[0] = lonHemi; lonHemiStr[1] = '\0';
+        uint8_t fn[4]     = {1, 2, 3, 4};
+        const char *nv[4] = {latStr, latHemiStr, lonStr, lonHemiStr};
+        nmeaSetFields(sentence, maxLen, fn, nv, 4);
+        return;
+    }
 }
 
 /**
@@ -2550,6 +2773,7 @@ void onWebSocketEvent(AsyncWebSocket *httpServer, AsyncWebSocketClient *client, 
  * @since  3.2.3  [2026-08-14-03:15pm] Refactor from Wire1 to TCP.
  * @since  3.3.1  [2026-08-28-06:30pm] Add logic to manage nmeaBuffer if buffer gets out of sync.
  * @since  3.3.2  [2026-08-30-05:15pm] Moved DEBUG_NMEA_COUNTS from here to debug().
+ * @since  3.4.0  [2026-09-12-07:15pm] Height/position lock/unlock.
  * @see    https://github.com/sparkfun/SparkFun_u-blox_GNSS_v3.
  * @link   https://docs.espressif.com/projects/arduino-esp32/en/latest/api/wifi.html.
  * @link   https://github.com/sparkfun/SparkFun_u-blox_GNSS_v3/tree/main/examples/Basics/Example2_NMEAParsing.
@@ -2589,7 +2813,10 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
     // -- Full NMEA sentence. --
     if ((incoming == '\n') && (nmeaBuffer[0] == '$')) {
 
-        // ToDo: Modify NMEA sentence here for locked height (+instrument) and/or position.
+        // -- Substitute locked position/height, if active. --
+        if (heightLockFlag || positionLockFlag) {
+            substituteLockedNmea(nmeaBuffer, sizeof(nmeaBuffer));
+        }
 
         // - send NMEA full sentence if tcpClientConnectedFlag (e.g. incoming connection from app like "GNSS Master" on Android).
         if (tcpClientConnectedFlag) {
@@ -2669,10 +2896,10 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
  * @since 3.0.11 [2026-01-12-06:00pm] Browser initiated updates.
  * @since 3.3.0  [2026-08-13-12:00pm] Replaced checkZedTriggerUpdate() with checkLoopTimers().
  * @since 3.3.5  [2026-09-07-01:15pm] Replaced checkLoopTimers() in loop() with FreeRTOS tasks.
+ * @since 3.4.0  [2026-09-13-04:30pm] Removed checkGnssLockButton(), not needed.
  * @see checkSerialUSB()          - Check serial USB for input.
  * @see checkFlags()              - Check flags set in other functions or FreeRTOS tasks.
  * @see processMessagesIn()       - Process queued WS messages. All JSON activity lives here & sendDataToBrowser().
- * @see checkGnssLockButton()     - Check GNSS lock button. // ToDo: Implement.
  * @see checkTCPServer()          - Check TCP server for new/dropped client.
  * @see ws.cleanupClients()       - HTTP WebSocket cleanup.
  */
@@ -2860,21 +3087,24 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
  *       browser (receives) <-- {GNSS STATUS}. Continues in loop() until page is left.
  *
  *     - Laser on/off button. --
- *       browser (sends)    --> {"page":"operate",{"laserOn:""}.
+ *       browser (sends)    --> {"laserOn:""}.
  *       browser (receives) <-- {"laserOnResp":"Laser on."}.
- *       browser (sends)    --> {"page":"operate",{"laserOff:""}.
+ *       browser (receives) <-- {"laserOnResp":"Laser on."}.                // Periodically sent.
+ *       browser (sends)    --> {"laserOff:""}.
  *       browser (receives) <-- {"laserOffResp":"Laser off."}.
  *
  *     - Height lock/unlock button. --
- *       browser (sends)    --> {"page":"operate",{"heightLock:""}.
- *       browser (receives) <-- {"heightLockResp":"Height locked"}.
- *       browser (sends)    --> {"page":"operate",{"heightUnlock:""}.
+ *       browser (sends)    --> {"heightLock:""}.
+ *       browser (receives) <-- {"heightLockResp":"Height lock started - averaging."}.
+ *       browser (receives) <-- {"heightLockResp":"Height locked.""}.       // Periodically sent.
+ *       browser (sends)    --> {"heightUnlock:""}.
  *       browser (receives) <-- {"heightUnlockResp":"Height unlocked."}.
  *
  *     - Position lock/unlock button. --
- *       browser (sends)    --> {"page":"operate",{"positionLock:""}.
- *       browser (receives) <-- {"positionLockResp":"Position locked"}.
- *       browser (sends)    --> {"page":"operate",{"positionUnlock:""}.
+ *       browser (sends)    --> {"positionLock:""}.
+ *       browser (receives) <-- {"positionLockResp":"Position lock started - averaging."}.
+ *       browser (receives) <-- {"positionLockResp":"Position locked.""}.   // Periodically sent.
+ *       browser (sends)    --> {"positionUnlock:""}.
  *       browser (receives) <-- {"positionUnlockResp":"Position unlocked."}.
  *
  *  -- NMEA page. --
@@ -2949,6 +3179,7 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
  * @since 3.3.2  [2026-08-31-09:30am] Moved browserUpdatePendingFlag check to checkFlags() in loop().
  * @since 3.3.3  [2026-09-03-04:45pm] Moved ntripBeginClient() to here.
  * @since 3.3.5  [2026-09-11-02:30pm] Tweaked NTRIP WiFi & Caster connection management.
+ * @since 3.4.0  [2026-09-12-07:15pm] Height/position lock/unlock.
  * @see   Global vars: GNSS
  * @see   prefUtility().
  * @see   onWebSocketEvent().
@@ -3155,65 +3386,87 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
     //   @link https://docs.sparkfun.com/SparkFun_Thing_Plus_ESP32-S3/arduino_example/#rgb-led.
     if (jsonDocFromBrowser["laserOn"].is<JsonVariant>()) {
         digitalWrite(LSR_TRIGGER, HIGH);        // Turn laser on.
+        laserOnFlag = true;
 
         // -- Set response. --
-        strcpy(outputBuffer, "Laser on.");
+        strcpy(outputBuffer, "Laser on");
         jsonDocToBrowser["laserOnResp"] = outputBuffer;
         snprintf(outputBuffer, sizeof(outputBuffer), "%s.", outputBuffer);
-        logPrint(outputBuffer);
+        if (commandFlag[DEBUG_BTNS]) {                      // Debug.
+            logPrint(outputBuffer);
+        }
     }
     if (jsonDocFromBrowser["laserOff"].is<JsonVariant>()) {
         digitalWrite(LSR_TRIGGER, LOW);         // Turn laser off.
+        laserOnFlag = false;
 
         // -- Set response. --
-        strcpy(outputBuffer, "Laser off.");
+        strcpy(outputBuffer, "Laser off");
         jsonDocToBrowser["laserOffResp"] = outputBuffer;
         snprintf(outputBuffer, sizeof(outputBuffer), "%s.", outputBuffer);
-        logPrint(outputBuffer);
+        if (commandFlag[DEBUG_BTNS]) {                      // Debug.
+            logPrint(outputBuffer);
+        }
     }
 
     // -------------------------------------------------------------------------
     // --- Operate page. Height lock/unlock button. ---
     // -------------------------------------------------------------------------
     if (jsonDocFromBrowser["heightLock"].is<JsonVariant>()) {
-        // ToDo: Implement.
+        heightLockSumOrtho       = 0;
+        heightLockSumGeoidSep    = 0;
+        heightLockSampleCount    = 0;
+        heightLockAveragingStart = esp_timer_get_time();
+        heightLockAveragingFlag  = true;
+        heightLockFlag           = false;                   // Not locked yet - averaging first.
 
         // -- Set response. --
-        strcpy(outputBuffer, "Height locked.");
+        strcpy(outputBuffer, "Height lock started - averaging.");
         jsonDocToBrowser["heightLockResp"] = outputBuffer;
-        snprintf(outputBuffer, sizeof(outputBuffer), "%s.", outputBuffer);
-        logPrint(outputBuffer);
+        if (commandFlag[DEBUG_BTNS]) {                      // Debug.
+            logPrint(outputBuffer);
+        }
     }
     if (jsonDocFromBrowser["heightUnlock"].is<JsonVariant>()) {
-        // ToDo: Implement.
+        heightLockFlag          = false;
+        heightLockAveragingFlag = false;
 
         // -- Set response. --
         strcpy(outputBuffer, "Height unlocked.");
         jsonDocToBrowser["heightUnlockResp"] = outputBuffer;
-        snprintf(outputBuffer, sizeof(outputBuffer), "%s.", outputBuffer);
-        logPrint(outputBuffer);
+        if (commandFlag[DEBUG_BTNS]) {                      // Debug.
+            logPrint(outputBuffer);
+        }
     }
 
     // -------------------------------------------------------------------------
     // --- Operate page. Position lock/unlock button. ---
     // -------------------------------------------------------------------------
     if (jsonDocFromBrowser["positionLock"].is<JsonVariant>()) {
-        // ToDo: Implement.
+        positionLockSumLat         = 0;
+        positionLockSumLon         = 0;
+        positionLockSampleCount    = 0;
+        positionLockAveragingStart = esp_timer_get_time();
+        positionLockAveragingFlag  = true;
+        positionLockFlag           = false;
 
         // -- Set response. --
-        strcpy(outputBuffer, "Position locked.");
+        strcpy(outputBuffer, "Position lock started - averaging.");
         jsonDocToBrowser["positionLockResp"] = outputBuffer;
-        snprintf(outputBuffer, sizeof(outputBuffer), "%s.", outputBuffer);
-        logPrint(outputBuffer);
+        if (commandFlag[DEBUG_BTNS]) {                      // Debug.
+            logPrint(outputBuffer);
+        }
     }
     if (jsonDocFromBrowser["positionUnlock"].is<JsonVariant>()) {
-        // ToDo: Implement.
+        positionLockFlag          = false;
+        positionLockAveragingFlag = false;
 
-        // -- Set response. --
+        // -- Set response. --    
         strcpy(outputBuffer, "Position unlocked.");
         jsonDocToBrowser["positionUnlockResp"] = outputBuffer;
-        snprintf(outputBuffer, sizeof(outputBuffer), "%s.", outputBuffer);
-        logPrint(outputBuffer);
+        if (commandFlag[DEBUG_BTNS]) {                      // Debug.
+            logPrint(outputBuffer);
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -3566,40 +3819,6 @@ void checkSerialUSB() {
 }
 
 /**
- * --------------------------------------------------------------------------------------------------
- *  Check GNSS lock button (upPosition or downPosition).
- * ---------------------------------------------------------------------------------------------------------------------------
-
- *
- * // ToDo: Implment.
- * @return void No output is returned.
- * @since  0.1.0 [2025-04-24-12:00pm] New.
- * @since  0.3.3 [2025-05-02-08:00am] Refactored.
- * @since  0.3.8 [2025-05-10-09:30am] Set state.
- * @since  0.4.2 [2025-05-15-07:00am] Refactored.
- * @since  0.4.7 [2025-05-21-07:30pm] Switch Radio & BT LEDs.
- * @link   https://roboticsbackend.com/arduino-turn-led-on-and-off-with-button/.
- */
-void checkGnssLockButton() {
-
-    static bool lastButtonPos = false;
-
-    // --- Set state of GNSS lock button. ---
-    if (digitalRead(buttonGnssLock) == true) {
-        // UIstate[0] = '0';                    // GNSS lock button is in upPosition.
-        if (lastButtonPos == 1) {               // Only true if lock button was in downPosition and now is in upPosition.
-            // updateLEDs('-','-','2');         // Overide BT LED.
-            lastButtonPos = 0;                  // Reset lock button position.
-        }
-    } else {
-        // updateLEDs('-','-','1');             // Overide BT LED.
-        // UIstate[0] = '1';                    // GNSS lock button is in downPosition.
-        lastButtonPos = 1;                      // Last lock button position.
-        ghostModeFlag = true;                   // Flag for checkNMEAin().
-    }
-}
-
-/**
  * -------------------------------------------------------------------------
  *  Check TCP server for new/dropped client. 
  * -------------------------------------------------------------------------
@@ -3880,6 +4099,7 @@ void setup() {
  * @since 3.3.0  [2026-08-13-12:00pm] Replaced checkZedTriggerUpdate() with checkLoopTimers().
  * @since 3.3.0  [2026-08-13-01:00pm] Replaced debug timer with checkLoopTimers().
  * @since 3.3.5  [2026-09-07-01:15pm] Replaced checkLoopTimers() with FreeRTOS tasks.
+ * @since 3.4.0  [2026-09-13-04:30pm] Removed checkGnssLockButton(), not needed.
  * @see   startTasks().
  * @see   GhostRover FreeRTOS functions.
  * @see   Event handlers.
@@ -3889,7 +4109,6 @@ void loop() {
     checkSerialUSB();               // Check serial USB for input.
     checkFlags();                   // Check flags set in other functions or FreeRTOS tasks.
     processMessagesIn();            // Process queued WS messages. All JSON activity lives here & sendDataToBrowser().
-    // checkGnssLockButton();   // Check GNSS lock button.  // ToDo: Implement.
     checkTCPServer();               // Check TCP server for new/dropped client. 
     ws.cleanupClients();            // HTTP WebSocket cleanup.
     vTaskDelay(1);                  // Play nice with FreeRTOS.
