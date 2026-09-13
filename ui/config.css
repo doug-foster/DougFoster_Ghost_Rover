@@ -35,6 +35,11 @@
 form#config {
     margin-top: 20px;
 }
+#config a {
+    text-decoration: underline;
+    font-weight: 600;
+    color: black;;
+}
 #config .config-section {
     padding: 10px;
     background-color: aliceblue;

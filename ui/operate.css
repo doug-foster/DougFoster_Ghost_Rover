@@ -19,6 +19,8 @@
  * @since  3.1.1  [2026-06-25-02:00pm] Regroup: upload to SD card.
  * @since  3.1.1  [2026-06-25-10:00pm] td:nth-of-type(2) ... {width: 85px;}, ditto.
  * @since  3.1.2  [2026-07-05-08:45pm] General cleanup.
+ * @since  3.5.5  [2026-09-11-03:45pm] Increased width of numbers table from 96% to 100%.
+ * @since  3.3.5  [2026-09-11-09:45pm] Add orange-1.
  * @link   http://dougfoster.me.
 */
 
@@ -74,7 +76,7 @@
     background-color: var(--black-1);
 }
 .fix #state-indicator #rtkFloat .inside.active {
-    background-color: var(--yellow-1);
+    background-color: var(--orange-1);
 }
 .fix #state-indicator #rtkFix .inside.active {
     background-color: var(--green-1);
@@ -82,6 +84,10 @@
 .fix #state {
     text-align: center;
     font-size: 18px;
+}
+.blink {
+    color: var(--red-1);
+    animation: blink-animation 1s infinite; /* 1s duration, infinite loop */
 }
 
 /**
@@ -93,7 +99,7 @@
     margin: 10px 0 20px 0;
 }
 .numbers table {
-    width: 96%;
+    width: 100%;
     margin: auto;
 }
 .numbers td {

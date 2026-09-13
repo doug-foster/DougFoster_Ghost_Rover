@@ -21,6 +21,8 @@
  * @since  3.2.1  [2026-07-27-08:30am] Add webSocketNum.
  * @since  3.2.1  [2026-07-28-10:00am] Header items.
  * @since  3.2.1  [2026-07-28-04:45pm] Removed NMEA out switch & preference.
+ * @since  3.2.1  [2026-09-01-12:45pm] NMEA out changed from "BLE serial" to "TCP (9099)".
+ * @since  3.3.5  [2026-09-08-07:30pm] Add #sivDisplay & spans to #state.
  * @link   http://dougfoster.me.
 -->
 
@@ -67,7 +69,7 @@
                             <div class="inside"></div>
                         </div>
                     </div>
-                    <div id="state"><span id="fix">xxx</span> (SIV <span id="siv">00</span>)</div>
+                    <div id="state"><span id="fix">xxx</span><span id="sivDisplay"> (SIV <span id="siv">00</span>)</span></div>
                 </section>
 
                 <!-- Numbers. -->
@@ -155,7 +157,7 @@
                 <!-- Status. -->
                 <section class="status">
                     <div id="status" class="std-button">
-                        <span class="label">Status</span>
+                        <span class="label" href="#status-stuff">Status</span>
                     </div>
                     <div id="status-stuff" class="hide">
                         <table id="status-table">
@@ -217,7 +219,7 @@
                             <tr>
                                 <td>NMEA Out</td>
                                 <td class="empty">-</td>
-                                <td><span>BLE serial</span></td>
+                                <td><span>TCP (9099)</span></td>
                             </tr>
                             <tr>
                                 <td>NMEA (GGA) sentences</td>

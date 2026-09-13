@@ -17,6 +17,7 @@
  * @since  3.2.1  [2026-07-27-08:30am] Add webSocketNum.
  * @since  3.2.1  [2026-07-28-10:00am] Header items.
  * @since  3.2.1  [2026-08-01-03:00pm] Add styles.
+ * @since  3.3.5  [2026-09-11-09:45pm] Add orange-1.
  * @link   http://dougfoster.me.
 */
 
@@ -27,6 +28,7 @@
 */
 :root {
     --red-1:    #ff0000;
+    --orange-1: #FF7F00;
     --green-1:  #008000;
     --green-2:  #a5dc86;
     --green-3:  #20b2aa;

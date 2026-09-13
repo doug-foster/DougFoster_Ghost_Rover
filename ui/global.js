@@ -29,6 +29,9 @@
  * @since  3.2.1  [2026-08-02-09:30am] Move clearMessageField() here from operate.js.
  * @since  3.2.1  [2026-08-07-09:15am] Added RTCM bridge mode.
  * @since  3.2.2  [2026-08-09-04:45pm] Completed NTRIP logic.
+ * @since  3.3.5  [2026-09-08-07:45pm] Add MIN_SATELLITE_THRESHHOLD & logic for #start in webSocketRcvMessage().
+ * @since  3.3.5  [2026-09-08-08:00pm] Changed timeout from 6s to 8s in clearMessageField().
+ * @since  3.3.5  [2026-09-11-03:30pm] In webSocketRcvMessage(): increase decimal places: numLatitude & numLongitude from 8 to 9 decimal, numHeightElip & numHeightOrth from 3 to 4.
  * @link   http://dougfoster.me.
 */
 
@@ -45,6 +48,7 @@
  * @since  3.1.1  [2026-06-26-09:30pm] change WS_PREF_GNSS_MESASURE_INTERVAL to WS_PREF_GNSS_MEASURE_INTERVAL.
  * @since  3.1.2  [2026-07-16-10:00am] Add NTRIP.
  * @since  3.2.1  [2026-07-25-04:30pm] Add caster[{}].
+ * @since  3.3.5  [2026-09-08-07:45pm] Add MIN_SATELLITE_THRESHHOLD.
  * @see    setHeights() in config.js.
  * @see    Global vars () WebSockets) in DougFoster_Ghost_Rover.ino.
  */
@@ -66,10 +70,12 @@ const wsEndpoint = 'ws://' + ws_target + '/ghostRover';
 let batterySoc;
 
 // --- General. ---
-const newPage                 = document.querySelectorAll('a.new-page');
-const RECONNECT_INTERVAL      = 2000;    // Server reconnect interval.
-const messageField            = document.querySelector('#message-field');
-let wsNumBytesThisMessage     = 0;       // # of bytes in this WebSocket message. @see webSocketRcvMessage(). 
+const RECONNECT_INTERVAL       = 2000;      // Server reconnect interval.
+const MIN_SATELLITE_THRESHHOLD = 2          // Mirror const in Ghost_Rover.ino.
+const newPage                  = document.querySelectorAll('a.new-page');
+const messageField             = document.querySelector('#message-field');
+let wsNumBytesThisMessage      = 0;         // # of bytes in this WebSocket message. @see webSocketRcvMessage().
+
 
 // --- Header. ---
 const ROVER_NAME              = 'GhostRover';
@@ -122,6 +128,7 @@ let heightPole               =    0;    // mm.
  * @since  3.1.0 [2026-03-20-11:15am] Update var names.
  * @since  3.2.1 [2026-07-25-04:30pm] add toJson().
  * @since  3.2.1 [2026-08-02-09:30am] Move clearMessageField() here from operate.js.
+ * @since  3.3.5 [2026-09-08-07:45pm] Add MIN_SATELLITE_THRESHHOLD & logic for #start in webSocketRcvMessage().
  * @see   webSocketInit()       - WebSocket: init.
  * @see   webSocketOpened()     - WebSocket: opened.
  * @see   webSocketClosed()     - WebSocket: closed.
@@ -300,6 +307,8 @@ async function webSocketStop(event) {
  * @since  3.3.0  [2026-08-14-11:15am] Added skip for incoming NMEA values of 0.
  * @since  3.3.0  [2026-08-14-01:30pm] Refactored webSocketRcvMessage() files page.
  * @since  3.3.1  [2026-08-17-11:00pm] Corrected NMEA summary line.
+ * @since  3.3.5  [2026-09-08-07:45pm] Add MIN_SATELLITE_THRESHHOLD & logic for #start on "operate" page.
+ * @since  3.3.5  [2026-09-11-03:30pm] Increase decimal places: numLatitude & numLongitude from 8 to 9 decimal, numHeightElip & numHeightOrth from 3 to 4.
  * @see    filesMessage() in files.js.
  */
 function webSocketRcvMessage(event) {
@@ -505,19 +514,28 @@ function webSocketRcvMessage(event) {
             fix(jsonObj["8"]);
 
             // -- {"9":24}. --
-            numSIV.innerHTML = jsonObj["9"];
+            fixNumSIV.innerHTML = jsonObj["9"];
+            if (parseInt(fixNumSIV.innerHTML) < MIN_SATELLITE_THRESHHOLD) {
+                fixFix.innerHTML = "GNSS startup";
+                fixNumSivDisplay.classList.add('blink');
+                fixFix.classList.add('blink');
+                return;
+            } else {
+                fixNumSivDisplay.classList.remove('blink');
+                fixFix.classList.remove('blink');
+            }
 
             // -- {"10":"xx.xx"} 3 posn = 10 mm. --
-            numHeightElip.innerHTML = (Math.round(jsonObj["10"] * 100) / 100 * convert).toFixed(3);
+            numHeightElip.innerHTML = (Math.round(jsonObj["10"] * 100) / 100 * convert).toFixed(4);
 
             // -- {"11":"127.05"}. 3 posn = 10 mm. --
-            numHeightOrth.innerHTML = (Math.round(jsonObj["11"] * 100) / 100 * convert).toFixed(3);
+            numHeightOrth.innerHTML = (Math.round(jsonObj["11"] * 100) / 100 * convert).toFixed(4);
 
             // -- {"12":"35.60599395,"} 8 posn = 1.11 mm. --
-            numLatitude.innerHTML = (Math.round(jsonObj["12"] * 100000000) / 100000000).toFixed(8);
+            numLatitude.innerHTML = (Math.round(jsonObj["12"] * 100000000) / 100000000).toFixed(9);
 
             // -- {"13":"-78.79439717"} 8 posn = 1.11 mm. --
-            numLongitude.innerHTML = (Math.round(jsonObj["13"] * 100000000) / 100000000).toFixed(8);
+            numLongitude.innerHTML = (Math.round(jsonObj["13"] * 100000000) / 100000000).toFixed(9);
 
             // -- {"14":"0.016"}. --
             numHAC.forEach(hac => {
@@ -624,24 +642,19 @@ function webSocketRcvMessage(event) {
 
             // - Failed. Update display. -
             if (messageField.innerText.includes('ABORTED'))  {
-                btnWifiClientLabel.textContent = "Connect";
-                statusWifiClient.classList.add('hide');
-                statusWifiClient.classList.remove('blink');
-                clearMessageField();
+                wifiClientIsNotConnected();
+                clearMessageField();            // Clear after tiemout.
             }
-
             // - Success. Update display. -
-            if (messageField.innerText.includes('WiFi CONNECTED')) {
-                statusWifiClient.textContent = "- Connected -";
-                statusWifiClient.classList.remove('hide');
-                statusWifiClient.classList.remove('blink');
-                btnWifiClientLabel.innerText = "Disconnect";
-                clearMessageField();
+            if (messageField.innerText.includes('CONNECTED to SSID')) {
+                wifiClientIsConnected();
+                clearMessageField();            // Clear after tiemout.
             }
         } else if (undefined !== jsonObj["disconnectWifiClientResp"]) {
 
             // - Add response to message field. -
             messageField.innerText += '<-- ' + jsonObj["disconnectWifiClientResp"] + '\n';
+            wifiClientIsNotConnected();
             clearMessageField();
         }
 
@@ -655,25 +668,22 @@ function webSocketRcvMessage(event) {
             if ((messageField.innerText.includes('FAILED')) || 
                 (messageField.innerText.includes('REJECTED')) ||
                 (messageField.innerText.includes('DISCONNECTED')))  {
-                btnNtripCasterLabel.textContent = "Connect";
-                statusNtripCaster.classList.add('hide');
-                statusNtripCaster.classList.remove('blink');
-                clearMessageField();
+                ntripCasterIsNotConnected();
+                clearMessageField();            // Clear after tiemout.
             }
 
             // - Success. Update display. -
             if ((messageField.innerText.includes('SUCCESS')) ||
-                (messageField.innerText.includes('NTRIP CONNECTED'))) {
-                statusNtripCaster.textContent = '- Connected -';
-                statusNtripCaster.classList.remove('hide');
-                statusNtripCaster.classList.remove('blink');
-                btnNtripCasterLabel.innerText = "Disconnect";
-                clearMessageField();
+                (messageField.innerText.includes('NTRIP CONNECTED')) ||
+                (messageField.innerText.includes('NTRIP still CONNECTED'))) {
+                ntripCasterIsConnected();
+                clearMessageField();            // Clear after tiemout.
             }
         } else if (undefined !== jsonObj["disconnectNtripCasterResp"]) {
 
             // - Add response to message field. -
             messageField.innerText += '<-- ' + jsonObj["disconnectNtripCasterResp"] + '\n';
+            ntripCasterIsNotConnected();
             clearMessageField();
         }
 
@@ -691,7 +701,8 @@ function webSocketRcvMessage(event) {
  *
  * @param  which Group of prefs to apply.
  * @return void  No output is returned.
- * @since  3.1.2  [2026-07-25-04:15pm] New.
+ * @since  3.1.2 [2026-07-25-04:15pm] New.
+ * @since  3.3.1 [2026-08-27-04:45pm] ["JsonDocNtrip["43,47,48, 51"] from str to int.
  * @see    webSocketRcvMessage() in global.js.
  * @see    ntripAttributes() in config.js.
  * @see    updateConfigBtn.addEventListener() in config.js.
@@ -723,15 +734,15 @@ function toJson(which) {
             jsonString = JSON.stringify( {
                             "config" : "setNtripCasterPref",
                 "setNtripCasterPref" : JSON.stringify( {
-                                "43" : ntripCaster.value,
+                                "43" : parseInt(ntripCaster.value),
                                 "44" : ntripName.value,
                                 "45" : ntripUrl.value,
                                 "46" : ntripMount.value,                                             
-                                "47" : ntripPort.value,                                                      
-                                "48" : ntripVersion.value,                                                     
+                                "47" : parseInt(ntripPort.value),                                                      
+                                "48" : parseInt(ntripVersion.value),                                                     
                                 "49" : ntripUser.value,                                                
                                 "50" : ntripPassword.value,                       
-                                "51" : Number(ntripSendGGA.checked).toString()  // Send "0"/"1", not false/true.                    
+                                "51" : Number(ntripSendGGA.checked)  // Send 0/1, not false/true.                    
                 })
             });
             break;
@@ -747,9 +758,10 @@ function toJson(which) {
  * @return void  No output is returned.
  * @since  3.0.12 [2026-02-07-11:00am] New.
  * @since  3.2.1  [2026-08-02-09:30am] Move clearMessageField() here from operate.js.
+ * @since  3.3.5  [2026-09-08-08:00pm] Changed timeout from 6s to 8s.
  */
 function clearMessageField() {
-    setTimeout(function() { messageField.innerHTML = "&nbsp;"; }, 6000);
+    setTimeout(function() { messageField.innerHTML = "&nbsp;"; }, 8000);
 }
 
 /**

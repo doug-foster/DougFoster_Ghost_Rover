@@ -397,10 +397,10 @@ switch (e.target.value) {
         systemOptionsMessages.textContent = 'Prevent RTCM input.'
         break;
     case 'bridge':
-        systemOptionsMessages.innerHTML = 'RTCM from <span style="text-decoration: underline;">external</span> NTRIP client.<br>Remember to start WiFi client.';
+        systemOptionsMessages.innerHTML = '<em>External</em> NTRIP client: <a href="ntrip.html" target="_blank">start</a>.';
         break;
     case 'ntrip':
-        systemOptionsMessages.innerHTML = 'RTCM from <span style="text-decoration: underline;">internal</span> NTRIP client.<br>Start WiFi & NTRIP clients.';
+        systemOptionsMessages.innerHTML = '<em>Internal</em> NTRIP client: <a href="ntrip.html" target="_blank">start</a>.';
         break;
     case 'radio':
         systemOptionsMessages.innerHTML = 'RTCM from base over HC-12 radio.'

@@ -26,6 +26,8 @@
  * @since  3.1.2  [2026-07-05-08:45pm] General cleanup.
  * @since  3.2.1  [2026-07-28-10:00am] Move webSocket # & units to status items.
  * @since  3.2.1  [2026-07-31-02:00pm] Status display tweaks.
+ * @since  3.3.5  [2026-09-08-07:45pm] Add MIN_SATELLITE_THRESHHOLD & logic for #start on "operate" page.
+ * @since  3.3.5  [2026-09-12-11:15am] Add laser on/off logic to btnLaser.addEventListener().
  * @link   http://dougfoster.me.
 */
 
@@ -43,6 +45,7 @@
  * @since  3.0.12 [2026-02-18-11:00pm] Shorten RTCM & NMEA status.
  * @since  3.0.12 [2026-02-25-06:30pm] Copy HAC logic to VAC.
  * @since  3.0.12 [2026-02-27-06:45pm] Add WebSocket #.
+ * @since  3.3.5  [2026-09-08-07:30pm] Add fixNumSivDisplay, change numSiV to fixNumSIV.
  */
 
 // --- Section: Fix. ---
@@ -51,7 +54,8 @@ const fixSingle                    = document.querySelector('.fix #single .insid
 const fixRtkFloat                  = document.querySelector('.fix #rtkFloat .inside');
 const fixRtkFix                    = document.querySelector('.fix #rtkFix .inside');
 const fixFix                       = document.querySelector('.fix #fix');
-const numSIV                       = document.querySelector('.fix #siv');
+const fixNumSIV                    = document.querySelector('.fix #siv');
+const fixNumSivDisplay             = document.querySelector('.fix #sivDisplay');
 
 // --- Section: Numbers. ---
 const numHeightElip                = document.querySelector('.numbers #height-ellipsoid');
@@ -118,6 +122,8 @@ const statusInstrumentHeight       = document.querySelector('.status #instrument
 
 // --- General. ---
 const SEND_PREFS                   = '{"page":"operate","sendPrefs":""}';
+const LASER_ON                     = '{"laserOn":""}';
+const LASER_OFF                    = '{"laserOff":""}';
 const wsMessageWindowMaxCount      = 10;    // WebSocket message status tracking window (# messages).
 let prfGnsMsrInt                   = 0;
 let prfGnsNavRat                   = 0;
@@ -394,6 +400,7 @@ function flashRtcm() {
  * @since  3.0.11 [2026-01-20-07:00pm] Change altitude to height.
  * @since  3.0.12 [2026-02-08-05:00pm] Add uptime timer.
  * @since  3.1.0  [2026-03-20-11:15am] Update var names.
+ * @since  3.3.5  [2026-09-12-11:15am] Add laser on/off logic to btnLaser.addEventListener().
  * @see global.js.
  */
 
@@ -422,6 +429,15 @@ btnLaser.addEventListener('click', async () => {
     btnLaserLabel.classList.toggle('shadow');               // Visual feedback.
     setTimeout(function() { btnLaserLabel.classList.remove('shadow'); }, 100);
     toggleButtons('laser');
+    if ((websocket) && (1 == websocket.readyState) && btnLaser.classList.contains('locked')) {
+        btnLaser.classList.remove('locked');
+        websocket.send(LASER_OFF);          // Send message to rover.
+        console.log('browser --> ' + LASER_OFF);
+    } else {
+        btnLaser.classList.add('locked');
+        websocket.send(LASER_ON);          // Send message to rover.
+        console.log('browser --> ' + LASER_ON);
+    }
     // Work with this for lock buttons.
     // for (let i = 0; i < 10; i++) {
     //     await new Promise(resolve => setTimeout(resolve, 2000));
@@ -458,6 +474,7 @@ btnStatus.addEventListener('click', () => {
     btnStatus.classList.add('shadow');                      // Visual feedback.
     setTimeout(function() { btnStatus.classList.remove('shadow'); }, 100);
     stuffStatus.classList.toggle('hide');
+    stuffStatus.scrollIntoView({ behavior: "smooth", block: "start" });
 });
 
 /**
