@@ -1,0 +1,150 @@
+ <!DOCTYPE html>
+<!--
+ * *************************************************************************
+ *  Ghost Rover 3 - UI HTML.
+ * *************************************************************************
+ *
+ * instructions.html
+ *
+ * @author D. Foster <doug@dougfoster.me>.
+ * @since  3.4.1 [2025-10-26-04:45pm] New.
+ * @link   http://dougfoster.me.
+-->
+
+<html>
+
+    <!---- Head. ---->
+    <head>
+        <title>instructions</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" type="text/css" href="global.css">
+        <link rel="stylesheet" type="text/css" href="instructions.css">
+        <script src="global.js" defer></script>
+        <script src="instructions.js" defer></script>
+    </head>
+
+    <body>
+
+        <!---- Header. ---->
+        <header>
+            <a href="menu.html">
+                <h1 class="red">Instructions</h1>
+                <div id="header-items">
+                    <div id="version-rover">x.x.x ...</div>
+                </div>
+            </a>
+        </header>
+
+        <!---- Images. ---->
+        <section id="images">
+                <img id="operation-diagram" src="operation.png" alt="Network operation diagram.">
+        </section>
+
+        <!---- Instructions. ---->
+        <section id="instructions">
+            <div class="title">
+                <span>RTCM: </span>
+                <select id="rtcm-mode">
+                    <option value = "off">Off</option>
+                    <option value = "bridge">Bridge</option>
+                    <option value = "ntrip">NTRIP</option>
+                    <option value = "radio">Radio</option>
+                </select>
+            </div>
+
+            <!--- RTCM in is off. --->
+            <div id="off">
+                <div class="description">Off - RTCM in is prevented.</div>
+                <div class="instruction-list">
+                    <div class="task">No instructions.</div>
+                </div>
+            </div>
+
+            <!--- Bridge mode. --->
+            <div id="bridge" class="hide">
+                <div class="description"><span class="red">Bridge mode</span> - GNSS Master app (NTRIP client) on Mapping Device   
+                    retrieves RTCM from Internet NTRIP caster & sends to GhostRover via TCP/IP/WiFi.</div>
+                <div class="instruction-list">
+                    <div class="object">GhostRover</div>
+                    <div class="task"><span class="num">1.</span>Start (<i>GhostRover</i> WiFi autostarts)</div>
+                    <div class="object">Hot Spot Device</div>
+                    <div class="task"><span class="num">2.</span>Start <i>GNSSnet</i> WiFi, connect Internet</div>
+                    <div class="object">UI Device</div>
+                    <div class="task"><span class="num">3.</span>Connect to <i>GhostRover</i> WiFi</div>
+                    <div class="object">GR UI (menu page)</div>
+                    <div class="task"><span class="num">4.</span>connect GR WiFi client to <i>GNSSnet</i></div>
+                    <div class="object">Mapping Device</div>
+                    <div class="task"><span class="num">5.</span>Connect to <i>GNSSnet</i> WiFi</div>
+                    <div class="task"><span class="num">6.</span>GNSS Master - connect to GR using TCP</div>
+                    <div class="task"><span class="num">7.</span><span class="red">GNSS Master - connect to NTRIP caster</span></div>
+                    <div class="task"><span class="num">8.</span>GNSS Master - status connected?</div>
+                    <div class="task" ><span class="num">9.</span>SW Maps app - open project</div>
+                    <div class="object">GR UI (operate page)</div>
+                    <div class="task" ><span class="num">10.</span>Let GNSS numbers settle</div>
+                    <div class="task" ><span class="num">11.</span>NMEA LED blinking? (see step 6)</div>
+                    <div class="task" ><span class="num">12.</span>RTCM LED blinking? (see step 7)</div>
+                    <div class="task" ><span class="num">13.</span>RTK-Float/RTK-Fix? (see step 7)</div>
+                </div>
+            </div>
+
+            <!--- NTRIP mode. --->
+            <div id="ntrip" class="hide">
+                <div class="description"><span class="blue">NTRIP mode</span> - GhostRover NTRIP client retrieves RTCM
+                     corrections directly from Internet NTRIP caster.</div>
+                <div class="instruction-list">
+                    <div class="object">GhostRover</div>
+                    <div class="task"><span class="num">1.</span>Start (<i>GhostRover</i> WiFi autostarts)</div>
+                    <div class="object">Hot Spot Device</div>
+                    <div class="task"><span class="num">2.</span>Start <i>GNSSnet</i> WiFi, connect Internet</div>
+                    <div class="object">UI device</div>
+                    <div class="task"><span class="num">3.</span>Connect to <i>GhostRover</i> WiFi</div>
+                    <div class="object">GR UI (menu page)</div>
+                    <div class="task"><span class="num">4.</span>connect GR to <i>GNSSnet</i> WiFi</div>
+                    <div class="task"><span class="num">5.</span><span class="blue">connect GR to NTRIP caster</span></div>  
+                    <div class="object">Mapping device</div>
+                    <div class="task"><span class="num">6.</span>Connect to <i>GNSSnet</i> WiFi</div>
+                    <div class="task"><span class="num">7.</span>GNSS Master - connect to GR using TCP</div>
+                    <div class="task"><span class="num">8.</span>GNSS Master - status connected?</div>
+                    <div class="task" ><span class="num">9.</span>SW Maps app - open project</div>
+                    <div class="object">GR UI (operate page)</div>
+                    <div class="task" ><span class="num">10.</span>Let GNSS numbers settle</div>
+                    <div class="task" ><span class="num">11.</span>NMEA LED blinking? (see step 7)</div>
+                    <div class="task" ><span class="num">12.</span>RTCM LED blinking? (see step 5)</div>
+                    <div class="task" ><span class="num">13.</span>RTK-Float/RTK-Fix? (see step 5)</div>
+                </div>
+            </div>
+
+            <!--- Radio mode. --->
+            <div id="radio" class="hide">
+                <div class="description"><span class="green">Radio mode</span> - Local base station sends RCTM corrections to GhostRover 
+                    via point-to-point radio.</div>
+                <div class="instruction-list">
+                    <div class="object">GhostRover</div>
+                    <div class="task"><span class="num">1.</span>Start (<i>GhostRover</i> WiFi autostarts)</div>
+                    <div class="object">Hot Spot Device</div>
+                    <div class="task"><span class="num">2.</span>Start <i>GNSSnet</i> WiFi, connect Internet</div>
+                    <div class="object">UI Device</div>
+                    <div class="task"><span class="num">3.</span>Connect to <i>GhostRover</i> WiFi</div>
+                    <div class="object">Mapping Device</div>
+                    <div class="task"><span class="num">4.</span>Connect to <i>GNSSnet</i> WiFi</div>
+                    <div class="task"><span class="num">5.</span>GNSS Master - connect to GR using TCP</div>
+                    <div class="task"><span class="num">6.</span>GNSS Master - status connected?</div>
+                    <div class="task" ><span class="num">7.</span>SW Maps app - open project</div>
+
+                    <div class="object">Base station</div>
+                    <div class="task" ><span class="num">8.</span>Connect to GNSSnet WiFi</div>
+                    <div class="task"><span class="num">9.</span>connect Base to NTRIP caster</div>
+                    <div class="task" ><span class="num">10.</span>Set Base to "Assisted base" mode</div>
+                    <div class="task" ><span class="num">11.</span><span class="green">Set Base to "Base cast" mode</span></div>
+                    <div class="task" ><span class="num">12.</span>RTCM LED blinking? (see step 11)</div>
+                    <div class="object">GR UI (operate page)</div>
+                    <div class="task" ><span class="num">13.</span>Let GNSS numbers settle</div>
+                    <div class="task" ><span class="num">14.</span>NMEA LED blinking? (see step 5)</div>
+                    <div class="task" ><span class="num">15.</span>RTCM LED blinking? (see step 11)</div>
+                    <div class="task" ><span class="num">16.</span>RTK-Float/RTK-Fix? (see step 11)</div>
+                </div>
+            </div>
+        </section>
+
+    </body>
+</html>

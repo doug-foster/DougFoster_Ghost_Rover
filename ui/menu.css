@@ -12,11 +12,55 @@
  * @since  3.1.1  [2026-06-25-02:00pm] Regroup: upload to SD card.
  * @since  3.1.2  [2026-07-05-08:30pm] General cleanup.
  * @since  3.2.1  [2026-08-01-03:00pm] Moved styles to global.css, commented out menu.css.
+ * @since  3.3.4  [2026-09-17-09:45pm] Move restart, Internet, back to menu page.
+ * @since  3.4.1  [2025-10-26-04:45pm] Cleanup formatting.
  * @link   http://dougfoster.me.
-*/
+ */
 
 /**
- * -------------------------------------------------------------------------
+ * =========================================================================
  *  General.
- * -------------------------------------------------------------------------
-*/
+ * =========================================================================
+ */
+#internet-label,
+#ntrip-caster-label {
+    cursor: pointer;
+}
+.state {
+    margin-top: 3px;
+    font-size: 13px;
+}
+.wait {
+    color: var(--red-1);
+}
+.blink {
+  animation: fade 1.3s linear infinite;
+  color: black;
+}
+@keyframes fade {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.connecting,
+.connected {
+    font-family: monospace;
+    color: black;
+}
+.title .status {
+    margin-top: 5px;
+}
+.status {
+    font-family: monospace;
+    font-size: 90%;
+    font-style: italic;
+    color: var(--gray-2);
+}
+.note {
+    font-size: 90%;
+}
+#rtcm-status {
+    margin-top: 0;
+}
+#message-field {
+    margin-bottom: 5px;
+}

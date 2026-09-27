@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <!--
  * *************************************************************************
  *  Ghost Rover 3 - UI HTML.
@@ -26,10 +26,13 @@
  * @since  3.2.1  [2026-08-02-09:15am] MessageForm to MessageField
  * @since  3.2.1  [2026-08-07-09:15am] Added RTCM bridge mode.
  * @since  3.2.3  [2026-08-12-09:00pm] Add message-system-options.
+ * @since  3.4.0  [2026-09-20-09:00am] Added lock-avg-interval.
+ * @since  3.4.1  [2025-10-26-04:45pm] Cleanup formatting.
  * @link   http://dougfoster.me.
 -->
 
 <html>
+
     <!---- Head. ---->
     <head>
         <title>config</title>
@@ -39,13 +42,15 @@
         <script src="global.js" defer></script>
         <script src="config.js" defer></script>
     </head>
+
     <body>
+        
         <!---- Header. ---->
         <header>
-            <a class="new-page" href="menu.html">
+            <a href="menu.html">
                 <h1 class="red">Config</h1>
                 <div id="header-items">
-                    <div id="version-rover"></div>
+                    <div id="version-rover">x.x.x ...</div>
                 </div>
             </a>
         </header>
@@ -54,7 +59,8 @@
         <form id="config">
             <section class="grid-container collapsed">
 
-                <div class="config-section config-grid-buttons" id="system-options">  <!--- Button switches. --->
+                <!--- System options. --->
+                <div class="config-section config-grid-buttons" id="system-options">
                     <div class="group-label full-row section-heading">System options</div>
                     <div class="grid-item">Units</div>
                     <div id="set-unit" class="switch-field grid-item">
@@ -75,7 +81,7 @@
                         <input type="radio" id="rtcm-in-radio" name="switch-rtcm-in" value="radio" />
                         <label for="rtcm-in-radio">Radio</label>
                     </div>
-                    <div class="grid-item choose-caster hide">NTRIP caster</div>
+                    <div class="grid-item choose-caster hide">NTRIP</div>
                     <div id="ntrip-caster-active" class="switch-field grid-item choose-caster hide">
                         <input type="radio" id="ntrip-caster-1" name="switch-ntrip-caster-active" value="1" />
                         <label for="ntrip-caster-1">1</label>
@@ -84,10 +90,16 @@
                         <input type="radio" id="ntrip-caster-3" name="switch-ntrip-caster-active" value="3" />
                         <label for="ntrip-caster-3">3</label>
                     </div>
-                    <div id="message-system-options" class="note">&nbsp;</div>
+                    <div class="grid-item">Lock</div>   <!-- // Newest pref. -->
+                    <div class="grid-item">
+                        <input id="lock-avg-interval" type="text"/>
+                        <span id="lock-avg-interval-label">GNSS averaging interval (secs)</span>
+                    </div>
+                    <div id="message-system-options" class="note hide">&nbsp;</div>
                 </div>
 
-                <div class="config-section config-grid-fields field-group" id="instrument-heights">  <!--- Instrument height. --->
+                <!--- Instrument height. --->
+                <div class="config-section config-grid-fields field-group" id="instrument-heights">
                     <div class="group-label full-row section-heading">Instrument height</div>
                     <div>GhostRover + QR (<span id="height-units">--</span>)</div>
                     <div id="ghostrover-height"></div>
@@ -107,7 +119,8 @@
                     <div class="note plain"><sup>*</sup>Always saved as millimeters.</div>
                 </div>
 
-                <div class="config-section config-grid-fields field-group" id="generate-pvt">  <!--- GNSS measure interval & nav rate. --->
+                <!--- Generate PVT. --->
+                <div class="config-section config-grid-fields field-group" id="generate-pvt">
                     <!-- @see gnss.setMeasurementRate(100); -->
                     <div class="group-label full-row section-heading">Generate PVT</div>
                     <label for="gnss-measure-interval">Measure every (ms) *</label>
@@ -141,7 +154,8 @@
                     <div id="message-output-interval" class="note">* Output PVT every <span id="output-interval"></span> ms.</div>
                 </div>
 
-                <div class="config-section config-grid-fields field-group" id="wifi-hot-spot">  <!--- WiFi hotspot credentials. --->
+                <!--- WiFi station (client) mode. --->
+                <div class="config-section config-grid-fields field-group" id="wifi-hot-spot">
                     <div class="group-label full-row section-heading">WiFi (STA mode)</div>
                     <label for="hotspot-ssid">Connect to SSID</label>
                     <input type="text" id="hotspot-ssid" />
@@ -149,7 +163,8 @@
                     <input type="text" id="hotspot-password"/>
                 </div>
 
-                <div class="config-section config-grid-fields field-group" id="ntrip">  <!--- NTRIP. --->
+                <!--- NTRIP attributes. --->
+                <div class="config-section config-grid-fields field-group" id="ntrip">
                     <div class="group-label full-row section-heading">NTRIP attributes</div>
                     <label for="ntrip-caster">Caster</label>
                     <select id="ntrip-caster">
@@ -191,22 +206,26 @@
                      </div>
                 </div>
                
+                <!--- Update config. --->
                 <div id="update-config-btn" class="std-button">
                     <span class="label">Update</span>
                 </div>
-
                 <div id="reset-config-btn" class="std-button">
                     <span class="label">Defaults</span>
                 </div>
 
-                <div id="message-field" class="note">&nbsp;</div>  
+                <!--- Messages. --->
+                <div id="message-field" class="note hide">&nbsp;</div>  
             </section>
         </form>
+
+        <!--- Debug: messages to JS console. --->
         <div id="runtime-options">
             <label class="checkbox-container" id="js-console-messages"><span>Display WebSocket global console messages.</span>
                 <input type="checkbox">
                 <span class="checkmark"></span>
             </label>
         </div>
+
     </body>
 </html>

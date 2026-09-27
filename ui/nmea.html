@@ -14,10 +14,12 @@
  * @since  3.1.2  [2026-07-05-08:30pm] General cleanup.
  * @since  3.2.1  [2026-07-27-08:30am] Add webSocketNum.
  * @since  3.2.1  [2026-07-28-10:00am] Header items.
+ * @since  3.4.1  [2025-10-26-04:45pm] Cleanup formatting.
  * @link   http://dougfoster.me.
 -->
 
 <html>
+
     <!---- Head. ---->
     <head>
         <title>menu</title>
@@ -29,20 +31,22 @@
     </head>
 
     <body>
+
         <!---- Header. ---->
         <header>
-            <a class="new-page" href="menu.html">
+            <a href="menu.html">
                 <h1 class="red">NMEA</h1>
                 <div id="header-items">
-                    <div id="version-rover"></div>
+                    <div id="version-rover">x.x.x ...</div>
                 </div>
             </a>
         </header>
 
-        <!---- Section. ---->
+        <!---- NMEA output. ---->
         <section id="nmeaOutput">
             <div id="nmeaDisplay"></div>
             <div id="nmeaMessage"></div>
         </section>
+        
     </body>
 </html>

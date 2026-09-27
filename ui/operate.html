@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <!--
  * *************************************************************************
  *  Ghost Rover 3 - UI HTML.
@@ -24,10 +24,14 @@
  * @since  3.2.1  [2026-09-01-12:45pm] NMEA out changed from "BLE serial" to "TCP (9099)".
  * @since  3.3.5  [2026-09-08-07:30pm] Add #sivDisplay & spans to #state.
  * @since  3.4.0  [2026-09-13-05:30pm] Update RTCM in & NMEA out.
+ * @since  3.4.0  [2026-09-17-03:30pm] Vertical slider for numbers.
+ * @since  3.4.1  [2025-10-26-04:45pm] Cleanup formatting.
+ * @since  3.4.1  [2025-10-27-04:45pm] Correct pos-utm-north.
  * @link   http://dougfoster.me.
 -->
 
 <html>
+
     <!---- Head. ---->
     <head>
         <title>operate</title>
@@ -42,10 +46,10 @@
 
         <!--- Header. --->
         <header>
-            <a class="new-page" href="menu.html">
+            <a href="menu.html">
                 <h1 class="red">Ghost Rover</h1>
                 <div id="header-items">
-                    <div id="version-rover">x.x.x - Jul 28 2026 @ 09:08:32</div>
+                    <div id="version-rover">x.x.x ...</div>
                 </div>
             </a>
         </header>
@@ -74,8 +78,11 @@
                 </section>
 
                 <!-- Numbers. -->
-                <section class="numbers">
-                    <table>
+                <section class="numbers fixed-height">
+                    <table id="wgs84">
+                        <tr>
+                            <td id="reference-frame" class="title" colspan="3">WGS84 / ITRF2020</td>
+                        </tr>
                         <tr>
                             <td>Hgt (ellipsoid)</td>
                             <!-- 3 posn = 10 mm. -->
@@ -101,9 +108,49 @@
                             <td class="num">+/- <span class="hac">00.000</span></td>
                         </tr>       
                     </table>
+                    <table id="utm">
+                        <tr>
+                            <td class="title" colspan="3">UTM</td>
+                        </tr>
+                        <tr>
+                            <td>Grid Zone</td>
+                            <td id="pos-utm-zone" class="num" colspan="2">00X</td>
+                        </tr>
+                        <tr>
+                            <td>Easting (X)</td>
+                            <td id="pos-utm-east" class="num" colspan="2">000,000.000</td>
+                        </tr>
+                        <tr>
+                            <td>Northing (Y)</td>
+                            <td id="pos-utm-north" class="num" colspan="2">00,000,000.000</td>
+                        </tr>
+                        <tr>
+                            <td class="clear" colspan="3">&nbsp;</td>
+                        </tr>
+                    </table>
+                    <table id="ecef">
+                         <tr>
+                            <td class="title" colspan="3">ECEF</td>
+                        </tr>
+                        <tr>
+                            <td>X</td>
+                            <td id="pos-ecef-x" class="num" colspan="2">0,000,000.000</td>
+                        </tr>
+                        <tr>
+                            <td>Y</td>
+                            <td id="pos-ecef-y" class="num" colspan="2">-0,000,000.000</td>
+                        </tr>
+                        <tr>
+                            <td>Z</td>
+                            <td id="pos-ecef-z" class="num" colspan="2">0,000,000.000</td>
+                        </tr>
+                        <tr>
+                            <td class="clear" colspan="3">&nbsp;</td>
+                        </tr>
+                    </table>
                 </section>
 
-                <!-- Button. -->
+                <!-- Buttons. -->
                 <section class="buttons">
                     <div id="laser" class="oper-button">
                         <span class="icon">
@@ -314,7 +361,8 @@
                         </table>
                     </div>
                 </section>
-             </div>
+            </div>
        </section>
+
     </body>
 </html>

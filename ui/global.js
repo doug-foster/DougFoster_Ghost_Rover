@@ -26,23 +26,29 @@
  * @since  3.2.1  [2026-07-27-08:30am] Add webSocketNum.
  * @since  3.2.1  [2026-07-28-10:00am] Remove webSocketNum.
  * @since  3.2.1  [2026-07-28-04:45pm] Removed NMEA out switch & preference.
- * @since  3.2.1  [2026-08-02-09:30am] Move clearMessageField() here from operate.js.
+ * @since  3.2.1  [2026-08-02-09:30am] Move updateUi() here from operate.js.
  * @since  3.2.1  [2026-08-07-09:15am] Added RTCM bridge mode.
  * @since  3.2.2  [2026-08-09-04:45pm] Completed NTRIP logic.
  * @since  3.3.5  [2026-09-08-07:45pm] Add MIN_SATELLITE_THRESHHOLD & logic for #start in webSocketRcvMessage().
- * @since  3.3.5  [2026-09-08-08:00pm] Changed timeout from 6s to 8s in clearMessageField().
+ * @since  3.3.5  [2026-09-08-08:00pm] Changed timeout from 6s to 8s in updateUi().
  * @since  3.3.5  [2026-09-11-03:30pm] In webSocketRcvMessage(): increase decimal places: numLatitude & numLongitude from 8 to 9 decimal, numHeightElip & numHeightOrth from 3 to 4.
  * @since  3.4.0  [2026-09-13-05:30pm] Update RTCM in & NMEA out. Remove rtcmSource in webSocketRcvMessage().
-* @link   http://dougfoster.me.
-*/
+ * @since  3.3.4  [2026-09-17-09:45pm] Move restart, Internet, back to menu page. 
+ * @since  3.4.0  [2026-09-19-11:30am] Remove update() and const SEND_PREFS.
+ * @since  3.4.0  [2026-09-20-04:15pm] Add prfLckAvgInt.
+ * @since  3.4.0  [2026-09-22-09:30am] GNSS coordinate conversions.
+ * @since  3.4.1  [2025-10-26-04:45pm] Cleanup formatting.
+ * @since  3.4.1  [2025-10-27-11:15am] Add instructions page.
+ * @link   http://dougfoster.me.
+ */
 
 /**
  * =========================================================================
  *  Global vars.
  * =========================================================================
  *
- * @since  3.0.8 [2025-11-21-09:00am].
- * @since  3.0.12 [2026-02-09-01:45pm].
+ * @since  3.0.8  [2025-11-21-09:00am] New.
+ * @since  3.0.12 [2026-02-09-01:45pm] Refactor.
  * @since  3.0.12 [2026-02-28-02:15pm] Add WS_SOCKET_NUM.
  * @since  3.1.0  [2026-03-20-11:15am] Update var names.
  * @since  3.1.1  [2026-06-26-09:30pm] HEIGHT_QUICK_RELEASE, changed height values.
@@ -50,6 +56,8 @@
  * @since  3.1.2  [2026-07-16-10:00am] Add NTRIP.
  * @since  3.2.1  [2026-07-25-04:30pm] Add caster[{}].
  * @since  3.3.5  [2026-09-08-07:45pm] Add MIN_SATELLITE_THRESHHOLD.
+ * @since  3.3.5  [2026-09-19-11:15am] Add PAGE constant, change page name tests to use PAGE.
+ * @since  3.4.0  [2026-09-22-09:30am] GNSS coordinate conversions.
  * @see    setHeights() in config.js.
  * @see    Global vars () WebSockets) in DougFoster_Ghost_Rover.ino.
  */
@@ -57,6 +65,9 @@
 // --- Test. ---
 // const uploadUrl = 'https://httpbin.org/post';
 // const sdFiles   = ['file1.txt', 'file2.txt', 'file3.txt', 'file4.txt'];  // Test data.
+
+// --- Page. ---
+const PAGE = window.location.pathname.split("/").pop().split(".")[0];
 
 // --- HTTP. ---
 let ws_target = '';
@@ -76,7 +87,6 @@ const MIN_SATELLITE_THRESHHOLD = 2          // Mirror const in Ghost_Rover.ino.
 const newPage                  = document.querySelectorAll('a.new-page');
 const messageField             = document.querySelector('#message-field');
 let wsNumBytesThisMessage      = 0;         // # of bytes in this WebSocket message. @see webSocketRcvMessage().
-
 
 // --- Header. ---
 const ROVER_NAME              = 'GhostRover';
@@ -125,19 +135,19 @@ let heightPole               =    0;    // mm.
  *  Functions.
  * =========================================================================
  *
- * @since  3.0.3 [2025-10-16-01:45pm].
+ * @since  3.0.3 [2025-10-16-01:45pm] New.
  * @since  3.1.0 [2026-03-20-11:15am] Update var names.
  * @since  3.2.1 [2026-07-25-04:30pm] add toJson().
- * @since  3.2.1 [2026-08-02-09:30am] Move clearMessageField() here from operate.js.
+ * @since  3.2.1 [2026-08-02-09:30am] Move updateUi() here from operate.js.
  * @since  3.3.5 [2026-09-08-07:45pm] Add MIN_SATELLITE_THRESHHOLD & logic for #start in webSocketRcvMessage().
- * @see   webSocketInit()       - WebSocket: init.
- * @see   webSocketOpened()     - WebSocket: opened.
- * @see   webSocketClosed()     - WebSocket: closed.
- * @see   webSocketError()      - WebSocket: error.
- * @see   webSocketStop()       - WebSocket: stopped.
- * @see   webSocketRcvMessage() - WebSocket: message from server. Decode.
- * @see   toJson()              - WebSocket: Encode values into JSON.
- * @see   clearMessageField()   - Clear message field.
+ * @see    webSocketInit()       - WebSocket: init.
+ * @see    webSocketOpened()     - WebSocket: opened.
+ * @see    webSocketClosed()     - WebSocket: closed.
+ * @see    webSocketError()      - WebSocket: error.
+ * @see    webSocketStop()       - WebSocket: stopped.
+ * @see    webSocketRcvMessage() - WebSocket: message from server. Decode.
+ * @see    toJson()              - WebSocket: Encode values into JSON.
+ * @see    updateUi()            - in menu.js, update user interface.
  */
 
 /**
@@ -146,7 +156,7 @@ let heightPole               =    0;    // mm.
  * -------------------------------------------------------------------------
  *
  * @return void  No output is returned.
- * @since  3.0.3 [2025-10-13-02:15pm].
+ * @since  3.0.3 [2025-10-13-02:15pm] New.
  * @since  3.1.0 [2026-03-20-11:15am] Update var names.
  */
 function webSocketInit() {
@@ -164,9 +174,10 @@ function webSocketInit() {
  * -------------------------------------------------------------------------
  *
  * @return void  No output is returned.
- * @since. 3.0.7  [2025-11-15-12:30pm].
+ * @since. 3.0.7  [2025-11-15-12:30pm] New.
  * @since. 3.0.10 [2026-01-07-05:30pm] Removed ready handshake.
  * @since  3.1.0  [2026-03-20-11:15am] Update var names.
+ * @since  3.4.0  [2026-09-19-11:30am] Remove update() and const SEND_PREFS.
  */
 function webSocketOpened(event) {
 
@@ -174,7 +185,9 @@ function webSocketOpened(event) {
     console.log('WebSocket opened to ' + wsEndpoint + '.');
     headerH1.textContent = ROVER_NAME;
     headerH1.classList.remove('red');
-    update();   // Different for every page.js.
+    let firstMessage = '{"page":"' + PAGE +'","sendPrefs":""}';
+    websocket.send(firstMessage);  // Send first message.
+    console.log('browser --> ' + firstMessage);
 }
 
 /**
@@ -292,6 +305,7 @@ async function webSocketStop(event) {
  *     49 = NTRIP caster user               (struct ntripCasterProfile ntripCaster.user    - char user[48]).
  *     50 = NTRIP caster password           (struct ntripCasterProfile ntripCaster.pass    - char user[48]).
  *     51 = NTRIP caster sendGga            (struct ntripCasterProfile ntripCaster.sendGga - bool ).
+ *     52 = GNSS lock averaging interval    (uint16_t prfLckAvgInt).
  *
  * @return void  No output is returned.
  * @since  3.0.7 [2025-11-15-02:00pm].
@@ -311,7 +325,9 @@ async function webSocketStop(event) {
  * @since  3.3.5  [2026-09-08-07:45pm] Add MIN_SATELLITE_THRESHHOLD & logic for #start on "operate" page.
  * @since  3.3.5  [2026-09-11-03:30pm] Increase decimal places: numLatitude & numLongitude from 8 to 9 decimal, numHeightElip & numHeightOrth from 3 to 4.
  * @since  3.4.0  [2026-09-13-05:30pm] Update RTCM in & NMEA out. Remove rtcmSource for "operate" page.
-* @see    filesMessage() in files.js.
+ * @since  3.4.0  [2026-09-20-05:30pm] Add prfLckAvgInt.
+ * @since  3.4.1  [2025-10-27-11:15am] Add instructions page.
+ * @see    filesMessage() in files.js.
  */
 function webSocketRcvMessage(event) {
 
@@ -345,6 +361,7 @@ function webSocketRcvMessage(event) {
         prfHotPas                   = jsonObj["7"];
         hotspotIp                   = jsonObj["34"];
         prfInstrHght                = jsonObj["36"];
+        prfLckAvgInt                = jsonObj["52"];        // Newest pref.
         ntripCasterAttributes[1]    = jsonObj["39"];
         ntripCasterAttributes[2]    = jsonObj["40"];
         ntripCasterAttributes[3]    = jsonObj["41"];
@@ -369,7 +386,7 @@ function webSocketRcvMessage(event) {
     }
 
     // --- Config page. ---
-    if ((window.location.pathname.includes('config') && (Object.keys(jsonObj).length > 1))) {
+    if (('config' == PAGE) && (Object.keys(jsonObj).length > 1)) {
         document.querySelector('input[name="switch-unit"][value="'    + jsonObj["1"] + '"]').checked = true;
         document.querySelector('input[name="switch-rtcm-in"][value="' + jsonObj["2"] + '"]').checked = true;
         if(prfRtcIn == 'ntrip') {
@@ -386,10 +403,11 @@ function webSocketRcvMessage(event) {
         document.querySelector('input[name="switch-ntrip-caster-active"][value="' + prfNtripCasterAct +'"]').checked = true;
         ntripCaster.value     = prfNtripCasterAct;
         ntripAttributes('load');                    // Load UI fields.
+        gnsLckAvgIntrvl.value = jsonObj["52"];      // Newest pref.
     }
 
     // --- Files page. ---
-    if (window.location.pathname.includes('files')) {
+    if ('files' == PAGE) {
 
         if (undefined !== jsonObj["fileList"]) {
             fileListBuild(jsonObj["fileList"]);
@@ -411,8 +429,7 @@ function webSocketRcvMessage(event) {
     }
 
     // --- NMEA page. ---
-    // if (window.location.pathname.includes('nmea') && (undefined == jsonObj["sendPrefsResp"])) {. // ToDo: Remove.
-    if (window.location.pathname.includes('nmea') && ('' !== jsonObj["NMEA"])) {
+    if (('nmea' == PAGE) && ('' !== jsonObj["NMEA"])) {
         if (nmeaSentenceCount <= nmeaSentencesToDisplay) {
             if ((0 == (nmeaSentenceCount % 10)) || (0 == nmeaSentenceCount)) {
                 // --- Make a timestamp. ---
@@ -450,7 +467,7 @@ function webSocketRcvMessage(event) {
     }
 
     // --- Operate page. ---
-    if (window.location.pathname.includes('operate')) {
+    if ('operate' == PAGE) {
 
         if (jsonObj["sendPrefsResp"]) {
 
@@ -506,6 +523,9 @@ function webSocketRcvMessage(event) {
             // -- {"36":1201}. --
             statusInstrumentHeight.textContent = jsonObj["36"].toLocaleString();
 
+            // -- {"53":10}. --
+            prfLckAvgInt = jsonObj["52"];      // Newest pref.
+
         } else {
 
             // -- {"8":1}. --
@@ -524,16 +544,32 @@ function webSocketRcvMessage(event) {
             }
 
             // -- {"10":"xx.xx"} 3 posn = 10 mm. --
-            numHeightElip.innerHTML = (Math.round(jsonObj["10"] * 100) / 100 * convert).toFixed(4);
+            heightElip = (Math.round(jsonObj["10"] * 100) / 100 * convert).toFixed(3);
+            numHeightElip.innerHTML = heightElip;
 
             // -- {"11":"127.05"}. 3 posn = 10 mm. --
-            numHeightOrth.innerHTML = (Math.round(jsonObj["11"] * 100) / 100 * convert).toFixed(4);
+            heightOrth = (Math.round(jsonObj["11"] * 100) / 100 * convert).toFixed(3);
+            numHeightOrth.innerHTML = heightOrth;
 
             // -- {"12":"35.60599395,"} 8 posn = 1.11 mm. --
-            numLatitude.innerHTML = (Math.round(jsonObj["12"] * 100000000) / 100000000).toFixed(9);
+            latitude = (Math.round(jsonObj["12"] * 100000000) / 100000000).toFixed(9);
+            numLatitude.innerHTML = latitude;
 
             // -- {"13":"-78.79439717"} 8 posn = 1.11 mm. --
-            numLongitude.innerHTML = (Math.round(jsonObj["13"] * 100000000) / 100000000).toFixed(9);
+            longitude = (Math.round(jsonObj["13"] * 100000000) / 100000000).toFixed(9);
+            numLongitude.innerHTML = longitude;
+
+            // -- Calculate ECEF values. --
+            GnssPosECEF = llhToECEF(latitude, longitude, heightElip);
+            numEcefX.innerHTML = GnssPosECEF.x.toFixed(4);
+            numEcefY.innerHTML = GnssPosECEF.y.toFixed(4);
+            numEcefZ.innerHTML = GnssPosECEF.z.toFixed(4);
+
+            // -- Calculate UTM values. --
+            GnssPosUTM = llToUTM(latitude, longitude);
+            numPosUtmZone.innerHTML  = GnssPosUTM.zone + GnssPosUTM.hemisphere;
+            numPosUtmEast.innerHTML  = GnssPosUTM.easting.toFixed(4);
+            numPosUtmNorth.innerHTML = GnssPosUTM.northing.toFixed(4);
 
             // -- {"14":"0.016"}. --
             numHAC.forEach(hac => {
@@ -609,7 +645,7 @@ function webSocketRcvMessage(event) {
 
             // -- {"34":"172.20.10.3"}. --
             statusHotspotIpId.textContent = jsonObj["34"];
-            if (jsonObj["34"].length > 0) {         // Status for WiFi client.
+            if (jsonObj["34"].length > 0) {         // Status for Internet.
                 statusHotspotIpId.textContent = jsonObj["34"];
                 statusWifiMode.textContent += '/Client';
             } else {
@@ -629,31 +665,28 @@ function webSocketRcvMessage(event) {
         }
     }
 
-    // --- NTRIP page. ---
-    if (window.location.pathname.includes('ntrip')) {
+    // --- Menu page. ---
+    if ('menu' == PAGE) {
 
-        // -- WiFi client. --
-        if (undefined !== jsonObj["connectWifiClientResp"]) {
+        // -- Internet. --
+        if (undefined !== jsonObj["connectInternetResp"]) {
 
             // - Add response to message field. -
-            messageField.innerText += '<-- ' + jsonObj["connectWifiClientResp"] + '\n';
+            messageField.innerText += '<-- ' + jsonObj["connectInternetResp"] + '\n';
 
             // - Failed. Update display. -
             if (messageField.innerText.includes('ABORTED'))  {
-                wifiClientIsNotConnected();
-                clearMessageField();            // Clear after tiemout.
+                updateUi('internetIsNotConnected');
             }
             // - Success. Update display. -
-            if (messageField.innerText.includes('CONNECTED to SSID')) {
-                wifiClientIsConnected();
-                clearMessageField();            // Clear after tiemout.
+            if (messageField.innerText.includes('CONNECTED to Internet')) {
+                updateUi('internetIsConnected');
             }
-        } else if (undefined !== jsonObj["disconnectWifiClientResp"]) {
+        } else if (undefined !== jsonObj["disconnectInternetResp"]) {
 
             // - Add response to message field. -
-            messageField.innerText += '<-- ' + jsonObj["disconnectWifiClientResp"] + '\n';
-            wifiClientIsNotConnected();
-            clearMessageField();
+            messageField.innerText += '<-- ' + jsonObj["disconnectInternetResp"] + '\n';
+            updateUi('internetIsNotConnected');
         }
 
         // -- NTRIP caster. --
@@ -666,29 +699,36 @@ function webSocketRcvMessage(event) {
             if ((messageField.innerText.includes('FAILED')) || 
                 (messageField.innerText.includes('REJECTED')) ||
                 (messageField.innerText.includes('DISCONNECTED')))  {
-                ntripCasterIsNotConnected();
-                clearMessageField();            // Clear after tiemout.
+                updateUi('ntripCasterIsNotConnected');
             }
 
             // - Success. Update display. -
             if ((messageField.innerText.includes('SUCCESS')) ||
                 (messageField.innerText.includes('NTRIP CONNECTED')) ||
                 (messageField.innerText.includes('NTRIP still CONNECTED'))) {
-                ntripCasterIsConnected();
-                clearMessageField();            // Clear after tiemout.
+                updateUi('ntripCasterIsConnected');
             }
         } else if (undefined !== jsonObj["disconnectNtripCasterResp"]) {
 
             // - Add response to message field. -
             messageField.innerText += '<-- ' + jsonObj["disconnectNtripCasterResp"] + '\n';
-            ntripCasterIsNotConnected();
-            clearMessageField();
+            updateUi('ntripCasterIsNotConnected');
         }
 
         // - RTCM sentence count. -
         if (undefined !== jsonObj["37"]) {
             rtcmSentenceCount.innerText = jsonObj["37"];
         }
+    }
+
+    // --- Instructions page. ---
+    if ('instructions' == PAGE) {
+        if(prfRtcIn) {
+            rtcmSelect.value = prfRtcIn;    // Set to preference value.
+        } else {
+            rtcmSelect.value = 'off';       // Set to off.
+        }
+        showRtcmInstruction();
     }
 }
 
@@ -701,6 +741,7 @@ function webSocketRcvMessage(event) {
  * @return void  No output is returned.
  * @since  3.1.2 [2026-07-25-04:15pm] New.
  * @since  3.3.1 [2026-08-27-04:45pm] ["JsonDocNtrip["43,47,48, 51"] from str to int.
+ * @since  3.4.0  [2026-09-20-04:15pm] Add prfLckAvgInt.
  * @see    webSocketRcvMessage() in global.js.
  * @see    ntripAttributes() in config.js.
  * @see    updateConfigBtn.addEventListener() in config.js.
@@ -725,7 +766,8 @@ function toJson(which) {
                       "39" : ntripCasterAttributes[1],                            // ntripCasterAttributes[1].
                       "40" : ntripCasterAttributes[2],                            // ntripCasterAttributes[2].
                       "41" : ntripCasterAttributes[3],                            // ntripCasterAttributes[3].
-                      "42" : switchNtripCasterActive                              // prfNtripCasterAct.
+                      "42" : switchNtripCasterActive,                             // prfNtripCasterAct.
+                      "52" : gnsLckAvgIntrvl.value                                // prfLckAvgInt.          // Newest pref.
             } )
             break;
         case 'ntripAttributes':
@@ -749,25 +791,11 @@ function toJson(which) {
 }
 
 /**
- * -------------------------------------------------------------------------
- *  Clear message field.
- * -------------------------------------------------------------------------
- * 
- * @return void  No output is returned.
- * @since  3.0.12 [2026-02-07-11:00am] New.
- * @since  3.2.1  [2026-08-02-09:30am] Move clearMessageField() here from operate.js.
- * @since  3.3.5  [2026-09-08-08:00pm] Changed timeout from 6s to 8s.
- */
-function clearMessageField() {
-    setTimeout(function() { messageField.innerHTML = "&nbsp;"; }, 8000);
-}
-
-/**
  * =========================================================================
  *  Event listeners.
  * =========================================================================
  *
- * @since  3.0.3 [2025-10-16-01:45pm].
+ * @since  3.0.3 [2025-10-16-01:45pm] New.
  */
 
 /**
@@ -776,7 +804,7 @@ function clearMessageField() {
  * -------------------------------------------------------------------------
  *
  * @return void   No output is returned.
- * @since  3.0.3  [2025-10-22-01:30pm].
+ * @since  3.0.3  [2025-10-22-01:30pm] New.
  * @since  3.0.12 [2026-02-15-03:30pm] Moved reconnect from webSocketClosed().
  */
 
@@ -805,7 +833,7 @@ function clearMessageField() {
  *  Test.
  * =========================================================================
  *
- * @since  3.0.3 [2025-10-16-10:00am].
+ * @since  3.0.3 [2025-10-16-10:00am] New.
  */
 
 /**
@@ -813,5 +841,5 @@ function clearMessageField() {
  *  Run on page load.
  * =========================================================================
  *
- * @since  3.0.3 [2025-10-16-10:00am].
+ * @since  3.0.3 [2025-10-16-10:00am] New.
  */

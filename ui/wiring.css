@@ -3,18 +3,20 @@
  *  Ghost Rover 3 - UI CSS.
  * *************************************************************************
  *
- * restart.css
+ * wiring.css
  *
  * @author D. Foster <doug@dougfoster.me>.
- * @since  3.2.1 [2026-07-31-02:15pm]. New.
- * @since  3.2.1  [2026-08-01-03:00pm] Moved styles to global.css, commented out restart.css.
+ * @since  3.4.1 [2025-10-27-04:00pm] New.
  * @link   http://dougfoster.me.
-*/
+ */
 
 /**
  * =========================================================================
- *  General.
+ *  Images.
  * =========================================================================
  *
- * @since  3.2.1 [2026-07-31-02:15pm]. New.
+ * @since 3.4.1 [2025-10-27-04:00pm] New.
  */
+ #images #wiring-diagram {
+    max-width: 100%;
+ }

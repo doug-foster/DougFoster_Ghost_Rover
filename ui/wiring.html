@@ -1,41 +1,44 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <!--
  * *************************************************************************
  *  Ghost Rover 3 - UI HTML.
  * *************************************************************************
  *
- * rtcm.html
+ * wiring.html
  *
  * @author D. Foster <doug@dougfoster.me>.
- * @since  3.2.1 [2026-07-31-02:15pm]. New.
+ * @since  3.4.1 [2025-10-27-04:30pm] New.
  * @link   http://dougfoster.me.
 -->
 
 <html>
+
     <!---- Head. ---->
     <head>
-        <title>menu</title>
+        <title>wiring</title>
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <link rel="stylesheet" type="text/css" href="global.css">
-        <link rel="stylesheet" type="text/css" href="rtcm.css">
+        <link rel="stylesheet" type="text/css" href="wiring.css">
         <script src="global.js" defer></script>
-        <script src="rtcm.js" defer></script>
+        <script src="wiring.js" defer></script>
     </head>
 
     <body>
+
         <!---- Header. ---->
         <header>
-            <a class="new-page" href="menu.html">
-                <h1 class="red">RTCM</h1>
+            <a href="menu.html">
+                <h1 class="red">Wiring</h1>
                 <div id="header-items">
-                    <div id="version-rover"></div>
+                    <div id="version-rover">x.x.x ...</div>
                 </div>
             </a>
         </header>
 
-        <!---- Section. ---->
-        <section id="ntrip">
-            <div><br>RTCM</div>
+        <!---- Images. ---->
+        <section id="images">
+                <img id="wiring-diagram" src="wiring.png" alt="GhostRover wiring diagram.">
         </section>
+
     </body>
 </html>

@@ -22,14 +22,16 @@
  * @since  3.5.5  [2026-09-11-03:45pm] Increased width of numbers table from 96% to 100%.
  * @since  3.3.5  [2026-09-11-09:45pm] Add orange-1.
  * @since  3.4.0  [2026-09-13-02:30pm] Height/position lock/unlock.
+ * @since  3.4.0  [2026-09-17-03:00pm] Vertical slider for numbers.
+ * @since  3.4.1  [2025-10-26-04:45pm] Cleanup formatting.
  * @link   http://dougfoster.me.
-*/
+ */
 
 /**
- * -------------------------------------------------------------------------
+ * =========================================================================
  *  Operation: Fix state.
- * -------------------------------------------------------------------------
-*/
+ * =========================================================================
+ */
 .fix {
     margin-top: 25px;
 }
@@ -91,19 +93,27 @@
     animation: blink-animation 1s infinite; /* 1s duration, infinite loop */
 }
 .blink-fast {
-    animation: blink-animation 0.4s infinite; /* 0.2s duration, infinite loop */
+    animation: blink-animation 0.8s infinite;
 }
 
 /**
- * -------------------------------------------------------------------------
+ * =========================================================================
  *  Operation: numbers.
- * -------------------------------------------------------------------------
-*/
+ * =========================================================================
+ */
 .numbers {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scroll-snap-type: y mandatory;
     margin: 10px 0 20px 0;
 }
 .numbers table {
-    width: 100%;
+    flex: 0 0 100%;
+    display: flex;
+    scroll-snap-align: start;
     margin: auto;
 }
 .numbers td {
@@ -117,12 +127,41 @@
     background-color: var(--black-2);
     color: #ffffff;
 }
+.numbers::-webkit-scrollbar {
+    display: none;
+}
+.numbers.fixed-height {
+    height: 162px;
+}
+.numbers td:first-of-type {
+    width: 138px;
+}
+.numbers table#wgs84 td:nth-of-type(2) {
+    width: 125px;
+}
+.numbers table#utm  td:nth-of-type(2),
+.numbers table#ecef td:nth-of-type(2) {
+    width: 260px;
+}
+.numbers table#utm  td:last-of-type,
+.numbers table#ecef td:last-of-type {
+    background-color: none;
+}
+.numbers td.title {
+    text-align: center;
+}
+.numbers td.clear {
+    background-color: unset;
+}
+.remove {
+    position: absolute;
+}
 
 /**
- * -------------------------------------------------------------------------
+ * =========================================================================
  *  Operation: buttons.
- * -------------------------------------------------------------------------
-*/
+ * =========================================================================
+ */
 .buttons .oper-button {
     display: flex;
     color: #ffffff;
@@ -215,10 +254,10 @@
 }
 
 /**
- * -------------------------------------------------------------------------
+ * =========================================================================
  *  Operation: info.
- * -------------------------------------------------------------------------
-*/
+ * =========================================================================
+ */
 .info .item {
     display: flex;
     align-items: center;
@@ -314,10 +353,10 @@
 }
 
 /**
- * -------------------------------------------------------------------------
+ * =========================================================================
  *  Operation: status.
- * -------------------------------------------------------------------------
-*/
+ * =========================================================================
+ */
 .status {
     margin: 15px 0 20px 0;
 }

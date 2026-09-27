@@ -1,0 +1,194 @@
+ <!DOCTYPE html>
+<!--
+ * *************************************************************************
+ *  Ghost Rover 3 - UI HTML.
+ * *************************************************************************
+ *
+ * debug.html
+ *
+ * @author D. Foster <doug@dougfoster.me>.
+ * @since  3.4.0 [2026-09-19-10:45pm] New.
+ * @since  3.4.1 [2025-10-26-04:45pm] Cleanup formatting.
+ * @link   http://dougfoster.me.
+-->
+
+<html>
+
+    <!---- Head. ---->
+    <head>
+        <title>menu</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" type="text/css" href="global.css">
+        <link rel="stylesheet" type="text/css" href="debug.css">
+        <script src="global.js" defer></script>
+        <script src="debug.js" defer></script>
+    </head>
+
+    <body>
+        
+        <!---- Header. ---->
+        <header>
+            <a href="menu.html">
+                <h1 class="red">Debug</h1>
+                <div id="header-items">
+                    <div id="version-rover">x.x.x ...</div>
+                </div>
+            </a>
+        </header>
+
+        <!---- Debug choices. ---->
+        <section id="debug-choices">
+            <div id="test-rad" class="choice">Test Radio
+                <div class="explain-debug">
+                    debug() HC-12 radio "AT" command set test.
+                    prfRtcmInSource must be set to 'radio'.
+                    Serial USB connection required.
+                </div>
+            </div>
+
+            <div id="debug-rtcm" class="choice">Debug RTCM in
+                <div class="explain-debug">
+                    relayRtcmByte() Sync error, RTCM sentence summary.
+                    taskEvery10000Ms() last $GGA to NTRIP.
+                </div>
+            </div>
+
+            <div id="debug-gnss" class="choice">Debug GNSS (parkFun_u-blox_GNSS_v3)
+                <div class="explain-debug">
+                    debug() roverGNSS.enableDebugging() / roverGNSS.disableDebugging() for instance of SFE_UBLOX_GNSS object.
+                </div>
+            </div>
+
+            <div id="debug-nmea" class="choice">Debug NMEA (F9P)
+                <div class="explain-debug">
+                    DevUBLOXGNSS::processNMEA() Buffer overflow error, NMEA sentence from F9P in char[]. 
+                </div>
+            </div>
+
+            <div id="debug-nmea-hex" class="choice">Debug NMEA Hex (F9P)
+                <div class="explain-debug">
+                    DevUBLOXGNSS::processNMEA() Buffer overflow error, NMEA sentence from F9P in char[] & hex. 
+                </div>
+            </div>
+
+            <div id="debug-nmea-counts" class="choice">Debug NMEA Counts (F9P)
+                <div class="explain-debug">
+                    debug() NMEA sentence counts from F9P for "All/GGA/RMC/GSA/GSV/GST/TXT/other" types.
+                </div>
+            </div>
+
+            <div id="debug-nmea-sent" class="choice">Debug NMEA (Sent)
+                <div class="explain-debug">
+                    DevUBLOXGNSS::processNMEA() Quantity of NMEA bytes sent out to TCP client. 
+                </div>
+            </div>
+
+            <div id="debug-wifi-events" class="choice">Debug WiFi Events
+                <div class="explain-debug">
+                    processMessagesIn() Messages: prefs sent, still connnected, connect, attempt, aborted, disconnect.
+                    onWiFiEvent() events.
+                </div>
+            </div>
+
+            <div id="debug-ntrip" class="choice">Debug NTRIP
+                <div class="explain-debug">
+                    taskRtcmRelay() disconnect (timeout/drop) messages.
+                    taskEvery10000Ms() last $GGA to NTRIP.
+                    processMessagesIn() messages: still connected, connect, authenticating, authentication failed, success, rejected, disconnect.
+                </div>
+            </div>
+
+            <div id="debug-ws-events" class="choice">Debug WebSocket Events
+                <div class="explain-debug">
+                    onWebSocketEvent() Messages: connect, disconnect.
+                </div>
+            </div>
+
+            <div id="debug-ws-traffic" class="choice">Debug WebSocket Traffic
+                <div class="explain-debug">
+                    sendDataToBrowser() Disp;lay all WebSocket messages to browser UI.
+                </div>
+            </div>
+
+            <div id="debug-prefs" class="choice">Debug NVS Prefs
+                <div class="explain-debug">
+                    debug() prefUtility(PREF_PRINT) once only. prefUtility(PREF_PRINT) set, read, reset, print.
+                </div>
+            </div>
+
+            <div id="debug-file-system" class="choice">Debug File System
+                <div class="explain-debug">
+                    startHttpServer() Messages: upload, download, error (file not found).
+                    onHttpFileUpload() Messages: running, deleted, error (can't open file), bytes written, closed.
+                </div>
+            </div>
+
+            <div id="debug-btns" class="choice">Debug "Operate" Buttons
+                <div class="explain-debug">
+                    buildOperData() Display actions of Laser/Height/Position/Lock buttons.
+                </div>
+            </div>
+
+            <div id="debug-lipo" class="choice">Debug LIPO
+                <div class="explain-debug">
+                    debug() lipo.enableDebugging() / lipo.disableDebugging();
+                </div>
+            </div>
+
+            <div id="show-uptime" class="choice">Show Uptime
+                <div class="explain-debug">
+                    debug() Display time since boot.
+                </div>
+            </div>
+
+            <div id="restart" class="choice">Restart
+                <div class="explain-debug">
+                    debug() Run esp_restart(). Same functionality as Restart menu button.
+                </div>
+            </div>
+
+            <div id="debug-ser" class="choice">Debug Serial
+                <div class="explain-debug">
+                    debug() Show state of serial interfaces.
+                </div>
+            </div>
+
+            <div id="debug-heap" class="choice">Debug Heap
+                <div class="explain-debug">
+                    debug() Show heap memory usage.
+                </div>
+            </div>
+
+            <div id="debug-loop-stack" class="choice">Debug Loop Stack
+                <div class="explain-debug">
+                    debug() Show stack memory usage used by loop().
+                </div>
+            </div>
+
+            <div id="debug-temp" class="choice">Debug Temp
+                <div class="explain-debug">
+                    Temporary debug.
+                </div>
+            </div>
+
+            <div id="debug-timers" class="choice">Debug Timers
+                <div class="explain-debug">
+                    Not used. Debug esp_timer_get_time().
+                </div>
+            </div>
+        </section>
+
+        <!---- Buttons. ---->
+        <section id="buttons">
+            <a href="http://192.168.23.1/log.txt" target="_blank">
+                <button id="view" class="std-button">
+                    <span class="label">Log</span>
+                </button>
+            </a>
+            <button id="unDebug" class="std-button">
+                <span class="label">Undebug</span>
+            </button>
+        </section>
+
+    </body>
+</html>

@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <!--
  * *************************************************************************
  *  Ghost Rover 3 - UI HTML.
@@ -17,40 +17,54 @@
  * @since  3.2.1  [2026-07-28-10:00am] Header items.
  * @since  3.2.1  [2026-07-31-11:30am] Add "RTCM" & "NTRIP" buttons. Reorder.
  * @since  3.2.1  [2026-08-01-04:30pm] Add button-group. Moved styles to global.css. Reordered buttons.
+ * @since  3.3.4  [2026-09-17-09:45pm] Move restart, Internet, back to menu page.
+ * @since  3.3.4  [2026-09-19-09:15am] Move debug from serial to web page.
+ * @since  3.4.1  [2025-10-27-04:15pm] Cleanup formatting.
  * @link   http://dougfoster.me.
 -->
 
 <html>
+
     <!---- Head. ---->
     <head>
         <title>menu</title>
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <link rel="stylesheet" type="text/css" href="global.css">
-        <!-- <link rel="stylesheet" type="text/css" href="menu.css"> -->
+        <link rel="stylesheet" type="text/css" href="menu.css">
         <script src="global.js" defer></script>
         <script src="menu.js" defer></script>
     </head>
 
     <body>
+
         <!---- Header. ---->
         <header>
-            <a class="new-page" href="menu.html">
+            <a href="menu.html">
                 <h1 class="red">Menu</h1>
                 <div id="header-items">
-                    <div id="version-rover"></div>
+                    <div id="version-rover">x.x.x ...</div>
                 </div>
             </a>
         </header>
 
         <!---- Menu. ---->
         <section id="menu-items">
-            <!--- Buttons. --->
+
+            <!--- Menu buttons. --->
             <div class="button-group">
-                <a id="operate" class="std-button" href="operate.html">
-                    <span class="label">Operate</span>
+                <a id="operation" class="std-button" href="instructions.html">
+                    <span class="label">Instructions</span>
                 </a>
-                <a id="ntrip" class="std-button" href="ntrip.html">
+                <a id="wiring" class="std-button" href="wiring.html">
+                    <span class="label">Wiring</span>
+                </a>
+                <a id="internet" class="std-button">
+                    <span class="label">Internet</span>
+                    <div class="state"></div>
+                </a>
+                <a id="ntrip-caster" class="std-button">
                     <span class="label">NTRIP</span>
+                    <div class="state"></div>
                 </a>
                 <a id="config" class="std-button" href="config.html">
                     <span class="label">Config</span>
@@ -58,18 +72,24 @@
                 <a id="files" class="std-button" href="files.html">
                     <span class="label">Files</span>
                 </a>
-                <a id="restart" class="std-button" href="restart.html">
+                <a id="operate" class="std-button" href="operate.html">
+                    <span class="label">Operate</span>
+                </a>
+                <a id="restart" class="std-button">
                     <span class="label">Restart</span>
                 </a>
-                <span class="empty-button"></span>
+                <a id="debug" class="std-button" href="debug.html">
+                    <span class="label">Debug</span>
+                </a>
                 <a id="nmea" class="std-button" href="nmea.html">
                     <span class="label">NMEA</span>
                 </a>
-                <a id="rtcm" class="std-button" href="rtcm.html">
-                    <span class="label">RTCM</span>
-                </a>
-
             </div>
+
+            <!--- Messages. --->
+            <div id="message-field" class="note hide">&nbsp;</div>
+            <div id="rtcm-status" class="note hide"><span id="rtcm-sentence-count">0</span><span> RTCM sentences received.</span></div>
         </section>
+
     </body>
 </html>

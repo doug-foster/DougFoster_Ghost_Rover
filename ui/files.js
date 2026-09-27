@@ -7,7 +7,6 @@
  *
  * @author D. Foster <doug@dougfoster.me>.
  * @since  3.0.7 [2025-11-11-05:30pm].
- * @since  3.0.12 [2026-02-07-07:30am] Add SEND_PREFS.
  * @since  3.0.12 [2026-02-25-10:30pm] Websocket send - preserve KV pair order by changing JSON data to array.
  * @since  3.0.12 [2026-02-26-11:00am] Check download/upload for host 127.0.0.x.
  * @since  3.1.0  [2026-03-02-05:00pm] Stable 3.0 version.
@@ -17,17 +16,19 @@
  * @since  3.2.1  [2026-07-25-08:45pm] Update JSON messages.
  * @since  3.2.1  [2026-07-27-10:00am] Removed filesMessage(), moved to webSocketRcvMessage() in global.js.
  * @since  3.2.1  [2026-08-16-11:45am] Removed [] from "Button: delete a file."
+ * @since  3.4.0  [2026-09-19-11:30am] Remove update() and const SEND_PREFS.
+ * @since  3.4.1  [2025-10-26-04:45pm] Cleanup formatting.
  * @link   http://dougfoster.me.
-*/
+ */
 
 /**
  * =========================================================================
  *  Global vars.
  * =========================================================================
  *
- * @since 3.0.7 [2025-11-11-03:30pm].
- * @since 3.0.12 [2026-02-07-07:30am] Add SEND_PREFS.
- * @since 3.0.12 [2026-02-25-10:30pm] Websocket send - preserve KV pair order by changing JSON data to array. 
+ * @since 3.0.7  [2025-11-11-03:30pm] New.
+ * @since 3.0.12 [2026-02-25-10:30pm] Websocket send - preserve KV pair order by changing JSON data to array.
+ * @since 3.4.0  [2026-09-19-11:30am] Remove update() and const SEND_PREFS.
  */
 
 // --- General. ---
@@ -39,7 +40,6 @@ let droppedFiles     = null;
 const listUrl        = '/list';
 const uploadUrl      = '/upload';
 const fileList       = document.querySelector('#file-list');
-const SEND_PREFS     = '{"page":"files","sendPrefs":""}';
 const LIST_FILES     = '{"page":"files","listFiles":""}';
 
 
@@ -48,9 +48,8 @@ const LIST_FILES     = '{"page":"files","listFiles":""}';
  *  Functions.
  * =========================================================================
  *
- * @since 3.0.7 [2025-11-11-03:30pm].
- * @since 3.0.12 [2026-02-07-07:30am] Add SEND_PREFS.
- * @see   update()             - Update server.
+ * @since 3.0.7 [2025-11-11-03:30pm] New.
+ * @since 3.4.0 [2026-09-19-11:30am] Remove update() and const SEND_PREFS.
  * @see   fileListRequest()    - File list - request.
  * @see   fileListBuild()      - File list - build.
  * @see   uploadDroppedFiles() - Drop area - upload files.
@@ -58,26 +57,11 @@ const LIST_FILES     = '{"page":"files","listFiles":""}';
 
 /**
  * -------------------------------------------------------------------------
- *  Update server.
- * -------------------------------------------------------------------------
- * 
- * @return void  No output is returned.
- * @since  3.0.12 [2026-01-31-03:30pm] New.
- * @since  3.0.12 [2026-02-07-07:30am] Add SEND_PREFS.
- * @see    webSocketOpened() in global.js.
- */
-function update() {
-    websocket.send(SEND_PREFS);  // Send SEND_PREFS message.
-    console.log('browser --> ' + SEND_PREFS);
-}
-
-/**
- * -------------------------------------------------------------------------
  *  File list - request.
  * -------------------------------------------------------------------------
  *
  * @return void   No output is returned.
- * @since  3.0.7  [2025-11-10-12:45pm].
+ * @since  3.0.7  [2025-11-10-12:45pm] New.
  * @since  3.0.12 [2026-02-25-10:30pm] Websocket send - preserve KV pair order by changing JSON data to array. 
  */
 function fileListRequest(e) {
@@ -92,7 +76,7 @@ function fileListRequest(e) {
  * -------------------------------------------------------------------------
  *
  * @return void  No output is returned.
- * @since  3.0.7 [2025-11-10-09:15pm].
+ * @since  3.0.7 [2025-11-10-09:15pm] New.
  * @see webSocketRcvMessage() in global.js.
  */
 function fileListBuild(listOfFiles) {
@@ -131,7 +115,7 @@ function fileListBuild(listOfFiles) {
  * -------------------------------------------------------------------------
  *
  * @return void  No output is returned.
- * @since  3.0.7 [2025-11-11-03:30pm].
+ * @since  3.0.7 [2025-11-11-03:30pm] New.
  * @since  3.0.12 [2026-02-26-11:00am] Check download/upload for host 127.0.0.x.
  */
 function uploadDroppedFiles(e) {
@@ -146,7 +130,6 @@ function uploadDroppedFiles(e) {
         return;
     }
 
-
     // --- Prepare. ---
     droppedFiles = e.dataTransfer.files;  // Dropped files object.
     let message = "Upload these files? ";
@@ -159,7 +142,7 @@ function uploadDroppedFiles(e) {
         return;
     } else {
 
-        // --- Upload each file. ---
+        // -- Upload each file. --
         filesToUpload = [...droppedFiles].forEach(async file => {
             let formData = new FormData();
             formData.append('file', file);
@@ -173,7 +156,7 @@ function uploadDroppedFiles(e) {
                     console.log(result);
                     alert(file.name + ' uploaded.');
 
-                    // -- Regenerate list (and event listners). --
+                    // - Regenerate list (and event listners). -
                     setTimeout(function() { window.location.reload(); }, 500);
                 } else {
                     alert(file.name + ' upload failed.');
@@ -192,7 +175,7 @@ function uploadDroppedFiles(e) {
  * -------------------------------------------------------------------------
  *
  * @return void  No output is returned.
- * @since  3.0.3 [2025-10-22-11:45am].
+ * @since  3.0.3 [2025-10-22-11:45am] New.
  */
 function preventDefaults(e) {
     e.preventDefault();
@@ -204,7 +187,7 @@ function preventDefaults(e) {
  *  Event listeners.
  * =========================================================================
  *
- * @since  3.0.7 [2025-11-10-05:30pm].
+ * @since  3.0.7 [2025-11-10-05:30pm] New.
  */
 
 /**
@@ -213,7 +196,7 @@ function preventDefaults(e) {
  * -------------------------------------------------------------------------
  *
  * @return void   No output is returned.
- * @since  3.0.7  [2025-11-10-05:30pm].
+ * @since  3.0.7  [2025-11-10-05:30pm] New.
  * @since  3.0.12 [2026-02-25-10:30pm] Websocket send - preserve KV pair order by changing JSON data to array.
  * @since  3.0.12 [2026-02-26-11:00am] Check download/upload for host 127.0.0.x.
  * @since  3.1.0  [2026-03-20-11:15am] Update var names.
@@ -300,7 +283,7 @@ document.querySelector('#delete').addEventListener('click', (event) => {
  *  Test.
  * =========================================================================
  *
- * @since  3.0.3 [2025-10-16-10:00am].
+ * @since  3.0.3 [2025-10-16-10:00am] New.
  */
 
 /**
@@ -308,5 +291,5 @@ document.querySelector('#delete').addEventListener('click', (event) => {
  *  Run on page load.
  * =========================================================================
  *
- * @since  3.0.3 [2025-10-16-10:00am].
+ * @since  3.0.3 [2025-10-16-10:00am]. New.
  */

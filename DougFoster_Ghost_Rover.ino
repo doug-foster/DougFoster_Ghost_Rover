@@ -21,8 +21,8 @@
  * @since  3.2.1 [2026-07-25-05:00pm] Convert NTRIP keys from alpha to numeric.
  * @since  3.2.1 [2026-07-27-01:45pm] Add sendDataToBrowser(), refactor to consolidate JSON.
  * @since  3.2.1 [2026-07-28-04:45pm] Removed NMEA out switch & preference.
- * @since  3.2.1 [2026-07-31-09:30am] Add WiFi client for NTRIP access.
- * @since  3.2.1 [2026-08-02-04:30pm] Remove connectWiFiclient().
+ * @since  3.2.1 [2026-07-31-09:30am] Add Internet for NTRIP access.
+ * @since  3.2.1 [2026-08-02-04:30pm] Remove connectInternet().
  * @since  3.2.1 [2026-08-03-10:00am] Removed jsonObj["21'] & jsonObj["21'].
  * @since  3.2.2 [2026-08-09-11:45am] Add NTRIP client.
  * @since  3.2.2 [2026-08-09-02:00pm] Updated platform from 3.3.10 to 3.3.11. Updated AsyncTCP & ESPAsyncWebServer libraries.
@@ -41,6 +41,7 @@
  * @since  3.3.4 [2026-09-07-11:45am] Cleanup & memory management.
  * @since  3.3.5 [2026-09-07-01:15pm] Removed checkLoopTimers() in loop(), replaced with FreeRTOS tasks.
  * @since  3.4.0 [2026-09-13-05:30pm] Height/position lock/unlock.
+ * @since  3.4.0 [2026-09-20-05:30pm] Add prfLckAvgInt.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover_BT_relay.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
@@ -453,6 +454,7 @@
  * @since 3.3.1  [2026-08-27-02:00pm] Add PREF_RESET_NO_REBOOT.
  * @since 3.3.1  [2026-08-29-03:00pm] New debug vars. Remove CHECK_WIRE1.
  * @since  3.4.0 [2026-09-12-07:15pm] Height/position lock/unlock.
+ * @since  3.4.0 [2026-09-20-05:30pm] Add prfLckAvgInt.
  */
 
 // --- Increase default ESP32 stack size from 8KB to 16KB.
@@ -495,7 +497,6 @@ const char           WEBSOCKET_SERVER_NAME[] = "/ghostRover";
 // --- WebSocket. ---
 const uint8_t      WS_RX_QUEUE_LEN = 5;                         // Max # of WebSocket queued incoming messages.
       char         lastNmea[120]   = {'\0'};                    // Snapshot of last complete NMEA sentence. @see DevUBLOXGNSS::processNMEA(), sendDataToBrowser().
-      size_t       jsonPairNum;                                 // Track number of JSON KV pairs.
       JsonDocument jsonDocToBrowser;                            // JSON document - send to browser. Used in processMessagesIn(), buildOperData(), & DevUBLOXGNSS::processNMEA().
       JsonDocument jsonDocFromBrowser;                          // JSON document - received from browser. Used in processMessagesIn(). 
       JsonDocument JsonDocNtrip;                                // JSON document - JSON NTRIP data inside jsonDocToBrowser or jsonDocFromBrowser.
@@ -513,6 +514,19 @@ WiFiClient ntripClient;                                         // WiFi connecti
                                                                 // Requests/status cross task boundary as flags, same pattern as browserUpdatePendingFlag. 
 
 // --- GNSS. ---
+int8_t  ellipsoidHp;
+int8_t  mslHp;
+int8_t  latitudeHp;
+int8_t  longitudeHp;
+int32_t ellipsoid;
+int32_t msl;
+int32_t latitude;   
+int32_t longitude;
+int32_t altitudeMSL;
+float   heightEllipsoid    = 0;                                 // GNSS - ellipsoid height (meters).
+float   heightOrthometric  = 0;                                 // GNSS - orthometric height (meters).
+float   accuracyHorizontal = 0;                                 // GNSS - horizontal accuracy.
+float   accuracyVertical   = 0;                                 // GNSS - vertical accuracy.
 SFE_UBLOX_GNSS roverGNSS;                                       // GNSS object (uses I2C-1).
 
 // --- Operation. ---
@@ -538,7 +552,8 @@ enum CommandIndex {                                             //  Readable ind
     DEBUG_HEAP,                                                 // 18.
     DEBUG_NMEA_SENT,                                            // 19.
     DEBUG_LOOP_STACK,                                           // 20.
-    NUM_COMMANDS                                                // 21 = automatic array length.
+    DEBUG_FILE_SYSTEM,                                          // 21.
+    NUM_COMMANDS                                                // 22 = automatic array length.
 };     
 const char* COMMAND[NUM_COMMANDS] = {                           // Command strings; match CommandIndex.
     "test-rad",                                                 // TEST_RAD.
@@ -561,14 +576,15 @@ const char* COMMAND[NUM_COMMANDS] = {                           // Command strin
     "debug-ws-traffic",                                         // DEBUG_WS_TRAFFIC.
     "debug-heap",                                               // DEBUG_HEAP.
     "debug-nmea-sent",                                          // DEBUG_NMEA_SENT.
-    "debug-loop-stack"                                          // DEBUG_LOOP_STACK.
+    "debug-loop-stack",                                         // DEBUG_LOOP_STACK.
+    "debug-file-system",                                        // DEBUG_FILE_SYSTEM.
 };     
 const bool    RW_MODE                    = false;               // Open preference name space as read/write.
 const bool    RO_MODE                    = true;                // Open preference name space as read only.
 const char    LOG_FILE[]                 = "/log.txt";          // Log file.
 const uint8_t MAJOR_VERSION              = 3;                   // Current major build version (@see buildInfo()).
 const uint8_t MINOR_VERSION              = 4;                   // Current minor build version (@see buildInfo()).
-const uint8_t PATCH_VERSION              = 0;                   // Current patch build version (@see buildInfo()).
+const uint8_t PATCH_VERSION              = 1;                   // Current patch build version (@see buildInfo()).
 const uint8_t MIN_SATELLITE_THRESHHOLD   = 2;                   // Minimum SIV for reliable coordinate information.      
       char     operMode[2]               = {'\0'};              // Operation mode (r=rover, b=base).
       char     debugTemp[250]            = {'\0'};              // Various debug scenarios.
@@ -591,13 +607,9 @@ const uint8_t MIN_SATELLITE_THRESHHOLD   = 2;                   // Minimum SIV f
       size_t   rtcmSentenceCount         = 0;                   // # of RTCM sentences in.
       uint8_t  numSatInView              = 0;                   // GNSS - # OF satellites in view.
       uint8_t  fixType                   = 0;                   // GNSS - type of fix (single, RTK-float, RTK-fix).
-    //   uint16_t loopTaskStackSize         = 16384;               // Override Arduino-ESP32 weak default (8192). @see processMessagesIn().
+//    uint16_t loopTaskStackSize         = 16384;               // Override Arduino-ESP32 weak default (8192). @see processMessagesIn().
       int64_t  bootTime;                                        // Boot time.
       float    rtcmKbps                  = 0;                   // RTCM kbps (average).
-      float    heightEllipsoid           = 0;                   // GNSS - ellipsoid height.
-      float    heightOrthometric         = 0;                   // GNSS - orthometric height.
-      float    accuracyHorizontal        = 0;                   // GNSS - horizontal accuracy.
-      float    accuracyVertical          = 0;                   // GNSS - vertical accuracy.
       float    batterySoc                = 0;                   // Battery State Of Charge (SOC).
       float    batteryChangeRate         = 0;                   // Battery charge - rate of change.
       double   lat                       = 0;                   // GNSS - latitude.
@@ -635,6 +647,7 @@ const uint16_t    NTRIP_CAST_ATTR_LEN     = 512;                // Length of cha
       uint8_t     prfGnsNavRat;                                 // ZED: OUTPUT every X (e.g. 5) MEASURE intervals every (e.g. 5*100=500) ms.
       uint16_t    prfGnsMsrInt;                                 // ZED: MEASURE every Y (e.g. 100) ms.
       uint16_t    prfInstrHgt;                                  // Instrument height (includes rover height + pole height).
+      uint16_t    prfLckAvgInt;                                 // GNSS lock averaging interval.    // Newest pref.
       Preferences roverPrefs;                                   // Rover's NVS preferences namespace.
       enum        prefAction {                                  // Readable index for preference actions.
           PREF_INIT,                                            // 0.
@@ -686,7 +699,6 @@ const TickType_t EVERY_10000MS_INTERVAL = 10000/portTICK_PERIOD_MS;             
       TickType_t buildOperDataInterval  = (prfGnsNavRat * prfGnsMsrInt)/portTICK_PERIOD_MS;  // Time (ms) [pref based] between operate page updates.
 
 // --- Lock/average state. ---
-const int64_t  LOCK_AVERAGE_DURATION_US   = 2000000;   // Two second window for averaging before lock engages.
       int64_t  heightLockAveragingStart   = 0;
       int64_t  positionLockAveragingStart = 0;
       double   heightLockSumOrtho         = 0;
@@ -848,7 +860,7 @@ void statusLedOn() {
  * @since  3.2.1  [2026-07-28-04:45pm] Removed NMEA out switch & preference.
  * @since  3.3.1  [2026-08-27-02:30pm] ["JsonDocNtrip["43,47,48, 51"] from char to int.
  * @since  3.3.1  [2026-08-27-02:00pm] Add PREF_RESET_NO_REBOOT, changed PREF_RESET to call prefUtility(PRF_SET).
- * 
+ * @since  3.4.0  [2026-09-20-05:30pm] Add prfLckAvgInt.
  * @see    Global vars: Preference defaults, setup().
  * @link   https://docs.espressif.com/projects/arduino-esp32/en/latest/tutorials/preferences.html.
  * @link   https://github.com/espressif/arduino-esp32/tree/master/libraries/Preferences/.
@@ -869,7 +881,8 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
     const uint8_t   DEF_GNS_NAV_RAT         = 2;                // Default ZED rate (times/interval): OUTPUT a new solution.                        - Matching global var: uint8_t  prfGnsNavRat.
     const uint16_t  DEF_GNS_MSR_INT         = 100;              // Default ZED interval (ms): CREATE a new solution.                                - Matching global var: uint16_t prfGnsMsrInt.
     const uint16_t  DEF_INSTR_HGT           = 128;              // Default instrument height (mm - includes rover height [128] + pole height [0]).  - Matching global var: uint16_t prfInstrHgt.
-    const uint16_t  NUM_PREFS               = 12;               // Number of preferences being used.
+    const uint16_t  DEF_LCK_AVG_INT         = 3;                // Default GNSS lock averaging interval.  // Newest pref.
+    const uint16_t  NUM_PREFS               = 13;               // Number of preferences being used.
           size_t    remaining               = 0;                // Number of bytes remaining that can be written to char array. 
           bool      hasKey                  = false;
           DeserializationError ntripError;
@@ -911,6 +924,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             prfGnsNavRat    = roverPrefs.getUShort("prfGnsNavRat");           
             prfGnsMsrInt    = roverPrefs.getUShort("prfGnsMsrInt");
             prfInstrHgt     = roverPrefs.getUShort("prfInstrHgt");
+            prfLckAvgInt    = roverPrefs.getUShort("prfLckAvgInt");     // Newest pref.
 
             // - Create NTRIP caster JSON doc from embedded JSON string for active caster. -
             // Embedded JSON string allows attributes for an NTRIP caster to be stored as a single preference. 
@@ -935,7 +949,9 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
 
             // -- Close name space. --
             roverPrefs.end();
-            logPrint("Preferences read.");
+            if (commandFlag[DEBUG_PREFS]) {
+                logPrint("Preferences read.");
+            }
             break;
 
         case PREF_SET:
@@ -944,21 +960,24 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             roverPrefs.begin("config", RW_MODE);
 
             // - Set NVS preferences from global vars. -
-            roverPrefs.putString("prfUnt",          prfUnt);                // Store as "prfUnt"              (sent/rcvd as "1").
-            roverPrefs.putString("prfRtcmInSource", prfRtcmInSource);       // Store as "prfRtcmInSource"     (sent/rcvd as "2").
-            roverPrefs.putString("prfHotSsi",       prfHotSsi);             // Store as "prfHotSsi"           (sent/rcvd as "6").
-            roverPrefs.putString("prfHotPas",       prfHotPas);             // Store as "prfHotPas"           (sent/rcvd as "7").
-            roverPrefs.putString("prfNtripCaster1", prfNtripCastAttr[0]);   // Store as "prfNtripCastAttr[0]" (sent/rcvd as "39").
-            roverPrefs.putString("prfNtripCaster2", prfNtripCastAttr[1]);   // Store as "prfNtripCastAttr[1]" (sent/rcvd as "40").
-            roverPrefs.putString("prfNtripCaster3", prfNtripCastAttr[2]);   // Store as "prfNtripCastAttr[2]" (sent/rcvd as "41").
-            roverPrefs.putUShort("prfNtripCastAct", prfNtripCastAct);       // Store as "prfNtripCastAct"     (sent/rcvd as "42").
-            roverPrefs.putUShort("prfGnsNavRat",    prfGnsNavRat);          // Store as "prfGnsNavRat"        (sent/rcvd as "5").
-            roverPrefs.putUShort("prfGnsMsrInt",    prfGnsMsrInt);          // Store as "prfGnsMsrInt"        (sent/rcvd as "4").
-            roverPrefs.putUShort("prfInstrHgt",     prfInstrHgt);           // Store as "prfInstrHgt"         (sent/rcvd as "36" with value in mm, e.g. "165").
+            roverPrefs.putString("prfUnt",          prfUnt);              // Store as "prfUnt"              (sent/rcvd as "1").
+            roverPrefs.putString("prfRtcmInSource", prfRtcmInSource);     // Store as "prfRtcmInSource"     (sent/rcvd as "2").
+            roverPrefs.putString("prfHotSsi",       prfHotSsi);           // Store as "prfHotSsi"           (sent/rcvd as "6").
+            roverPrefs.putString("prfHotPas",       prfHotPas);           // Store as "prfHotPas"           (sent/rcvd as "7").
+            roverPrefs.putString("prfNtripCaster1", prfNtripCastAttr[0]); // Store as "prfNtripCastAttr[0]" (sent/rcvd as "39").
+            roverPrefs.putString("prfNtripCaster2", prfNtripCastAttr[1]); // Store as "prfNtripCastAttr[1]" (sent/rcvd as "40").
+            roverPrefs.putString("prfNtripCaster3", prfNtripCastAttr[2]); // Store as "prfNtripCastAttr[2]" (sent/rcvd as "41").
+            roverPrefs.putUShort("prfNtripCastAct", prfNtripCastAct);     // Store as "prfNtripCastAct"     (sent/rcvd as "42").
+            roverPrefs.putUShort("prfGnsNavRat",    prfGnsNavRat);        // Store as "prfGnsNavRat"        (sent/rcvd as "5").
+            roverPrefs.putUShort("prfGnsMsrInt",    prfGnsMsrInt);        // Store as "prfGnsMsrInt"        (sent/rcvd as "4").
+            roverPrefs.putUShort("prfInstrHgt",     prfInstrHgt);         // Store as "prfInstrHgt"         (sent/rcvd as "36" with value in mm, e.g. "165").
+            roverPrefs.putUShort("prfLckAvgInt",    prfLckAvgInt);        // Store as "prfLckAvgInt"        (sent/rcvd as "52").    // Newest pref.
 
             // -- Close name space. --
             roverPrefs.end();
-            logPrint("Preferences saved.");
+            if (commandFlag[DEBUG_PREFS]) {
+                logPrint("Preferences saved.");
+            }
             break;
 
         case PREF_RESET:
@@ -976,6 +995,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             prfGnsNavRat               = DEF_GNS_NAV_RAT;
             prfGnsMsrInt               = DEF_GNS_MSR_INT;
             prfInstrHgt                = DEF_INSTR_HGT;
+            prfLckAvgInt               = DEF_LCK_AVG_INT;   // Newest pref.
 
             // -- Save to NVS. --
             logPrint("Preference globals reset to defaults.");
@@ -996,43 +1016,70 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             roverPrefs.begin(NAMESPACE, RO_MODE);
 
             // -- Print values. --
-            Serial.println("                       Default    NVS    Global     ");
-            Serial.println("                       -------    ---    ------     ");
-            Serial.printf( "prfUnt                 \"%s\"   \"%s\"   \"%s\"\n", DEF_UNT,            roverPrefs.getString("prfUnt"),          prfUnt);
-            Serial.printf( "prfRtcmInSource        \"%s\"   \"%s\"   \"%s\"\n", DEF_RTC_IN,         roverPrefs.getString("prfRtcmInSource"), prfRtcmInSource);
-            Serial.printf( "prfHotSsi              \"%s\"   \"%s\"   \"%s\"\n", DEF_HOT_SSI,        roverPrefs.getString("prfHotSsi"),       prfHotSsi);
-            Serial.printf( "prfHotPas              \"%s\"   \"%s\"   \"%s\"\n", DEF_HOT_PASS,       roverPrefs.getString("prfHotPas"),       prfHotPas);
-            Serial.printf( "prfGnsNavRat           %u   %u   %u\n",             DEF_GNS_NAV_RAT,    roverPrefs.getUShort("prfGnsNavRat"),    prfGnsNavRat);
-            Serial.printf( "prfGnsMsrInt           %u   %u   %u\n",             DEF_GNS_MSR_INT,    roverPrefs.getUShort("prfGnsMsrInt"),    prfGnsMsrInt);
-            Serial.printf( "prfNtripCastAct        %u   %u   %u\n",             DEF_NTRIP_CAST_ACT, roverPrefs.getUShort("prfNtripCastAct"), prfNtripCastAct);
-            Serial.println();
-            Serial.println("Default:");
-            Serial.printf( "DEF_NTRIP_CAST_ATTR_1  \"%s\"\n", DEF_NTRIP_CAST_ATTR_1);
-            Serial.printf( "DEF_NTRIP_CAST_ATTR_2  \"%s\"\n", DEF_NTRIP_CAST_ATTR_2);
-            Serial.printf( "DEF_NTRIP_CAST_ATTR_3  \"%s\"\n", DEF_NTRIP_CAST_ATTR_3);
-            Serial.println();
-            Serial.println("NVS:");
+            logPrint("                       Default    NVS    Global     ");
+            logPrint("                       -------    ---    ------     ");
+            snprintf(outputBuffer, sizeof(outputBuffer), "prfUnt                 \"%s\"   \"%s\"   \"%s\"", DEF_UNT,            roverPrefs.getString("prfUnt"),          prfUnt);
+            logPrint(outputBuffer);
+            snprintf(outputBuffer, sizeof(outputBuffer), "prfRtcmInSource        \"%s\"   \"%s\"   \"%s\"", DEF_RTC_IN,         roverPrefs.getString("prfRtcmInSource"), prfRtcmInSource);
+            logPrint(outputBuffer);
+            snprintf(outputBuffer, sizeof(outputBuffer), "prfHotSsi              \"%s\"   \"%s\"   \"%s\"", DEF_HOT_SSI,        roverPrefs.getString("prfHotSsi"),       prfHotSsi);
+            logPrint(outputBuffer);
+            snprintf(outputBuffer, sizeof(outputBuffer), "prfHotPas              \"%s\"   \"%s\"   \"%s\"", DEF_HOT_PASS,       roverPrefs.getString("prfHotPas"),       prfHotPas);
+            logPrint(outputBuffer);
+            snprintf(outputBuffer, sizeof(outputBuffer), "prfGnsNavRat           %u   %u   %u",             DEF_GNS_NAV_RAT,    roverPrefs.getUShort("prfGnsNavRat"),    prfGnsNavRat);
+            logPrint(outputBuffer);
+            snprintf(outputBuffer, sizeof(outputBuffer), "prfGnsMsrInt           %u   %u   %u",             DEF_GNS_MSR_INT,    roverPrefs.getUShort("prfGnsMsrInt"),    prfGnsMsrInt);
+            logPrint(outputBuffer);
+            snprintf(outputBuffer, sizeof(outputBuffer), "prfLckAvgInt           %u   %u   %u",             DEF_LCK_AVG_INT,    roverPrefs.getUShort("prfLckAvgInt"),    prfLckAvgInt);
+            logPrint(outputBuffer);     // Newest pref.
+            snprintf(outputBuffer, sizeof(outputBuffer), "prfNtripCastAct        %u   %u   %u",             DEF_NTRIP_CAST_ACT, roverPrefs.getUShort("prfNtripCastAct"), prfNtripCastAct);
+            logPrint(outputBuffer);
+            logPrint(" ");
+            logPrint("Default:");
+            snprintf(outputBuffer, sizeof(outputBuffer), "DEF_NTRIP_CAST_ATTR_1  \"%s\"", DEF_NTRIP_CAST_ATTR_1);
+            logPrint(outputBuffer);
+            snprintf(outputBuffer, sizeof(outputBuffer), "DEF_NTRIP_CAST_ATTR_2  \"%s\"", DEF_NTRIP_CAST_ATTR_2);
+            logPrint(outputBuffer);
+            snprintf(outputBuffer, sizeof(outputBuffer), "DEF_NTRIP_CAST_ATTR_3  \"%s\"", DEF_NTRIP_CAST_ATTR_3);
+            logPrint(outputBuffer);
+            logPrint(" ");
+            logPrint("NVS:");
             roverPrefs.getString("prfNtripCaster1", prfNtripCastAttr[3], NTRIP_CAST_ATTR_LEN);      // [0,1,2] are used, [3] is for scratch.
-            Serial.printf( "prfNtripCaster1        \"%s\"\n", prfNtripCastAttr[3]);
+            snprintf(outputBuffer, sizeof(outputBuffer), "prfNtripCaster1        \"%s\"", prfNtripCastAttr[3]);
+            logPrint(outputBuffer);
             roverPrefs.getString("prfNtripCaster2", prfNtripCastAttr[3], NTRIP_CAST_ATTR_LEN);
-            Serial.printf( "prfNtripCaster2        \"%s\"\n", prfNtripCastAttr[3]);
+            snprintf(outputBuffer, sizeof(outputBuffer), "prfNtripCaster2        \"%s\"", prfNtripCastAttr[3]);
+            logPrint(outputBuffer);
             roverPrefs.getString("prfNtripCaster3", prfNtripCastAttr[3], NTRIP_CAST_ATTR_LEN);
-            Serial.printf( "prfNtripCaster3        \"%s\"\n", prfNtripCastAttr[3]);
+            snprintf(outputBuffer, sizeof(outputBuffer), "prfNtripCaster3        \"%s\"", prfNtripCastAttr[3]);
+            logPrint(outputBuffer);
             memset(prfNtripCastAttr[3], '\0', NTRIP_CAST_ATTR_LEN);                                 // Scratch buffer - not used.
-            Serial.println();
-            Serial.println("Global:");
-            Serial.printf( "prfNtripCastAttr[0]    \"%s\"\n", prfNtripCastAttr[0]);
-            Serial.printf( "prfNtripCastAttr[1]    \"%s\"\n", prfNtripCastAttr[1]);
-            Serial.printf( "prfNtripCastAttr[2]    \"%s\"\n", prfNtripCastAttr[2]);
-            Serial.printf( "ntripCaster.name       \"%s\"\n", ntripCaster.name);
-            Serial.printf( "ntripCaster.url        \"%s\"\n", ntripCaster.url);
-            Serial.printf( "ntripCaster.mount      \"%s\"\n", ntripCaster.mount);
-            Serial.printf( "ntripCaster.user       \"%s\"\n", ntripCaster.user);
-            Serial.printf( "ntripCaster.pass       \"%s\"\n", ntripCaster.pass);
-            Serial.printf( "ntripCaster.id         %d\n", ntripCaster.id);
-            Serial.printf( "ntripCaster.version    %d\n", ntripCaster.version);
-            Serial.printf( "ntripCaster.port       %d\n", ntripCaster.port);
-            Serial.printf( "ntripCaster.sendGga    %d\n", ntripCaster.sendGga);
+            logPrint(" ");
+            logPrint("Global:");
+            snprintf(outputBuffer, sizeof(outputBuffer), "prfNtripCastAttr[0]    \"%s\"", prfNtripCastAttr[0]);
+            logPrint(outputBuffer);
+            snprintf(outputBuffer, sizeof(outputBuffer), "prfNtripCastAttr[1]    \"%s\"", prfNtripCastAttr[1]);
+            logPrint(outputBuffer);
+            snprintf(outputBuffer, sizeof(outputBuffer), "prfNtripCastAttr[2]    \"%s\"", prfNtripCastAttr[2]);
+            logPrint(outputBuffer);
+            snprintf(outputBuffer, sizeof(outputBuffer), "ntripCaster.name       \"%s\"", ntripCaster.name);
+            logPrint(outputBuffer);
+            snprintf(outputBuffer, sizeof(outputBuffer), "ntripCaster.url        \"%s\"", ntripCaster.url);
+            logPrint(outputBuffer);
+            snprintf(outputBuffer, sizeof(outputBuffer), "ntripCaster.mount      \"%s\"", ntripCaster.mount);
+            logPrint(outputBuffer);
+            snprintf(outputBuffer, sizeof(outputBuffer), "ntripCaster.user       \"%s\"", ntripCaster.user);
+            logPrint(outputBuffer);
+            snprintf(outputBuffer, sizeof(outputBuffer), "ntripCaster.pass       \"%s\"", ntripCaster.pass);
+            logPrint(outputBuffer);
+            snprintf(outputBuffer, sizeof(outputBuffer), "ntripCaster.id         %d", ntripCaster.id);
+            logPrint(outputBuffer);
+            snprintf(outputBuffer, sizeof(outputBuffer), "ntripCaster.version    %d", ntripCaster.version);
+            logPrint(outputBuffer);
+            snprintf(outputBuffer, sizeof(outputBuffer), "ntripCaster.port       %d", ntripCaster.port);
+            logPrint(outputBuffer);
+            snprintf(outputBuffer, sizeof(outputBuffer), "ntripCaster.sendGga    %d", ntripCaster.sendGga);
+            logPrint(outputBuffer);
 
             // -- Close name space. --
             roverPrefs.end();
@@ -1125,42 +1172,46 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
          */
 
         // -- Height - ellipsoid (h). --
-        int32_t ellipsoid     = roverGNSS.getElipsoid();                    // mm
-        int8_t ellipsoidHp    = roverGNSS.getElipsoidHp();                  // mm * 10^-1.
-        heightEllipsoid = (ellipsoid * 10 + ellipsoidHp) / 10000.0;         // Convert to meters.
+        ellipsoid       = roverGNSS.getElipsoid();                              // mm
+        ellipsoidHp     = roverGNSS.getElipsoidHp();                            // mm * 10^-1.
+        heightEllipsoid = (ellipsoid * 10) + ellipsoidHp;
+        heightEllipsoid = heightEllipsoid / 10000.0;                            // Convert to meters.
 
         // -- Height - orthometric (H). --
-        int32_t msl               = roverGNSS.getMeanSeaLevel();            // a.k.a getAltitudeMSL()?
-        int8_t  mslHp             = roverGNSS.getMeanSeaLevelHp();
-        heightOrthometric = ((msl * 10 + mslHp) / 10000.0) - (float)prfInstrHgt;
+        msl               = roverGNSS.getMeanSeaLevel();
+        mslHp             = roverGNSS.getMeanSeaLevelHp();
+        altitudeMSL       = roverGNSS.getAltitudeMSL();
+        heightOrthometric = (msl * 10) + mslHp;
+        heightOrthometric = heightOrthometric / 10000.0;      
+        heightOrthometric = heightOrthometric - ((float)prfInstrHgt)/1000.0;    // Reduce by instrument height.
 
         // -- Latitude. --
-        int32_t latitude   = roverGNSS.getHighResLatitude();                // Degrees * 10^-7.
-        int8_t  latitudeHp = roverGNSS.getHighResLatitudeHp();              // High precision component: degrees * 10^-9.
-        lat  = latitude / 10000000.0;                                       // Convert to to 64 bit double - degrees (8 decimal places).
-        lat += latitudeHp / 1000000000.0;                                   // Add high precision component.
+        latitude   = roverGNSS.getHighResLatitude();                            // Degrees * 10^-7.
+        latitudeHp = roverGNSS.getHighResLatitudeHp();                          // High precision component: degrees * 10^-9.
+        lat        = latitude    / 10000000.0;                                  // Convert to to 64 bit double - degrees (8 decimal places).
+        lat        += latitudeHp / 1000000000.0;                                // Add high precision component.
 
         // -- Longitude. --
-        int32_t longitude   = roverGNSS.getHighResLongitude();
-        int8_t  longitudeHp = roverGNSS.getHighResLongitudeHp();
-        lon  = longitude / 10000000.0;
-        lon += longitudeHp / 1000000000.0;
+        longitude   = roverGNSS.getHighResLongitude();
+        longitudeHp = roverGNSS.getHighResLongitudeHp();
+        lon         = longitude    / 10000000.0;
+        lon         += longitudeHp / 1000000000.0;
 
         // -- Horizontal & vertical accuracy. --
         accuracyHorizontal = roverGNSS.getHorizontalAccuracy() / 10000.0;
-        accuracyVertical   = roverGNSS.getVerticalAccuracy() / 10000.0;
+        accuracyVertical   = roverGNSS.getVerticalAccuracy()   / 10000.0;
 
         // -- Height lock averaging. --
         if (heightLockAveragingFlag) {
             heightLockSumOrtho    += heightOrthometric;
             heightLockSumGeoidSep += (heightEllipsoid - heightOrthometric);
             heightLockSampleCount++;
-            if ((esp_timer_get_time() - heightLockAveragingStart) >= LOCK_AVERAGE_DURATION_US) {
+            if ((esp_timer_get_time() - heightLockAveragingStart) >= prfLckAvgInt * 1000000) {
                 lockedHeightOrtho       = heightLockSumOrtho / heightLockSampleCount;
                 lockedGeoidSep          = heightLockSumGeoidSep / heightLockSampleCount;
                 heightLockAveragingFlag = false;
                 heightLockFlag          = true;
-                snprintf(outputBuffer, sizeof(outputBuffer), "Height locked @ %.4f m (%u samples).", lockedHeightOrtho, heightLockSampleCount);
+                snprintf(outputBuffer, sizeof(outputBuffer), "Height locked @ %.4f m (%u samples in %u secs).", lockedHeightOrtho, heightLockSampleCount, prfLckAvgInt);
                 if (commandFlag[DEBUG_BTNS]) {                      // Debug.    
                     logPrint(outputBuffer);
                 }
@@ -1168,7 +1219,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
         }
         if (heightLockFlag) {
             heightOrthometric = lockedHeightOrtho;
-            heightEllipsoid = lockedHeightOrtho + lockedGeoidSep;
+            heightEllipsoid   = lockedHeightOrtho + lockedGeoidSep;
         }
 
         // -- Position lock averaging. --
@@ -1176,12 +1227,12 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             positionLockSumLat += lat;
             positionLockSumLon += lon;
             positionLockSampleCount++;
-            if ((esp_timer_get_time() - positionLockAveragingStart) >= LOCK_AVERAGE_DURATION_US) {
+            if ((esp_timer_get_time() - positionLockAveragingStart) >= prfLckAvgInt * 1000000) {
                 lockedLat                 = positionLockSumLat / positionLockSampleCount;
                 lockedLon                 = positionLockSumLon / positionLockSampleCount;
                 positionLockAveragingFlag = false;
                 positionLockFlag          = true;
-                snprintf(outputBuffer, sizeof(outputBuffer), "Position locked @ Lat %.9f, Lon %.9f (%u samples).", lockedLat, lockedLon, positionLockSampleCount);
+                snprintf(outputBuffer, sizeof(outputBuffer), "Position locked @ Lat %.9f, Lon %.9f (%u samples in %u secs).", lockedLat, lockedLon, positionLockSampleCount, prfLckAvgInt);
                 if (commandFlag[DEBUG_BTNS]) {                      // Debug.
                     logPrint(outputBuffer);
                 }
@@ -1315,7 +1366,7 @@ void sendDataToBrowser() {
         wsSendCount++;
         if (commandFlag[DEBUG_WS_TRAFFIC]) {            // Debug. WebSocket data from GR to browser.
             snprintf(outputBuffer, sizeof(outputBuffer), "WS #%u: browser <-- %s", clientId, jsonBuffer);
-            logPrint(outputBuffer, false);                   // Do not log. Serial print only.
+            logPrint(outputBuffer);
         }
     }
 }
@@ -1377,7 +1428,8 @@ void relayRtcmByte(char inputChar, char* rtcmSentence, uint16_t &byteCount, uint
     if (bytesLeftInFrame == 0) {
         if ((uint8_t)inputChar != 0xd3) {
             if (commandFlag[DEBUG_RTCM]) {
-                Serial.printf("RTCM3 desync - expected preamble, got %02x\n", (uint8_t)inputChar);
+                snprintf(outputBuffer, sizeof(outputBuffer), "RTCM3 desync - expected preamble, got %02x\n", (uint8_t)inputChar);
+                logPrint(outputBuffer);    // (textToLogPrint, add to log file = true, add newline = true).
             }
             return;                         // Drop stray byte from parsing; relay above already happened.
         }
@@ -1423,8 +1475,9 @@ void relayRtcmByte(char inputChar, char* rtcmSentence, uint16_t &byteCount, uint
         rtcmKbps = ((float)byteCount * 8.0f * 1000.0f) / (float)RTCMintervalUs;
     }
     if (commandFlag[DEBUG_RTCM]) {
-        Serial.printf("RTCM3 (%s) active(%d) #%zu Type:%u bytes:%u kbps:%.2f\n",
+        snprintf(outputBuffer, sizeof(outputBuffer), "RTCM3 (%s) active(%d) #%zu Type:%u bytes:%u kbps:%.2f\n",
             prfRtcmInSource, RTCMinFlag, rtcmSentenceCount, msg_type, byteCount, rtcmKbps);
+            logPrint(outputBuffer);    // (textToLogPrint, add to log file = true, add newline = true).
     }
     lastRTCMtime = esp_timer_get_time();
     // bytesLeftInFrame is already 0 - next byte in is treated as the next preamble.
@@ -1823,6 +1876,7 @@ void buildInfo() {
  * @since  3.0.10 [2025-12-30-02:00pm] Add Serial USB.
  * @since  3.0.10 [2026-01-07-09:45am] Local vars.
  * @since  3.3.1  [2026-08-17-02:45pm] Changed from Serial.print() to logPrint().
+ * @since  3.3.4  [2026-09-16-09:30pm] Crossed pins 16 & 17.
  * @see    buildInfo(), setup().
  * @link   https://github.com/G6EJD/ESP32-Using-Hardware-Serial-Ports.
  * @link   https://randomnerdtutorials.com/esp32-uart-communication-serial-arduino/#esp32-custom-uart-pins.
@@ -1832,8 +1886,8 @@ void startSerial() {
     // --- Local vars. ---
     const uint8_t  HC12_TX       =  5;                              // HC-12 TXD     {white wire}.
     const uint8_t  HC12_RX       =  6;                              // HC-12 RXD     {yellow wire}.
-    const uint8_t  ZED_RX2       = 17;                              // ZED UART2 RX2 {white wire}.
-    const uint8_t  ZED_TX2       = 16;                              // ZED UART2 TX2 {yellow wire} (not used).
+    const uint8_t  ZED_RX2       = 16;                              // ZED UART2 RX2 {white wire}.
+    const uint8_t  ZED_TX2       = 17;                              // ZED UART2 TX2 {yellow wire}.
     const uint32_t SERIAL1_SPEED = 9600;                            // HC-12 default speed is 9600.
     // const uint32_t SERIAL2_SPEED = 57600;                        // ZED UART2 default speed is 38400.
     const uint32_t SERIAL2_SPEED = 38400;                           // ZED UART2 default speed is 38400.
@@ -1971,7 +2025,7 @@ void startLiPo() {
  * @since  3.0.10 [2026-01-07-11:00am] Local vars.
  * @since  3.0.12 [2026-01-27-04:00pm] Refactor from AP mode to AP+Station mode.
  * @since  3.0.12 [2026-02-01-05:30pm] Use preferences.
- * @since  3.2.1  [2026-07-31-12:30pm] Add WiFi client for NTRIP access. Refactor.
+ * @since  3.2.1  [2026-07-31-12:30pm] Add Internet for NTRIP access. Refactor.
  * @since  3.3.1  [2026-08-17-02:45pm] Changed from Serial.print() to logPrint().
  * @see    setup(), prefUtility().
  * @link   https://github.com/espressif/arduino-esp32/tree/master/libraries/WiFi.
@@ -2067,7 +2121,9 @@ void startHttpServer() {
     // --- Route: file upload. ---   
     httpServer.on(PAGE_UPLOAD, HTTP_POST, [](AsyncWebServerRequest *req) {
         req->send(200, "text/plain", "Upload complete");
-        logPrint("httpServer - File upload complete.");
+        if (commandFlag[DEBUG_FILE_SYSTEM]) {
+            logPrint("httpServer - File upload complete.");
+        }
     }, onHttpFileUpload);                                   // Register endpoint handler.
 
     // --- Route: file download. ---
@@ -2077,12 +2133,16 @@ void startHttpServer() {
             String filepath = "/" + filename;
             if (SD_MMC.exists(filepath)) {
                 request->send(SD_MMC, filepath, "application/octet-stream", true);
-                snprintf(outputBuffer, sizeof(outputBuffer), "httpServer - Downloading file: %s", filename.c_str());
-                logPrint(outputBuffer);
+                if (commandFlag[DEBUG_FILE_SYSTEM]) {
+                    snprintf(outputBuffer, sizeof(outputBuffer), "httpServer - Downloading file: %s", filename.c_str());
+                    logPrint(outputBuffer);
+                }
             } else {
                 request->send(404, "text/plain", "File not found");
-                snprintf(outputBuffer, sizeof(outputBuffer), "File not found: %s", filename.c_str());
-                logPrint(outputBuffer);
+                if (commandFlag[DEBUG_FILE_SYSTEM]) {
+                    snprintf(outputBuffer, sizeof(outputBuffer), "File not found: %s", filename.c_str());
+                    logPrint(outputBuffer);
+                }
             }
         } else {
             request->send(400, "text/plain", "File parameter required");
@@ -2579,7 +2639,8 @@ void onWiFiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
     if (commandFlag[DEBUG_WIFI_EVENTS]) {
 
         // --- Which event? ---
-        Serial.printf("WiFi event %d - ", event);
+        snprintf(outputBuffer, sizeof(outputBuffer), "WiFi event %d - ", event); 
+        logPrint(outputBuffer);
         switch (event) {
             case ARDUINO_EVENT_WIFI_READY:              logPrint("WiFi interface ready."); break;
             case ARDUINO_EVENT_WIFI_SCAN_DONE:          logPrint("completed scan for access points."); break;
@@ -2662,18 +2723,26 @@ void onHttpFileUpload(AsyncWebServerRequest *request, String filename, size_t in
 
     // --- Begin. ---
     if (index == 0) {                                       // Start.
-        logPrint("\nhttpServer endpoint \"/upload\".\nonHttpFileUpload() running.");
+        if (commandFlag[DEBUG_FILE_SYSTEM]) {
+            logPrint("\nhttpServer endpoint \"/upload\".\nonHttpFileUpload() running.");
+        }
         SD_MMC.remove("/" + filename);                          // Delete file.
-        snprintf(outputBuffer, sizeof(outputBuffer), "%s deleted on SD.", filename.c_str());
-        logPrint(outputBuffer);
+        if (commandFlag[DEBUG_FILE_SYSTEM]) {
+            snprintf(outputBuffer, sizeof(outputBuffer), "%s deleted on SD.", filename.c_str());
+            logPrint(outputBuffer);
+        }
         uploadFile = SD_MMC.open("/" + filename, FILE_WRITE);   // Open file for writing.
         if (uploadFile) {
-            snprintf(outputBuffer, sizeof(outputBuffer), "%s opened on SD.", filename.c_str());
-            logPrint(outputBuffer);
+            if (commandFlag[DEBUG_FILE_SYSTEM]) {
+                snprintf(outputBuffer, sizeof(outputBuffer), "%s opened on SD.", filename.c_str());
+                logPrint(outputBuffer);
+            }
         } else {
             request->send(500, "text/plain", "Cannot open file for writing on SD.");
-            snprintf(outputBuffer, sizeof(outputBuffer), "Cannot open %s on SD for writing.", filename.c_str());
-            logPrint(outputBuffer);
+            if (commandFlag[DEBUG_FILE_SYSTEM]) {
+                snprintf(outputBuffer, sizeof(outputBuffer), "Cannot open %s on SD for writing.", filename.c_str());
+                logPrint(outputBuffer);
+            }
             return;  
         }
     }
@@ -2681,15 +2750,19 @@ void onHttpFileUpload(AsyncWebServerRequest *request, String filename, size_t in
     // --- Continue (write data to SD). ---
     if (len) {                                              // Data chunk.                                            
         uploadFile.write(data, len);                        // Write received data to file.
-        snprintf(outputBuffer, sizeof(outputBuffer), "%u total bytes written.", (unsigned int)(index + len));
-        logPrint(outputBuffer);
+        if (commandFlag[DEBUG_FILE_SYSTEM]) {
+            snprintf(outputBuffer, sizeof(outputBuffer), "%u total bytes written.", (unsigned int)(index + len));
+            logPrint(outputBuffer);
+        }
     }
 
     // --- Finish. ---
     if (final) {                                            // Complete.
         uploadFile.close();
-        snprintf(outputBuffer, sizeof(outputBuffer), "%s closed on SD.", filename.c_str());
-        logPrint(outputBuffer);
+        if (commandFlag[DEBUG_FILE_SYSTEM]) {
+            snprintf(outputBuffer, sizeof(outputBuffer), "%s closed on SD.", filename.c_str());
+            logPrint(outputBuffer);
+        }
         request->send(200, "text/plain", "Upload complete. File saved to SD.");
     }
 }
@@ -2823,7 +2896,7 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
             size_t bytesWritten = tcpClient.write((const uint8_t*)nmeaBuffer, strlen(nmeaBuffer));
             if (commandFlag[DEBUG_NMEA_SENT]) {
                 snprintf(outputBuffer, sizeof(outputBuffer), "%u ", bytesWritten);
-                logPrint(outputBuffer, true, false);
+                logPrint(outputBuffer, true, false);     // (textToLogPrint, add to log file = true, add newline = true).
             }
             NMEAoutFlag = (bytesWritten > 0);
         }
@@ -2863,11 +2936,11 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
         // -- Debug: display NMEA sentence. ---
         if ((commandFlag[DEBUG_NMEA]) || (commandFlag[DEBUG_NMEA_HEX])) {
             snprintf(outputBuffer, sizeof(outputBuffer), "%u %s", nmeaCountAll, nmeaBuffer);
-            logPrint(outputBuffer, false, false);           // Too much data to log.
+            logPrint(outputBuffer, true, false);     // (textToLogPrint, add to log file = true, add newline = true).
             if (commandFlag[DEBUG_NMEA_HEX]) {
                 for (int i = 0; i < strlen(nmeaBuffer); i++) {
                     snprintf(outputBuffer, sizeof(outputBuffer), "[\"%c\" 0x%02X] ", nmeaBuffer[i], nmeaBuffer[i]);
-                    logPrint(outputBuffer, false, false);   // Too much data to log.
+                    logPrint(outputBuffer, true, false);
                 }
             }
         }
@@ -2897,6 +2970,7 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
  * @since 3.3.0  [2026-08-13-12:00pm] Replaced checkZedTriggerUpdate() with checkLoopTimers().
  * @since 3.3.5  [2026-09-07-01:15pm] Replaced checkLoopTimers() in loop() with FreeRTOS tasks.
  * @since 3.4.0  [2026-09-13-04:30pm] Removed checkGnssLockButton(), not needed.
+ * @since 3.4.0  [2026-09-20-05:30pm] Add prfLckAvgInt.
  * @see checkSerialUSB()          - Check serial USB for input.
  * @see checkFlags()              - Check flags set in other functions or FreeRTOS tasks.
  * @see processMessagesIn()       - Process queued WS messages. All JSON activity lives here & sendDataToBrowser().
@@ -2982,6 +3056,7 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
  *     49 = NTRIP caster user               (struct ntripCasterProfile ntripCaster.user    - char user[48]).
  *     50 = NTRIP caster password           (struct ntripCasterProfile ntripCaster.pass    - char user[48]).
  *     51 = NTRIP caster sendGga            (struct ntripCasterProfile ntripCaster.sendGga - bool ).
+ *     52 = GNSS lock averaging interval    (uint16_t prfLckAvgInt).    // Newest pref.
  *
  *  --- Description of exchange protocol. ---
  *
@@ -2996,6 +3071,7 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
  *       "7":"pass",
  *       "35":22,
  *       "36":1596,
+ *       "52":10,
  *       "39":"{\"43\":1,\"44\":\"PointPerfect (SparkPNT)\",\"45\":\"ppntrip.services.u-blox.com\",\"46\":\"NEAR-RTCM\",\"47\":2101,\"48\":1,\"49\":\"abcdefghijkl\",\"50\":\"abcdefghij\,\"51\":1}",
  *       "40":"{\"43\":2,\"44\":\"\",\"45\":\"\",\"46\":\"\",\"47\":2101,\"48\":1,\"49\":\"\",\"50\":\"\",\"51\":1},
  *       "41":"{\"43\":3,\"44\":\"\",\"45\":\"\",\"46\":\"\",\"47\":2101,\"48\":1,\"49\":\"\",\"50\":\"\",\"51\":1}",
@@ -3077,6 +3153,20 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
  *     - Restart GRMCU-1. -
  *       browser (sends)    --> {"page":"menu","restartGR-MCU":""}.
  *       browser (receives) <-- {"restartGR-MCUResp":"GR-MCU will restart."}.
+ * 
+ *     - Hello: Internet already connected. -
+ *       browser (sends)    --> {"page:"menu","sendPrefs":""}.
+ *       browser (receives) <-- {"sendPrefsResp":"Preferences sent.",ALL PREFERENCES}.
+ *       browser (receives) <-- {"connectInternetResp":"Still CONNECTED to Internet via \"prfHotSsi\" as \"hotspotIp\""}.
+ * 
+ *     - Connect/disconnect Internet. -
+ *       browser (sends)    --> {"connectInternet":""}.
+ *       browser (receives) <-- {"connectInternetResp":"Connect to Internet via \"prfHotSsi\""}.
+ *       browser (receives) <-- {"connectInternetResp":"Attempt x of y"}. Repeat for each "x" of max "y" attempts.
+ *       browser (receives) <-- {"connectInternetResp":"Connect ABORTED"}. Max attempts exceeded. Connect failed.
+ *       browser (receives) <-- {"connectInternetResp":"CONNECTED to Internet via \"prfHotSsi\" as \"hotspotIp\""}. Connect success.
+ *       browser (sends)    --> {"disconnectInternet":""}.
+ *       browser (sends)    --> {"disconnectInternetResp":"Internet DISCONNECTED."}
  *
  *  -- Operate page. --
  *     - Hello. -
@@ -3116,24 +3206,11 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
  *       browser (receives) <-- {NMEA SENTENCE}. Continues in loop() until page is left.
  * 
  *  -- NTRIP page. --
- *     - Hello: WiFi client already connected. -
- *       browser (sends)    --> {"page:"ntrip","sendPrefs":""}.
- *       browser (receives) <-- {"sendPrefsResp":"Preferences sent.",ALL PREFERENCES}.
- *       browser (receives) <-- {"connectWifiClientResp":"WiFi CONNECTED: x.x.x.x"}. If WiFi client already connected.
- * 
+ *
  *     - Hello: NTRIP client already connected. -
  *       browser (sends)    --> {"page:"ntrip","sendPrefs":""}.
  *       browser (receives) <-- {"sendPrefsResp":"Preferences sent.",ALL PREFERENCES}.
  *       browser (receives) <-- {"connectNtripCasterResp":"NTRIP CONNECTED: url:port @ mount"}.
- * 
- *     - Connect/disconnect WiFi client. -
- *       browser (sends)    --> {"connectWifiClient":""}.
- *       browser (receives) <-- {"connectWifiClientResp":"Connect WiFi client to SSID \"xxxx\""}.
- *       browser (receives) <-- {"connectWifiClientResp":"Attempt x of y"}. Repeat for each "x" of max "y" attempts.
- *       browser (receives) <-- {"connectWifiClientResp":"Connect ABORTED"}. Max attempts exceeded. Connect failed.
- *       browser (receives) <-- {"connectWifiClientResp":"CONNECTED as x.x.x.x"}. Connect success.
- *       browser (sends)    --> {"disconnectWifiClient":""}.
- *       browser (sends)    --> {"disconnectWifiClientResp":"WiFi client disconnected."}
  * 
  *     - Connect/disconnect to NTRIP caster. -
  *       browser (sends)    --> {"connectNtripCaster":""}.
@@ -3180,6 +3257,8 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
  * @since 3.3.3  [2026-09-03-04:45pm] Moved ntripBeginClient() to here.
  * @since 3.3.5  [2026-09-11-02:30pm] Tweaked NTRIP WiFi & Caster connection management.
  * @since 3.4.0  [2026-09-12-07:15pm] Height/position lock/unlock.
+ * @since 3.4.0  [2026-09-19-12:15pm] Add debug processing.
+ * @since 3.4.0  [2026-09-20-05:30pm] Add prfLckAvgInt.
  * @see   Global vars: GNSS
  * @see   prefUtility().
  * @see   onWebSocketEvent().
@@ -3233,7 +3312,7 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
     // --- Set page name global var. ---
     if (jsonDocFromBrowser["page"].is<JsonVariant>()) {                     // Does key exist?
         strlcpy(whichPage, jsonDocFromBrowser["page"], sizeof(whichPage));  // Important global used in loop().
-        snprintf(outputBuffer, sizeof(outputBuffer), "Page is %s.", whichPage);
+        snprintf(outputBuffer, sizeof(outputBuffer), "Page loaded: \"%s\" ", whichPage);
         logPrint(outputBuffer);
     }
 
@@ -3256,11 +3335,11 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
         jsonDocToBrowser["7"]  = prfHotPas;
         jsonDocToBrowser["35"] = clientId;
         jsonDocToBrowser["36"] = prfInstrHgt;
+        jsonDocToBrowser["52"] = prfLckAvgInt;      // Newest pref.
         jsonDocToBrowser["39"] = prfNtripCastAttr[0];
         jsonDocToBrowser["40"] = prfNtripCastAttr[1];
         jsonDocToBrowser["41"] = prfNtripCastAttr[2];
         jsonDocToBrowser["42"] = prfNtripCastAct;
-
 
         // -- Set response. --
         strcpy(outputBuffer, "Preferences sent.");
@@ -3281,6 +3360,7 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
         prfGnsNavRat    = jsonDocFromBrowser["5"];
         prfGnsMsrInt    = jsonDocFromBrowser["4"];
         prfInstrHgt     = jsonDocFromBrowser["36"];
+        prfLckAvgInt    = jsonDocFromBrowser["52"];     // Newest pref.
 
         // -- Set new preferences from global vars. --
         prefUtility(PREF_SET);
@@ -3470,9 +3550,9 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
     }
 
     // -------------------------------------------------------------------------
-    // --- NTRIP page. WiFi client already connected. ---
+    // --- Menu page. Internet already connected. ---
     // -------------------------------------------------------------------------
-    if (jsonDocFromBrowser["sendPrefs"].is<JsonVariant>() && (strcmp(whichPage, "ntrip") == 0) && (WiFi.status() == WL_CONNECTED)) {
+    if (jsonDocFromBrowser["sendPrefs"].is<JsonVariant>() && (strcmp(whichPage, "menu") == 0) && (WiFi.status() == WL_CONNECTED)) {
 
         // -- Was on NTRIP page, returned. WiFi still connected. --
         sendDataToBrowser();                                                                            // Send prefs WS message.
@@ -3482,17 +3562,17 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
         }
 
         // -- Set response. --
-        snprintf(outputBuffer, sizeof(outputBuffer), "WiFi still CONNECTED to SSID %s as %s.", prfHotSsi, hotspotIp);    // Second WS message. Triggers UI.
-        jsonDocToBrowser["connectWifiClientResp"] = outputBuffer;
+        snprintf(outputBuffer, sizeof(outputBuffer), "Still CONNECTED to Internet via %s as %s.", prfHotSsi, hotspotIp);    // Second WS message. Triggers UI.
+        jsonDocToBrowser["connectInternetResp"] = outputBuffer;
         if (commandFlag[DEBUG_WIFI_EVENTS]) {
             logPrint(outputBuffer);
         }
     }
 
     // -------------------------------------------------------------------------
-    // --- NTRIP page. Connect WiFi client. ---
+    // --- Menu page. Connect Internet. ---
     // -------------------------------------------------------------------------
-    if ((jsonDocFromBrowser["connectWifiClient"].is<JsonVariant>()) && (WiFi.status() != WL_CONNECTED)) {
+    if ((jsonDocFromBrowser["connectInternet"].is<JsonVariant>()) && (WiFi.status() != WL_CONNECTED)) {
 
         // -- Local vars. --
         size_t numWifiTrys = 1;                         // Count connect attempts to STA_SSID.
@@ -3500,21 +3580,21 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
         IPAddress STA_IP(172, 20, 10, 2);               // Request this IP address.
 
         // -- Set response. Send to browser. --
-        snprintf(outputBuffer, sizeof(outputBuffer), "Connect WiFi client to SSID \"%s\".", prfHotSsi);
-        jsonDocToBrowser["connectWifiClientResp"] = outputBuffer;
+        snprintf(outputBuffer, sizeof(outputBuffer), "Connect to Internet via \"%s\".", prfHotSsi);
+        jsonDocToBrowser["connectInternetResp"] = outputBuffer;
         sendDataToBrowser();                            // Send now.
         jsonDocToBrowser.clear();
         if (commandFlag[DEBUG_WIFI_EVENTS]) {
             logPrint(outputBuffer);
         }
 
-        // -- Configure & start WiFi client for RTCMin via internal Internet NTRIP caster. --
+        // -- Configure & start Internet for RTCMin via internal Internet NTRIP caster. --
         WiFi.begin(prfHotSsi, prfHotPas);
         for (numWifiTrys; numWifiTrys <= maxWifiTrys; numWifiTrys++) {
 
             // -- Set response. Send to browser. --
             snprintf(outputBuffer, sizeof(outputBuffer), "Attempt %d of %d.", numWifiTrys, maxWifiTrys);
-            jsonDocToBrowser["connectWifiClientResp"] = outputBuffer;
+            jsonDocToBrowser["connectInternetResp"] = outputBuffer;
             sendDataToBrowser();                        // Send now.
             jsonDocToBrowser.clear();
             if (commandFlag[DEBUG_WIFI_EVENTS]) {
@@ -3534,8 +3614,8 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
 
             // -- Set response. --
             strlcpy(hotspotIp, WiFi.localIP().toString().c_str(), sizeof(hotspotIp));
-            snprintf(outputBuffer, sizeof(outputBuffer), "WiFi client CONNECTED to SSID \"%s\" as %s.", prfHotSsi, hotspotIp);
-            jsonDocToBrowser["connectWifiClientResp"] = outputBuffer;
+            snprintf(outputBuffer, sizeof(outputBuffer), "CONNECTED to Internet via \"%s\" as %s.", prfHotSsi, hotspotIp);
+            jsonDocToBrowser["connectInternetResp"] = outputBuffer;
             if (commandFlag[DEBUG_WIFI_EVENTS]) {
                 logPrint(outputBuffer);
             }
@@ -3544,8 +3624,8 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
             WiFi.disconnect();
 
             // -- Set response. --
-            snprintf(outputBuffer, sizeof(outputBuffer), "Connecting WiFi client to SSID \"%s\" ABORTED.", prfHotSsi);
-            jsonDocToBrowser["connectWifiClientResp"] = outputBuffer;
+            snprintf(outputBuffer, sizeof(outputBuffer), "Connect to Internet ABORTED.");
+            jsonDocToBrowser["connectInternetResp"] = outputBuffer;
             if (commandFlag[DEBUG_WIFI_EVENTS]) {
                 logPrint(outputBuffer);
             }
@@ -3553,14 +3633,14 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
     }
 
     // -------------------------------------------------------------------------
-    // --- NTRIP page. Disconnect WiFi client. ---
+    // --- Menu page. Disconnect Internet. ---
     // -------------------------------------------------------------------------
-    if (jsonDocFromBrowser["disconnectWifiClient"].is<JsonVariant>()) {
+    if (jsonDocFromBrowser["disconnectInternet"].is<JsonVariant>()) {
         WiFi.disconnect();
 
         // -- Set response. --
-        snprintf(outputBuffer, sizeof(outputBuffer), "WiFi client DISCONNECTED from SSID \"%s.\"", prfHotSsi);
-        jsonDocToBrowser["disconnectWifiClientResp"] = outputBuffer;
+        snprintf(outputBuffer, sizeof(outputBuffer), "Internet DISCONNECTED.");
+        jsonDocToBrowser["disconnectInternetResp"] = outputBuffer;
         if (commandFlag[DEBUG_WIFI_EVENTS]) {
             logPrint(outputBuffer);
         }
@@ -3724,6 +3804,48 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
         if (commandFlag[DEBUG_NTRIP]) {
             logPrint(outputBuffer);
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // --- Debug page. Turn on debug. ---
+    // -------------------------------------------------------------------------
+    if (jsonDocFromBrowser["startDebug"].is<JsonVariant>()) {
+
+        // -- Turn on debug. --
+        const char* whichDebug = jsonDocFromBrowser["startDebug"];
+        uint8_t debugNum;
+        for (debugNum = 0; debugNum < NUM_COMMANDS; debugNum++) {
+            if (strcmp(COMMAND[debugNum], whichDebug) == 0) {  // Find the enum value.
+                commandFlag[debugNum] = true;
+                debugFlag             = true;
+                break;
+            }
+        }
+
+        // -- Set response. --
+        snprintf(outputBuffer, sizeof(outputBuffer), "%s (#%u) debug started.", whichDebug, debugNum);
+        jsonDocToBrowser["startDebugResp"] = outputBuffer;
+    }
+
+    // -------------------------------------------------------------------------
+    // --- Debug page. Turn off debug. ---
+    // -------------------------------------------------------------------------
+    if (jsonDocFromBrowser["stopDebug"].is<JsonVariant>()) {
+
+        // -- Turn off debug. --
+        const char* whichDebug = jsonDocFromBrowser["stopDebug"];
+        uint8_t debugNum;
+        for (debugNum = 0; debugNum < NUM_COMMANDS; debugNum++) {
+            if (strcmp(COMMAND[debugNum], whichDebug) == 0) {  // Find the enum value.
+                commandFlag[debugNum] = false;
+                debugFlag             = false;
+                break;
+            }
+        }
+
+        // -- Set response. --
+        snprintf(outputBuffer, sizeof(outputBuffer), "%s (#%u) debug stopped.", whichDebug, debugNum);
+        jsonDocToBrowser["stopDebugResp"] = outputBuffer;
     }
 
     // -------------------------------------------------------------------------
@@ -3988,13 +4110,12 @@ if (commandFlag[DEBUG_LOOP_STACK]) {
     }
 
     // --- RTCM in. ---
-    // @see task taskRtcmRelay().
+    // @see relayRtcmByte().
 
     // --- GNSS. ---
     if (commandFlag[DEBUG_GNSS]) {
         roverGNSS.enableDebugging();    // "Pipe all NMEA sentences to serial USB."
-    }
-    if (!commandFlag[DEBUG_GNSS]) {
+    } else {
         roverGNSS.disableDebugging();
     }
 
@@ -4020,9 +4141,9 @@ if (commandFlag[DEBUG_LOOP_STACK]) {
     // --- Serial. ---
     if (commandFlag[DEBUG_SER]) {
         // - Serial state (d,u). -
-        Serial.printf(
-            "Serial USB %c  Serial0 (not used) %c serial1 (RTCMin -> HC12) %c  serial2 (RTCMout -> ZED UART2) %c\n",
+        snprintf(outputBuffer, sizeof(outputBuffer), "Serial USB %c  Serial0 (not used) %c serial1 (RTCMin -> HC12) %c  serial2 (RTCMout -> ZED UART2) %c",
             serialState[0], serialState[1], serialState[2], serialState[3]);
+        logPrint(outputBuffer);     // (textToLogPrint, add to log file = true, add newline = true).
     }
 
     // --- WiFi. ---
@@ -4045,13 +4166,18 @@ if (commandFlag[DEBUG_LOOP_STACK]) {
     // memset(debugTemp, '\0', sizeof(debugTemp));
     // strcpy(debugTemp,numberbuffer);
     if (commandFlag[DEBUG_TEMP]) {
-        Serial.printf("[%s]\n", debugTemp);
+            snprintf(outputBuffer, sizeof(outputBuffer), 
+                "ellipsoid=%d, ellipsoidHp=%d, heightEllipsoid=%.3f", ellipsoid, ellipsoidHp, heightEllipsoid);
+            logPrint(outputBuffer);
+            snprintf(outputBuffer, sizeof(outputBuffer), "msl=%d, mslHp=%d, prfInstrHgt=%.2f, heightOrthometric=%.3f, altitudeMSL=%.3f", msl, mslHp, prfInstrHgt, heightOrthometric, altitudeMSL);
+            logPrint(outputBuffer);
+            logPrint(lastGGA);
     }
 
     // --- Preferences. ---
     if (commandFlag[DEBUG_PREFS]) {
         prefUtility(PREF_PRINT);
-        Serial.println();
+        logPrint(" ");
         commandFlag[DEBUG_PREFS] = false;
         // Serial.printf("%s %s\n", COMMAND[i], (commandFlag[i]  ? "enabled." : "disabled."));
     }

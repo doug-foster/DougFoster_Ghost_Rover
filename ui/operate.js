@@ -29,15 +29,19 @@
  * @since  3.3.5  [2026-09-08-07:45pm] Add MIN_SATELLITE_THRESHHOLD & logic for #start on "operate" page.
  * @since  3.3.5  [2026-09-12-11:15am] Add laser on/off logic to btnLaser.addEventListener().
  * @since  3.4.0  [2026-09-13-02:30pm] Height/position lock/unlock.
+ * @since  3.4.0  [2026-09-17-04:30pm] Vertical slider for numbers.
+ * @since  3.4.0  [2026-09-19-11:30am] Remove update() and const SEND_PREFS.
+ * @since  3.4.0  [2026-09-22-09:30am] GNSS coordinate conversions.
+ * @since  3.4.1  [2025-10-26-04:45pm] Cleanup formatting.
  * @link   http://dougfoster.me.
-*/
+ */
 
 /**
  * =========================================================================
  *  Global vars.
  * =========================================================================
  *
- * @since  3.0.7  [2025-11-14-09:30am].
+ * @since  3.0.7  [2025-11-14-09:30am] New.
  * @since  3.0.11 [2026-01-20-07:00pm] Change altitude to height.
  * @since  3.0.13 [2026-01-28-08:45pm] Add status section.
  * @since  3.0.12 [2026-02-08-02:00pm] Add SEND_PREFS, change heights.
@@ -47,6 +51,8 @@
  * @since  3.0.12 [2026-02-25-06:30pm] Copy HAC logic to VAC.
  * @since  3.0.12 [2026-02-27-06:45pm] Add WebSocket #.
  * @since  3.3.5  [2026-09-08-07:30pm] Add fixNumSivDisplay, change numSiV to fixNumSIV.
+ * @since  3.4.0  [2026-09-19-11:30am] Remove update() and const SEND_PREFS.
+ * @since  3.4.0  [2026-09-22-09:30am] GNSS coordinate conversions.
  */
 
 // --- Section: Fix. ---
@@ -63,8 +69,15 @@ const numHeightElip                = document.querySelector('.numbers #height-el
 const numHeightOrth                = document.querySelector('.numbers #height-orthometric');
 const numLatitude                  = document.querySelector('.numbers #latitude');
 const numLongitude                 = document.querySelector('.numbers #longitude');
+const numbers                      = document.querySelector('.numbers');
 const numVAC                       = document.querySelectorAll('.numbers .vac');
 const numHAC                       = document.querySelectorAll('.numbers .hac');
+const numEcefX                     = document.querySelector('.numbers #pos-ecef-x');
+const numEcefY                     = document.querySelector('.numbers #pos-ecef-y');
+const numEcefZ                     = document.querySelector('.numbers #pos-ecef-z');
+const numPosUtmZone                = document.querySelector('.numbers #pos-utm-zone');
+const numPosUtmEast                = document.querySelector('.numbers #pos-utm-east');
+const numPosUtmNorth               = document.querySelector('.numbers #pos-utm-north');
 
 // --- Section: Buttons. ---
 const btnLaser                     = document.querySelector('.buttons #laser');
@@ -122,12 +135,26 @@ const statusHotspotPassId          = document.querySelector('.status #hotspot-pa
 const statusWifiMode               = document.querySelector('.status #wifi-mode');
 const statusInstrumentHeight       = document.querySelector('.status #instrument-height');
 
+// --- GNSS. ---
+let heightElip = 0;
+let heightOrth = 0;
+let latitude   = 0;
+let longitude  = 0;
+let GnssPos    = {
+    lat:  0,
+    lon:  0,
+    hgtE: 0,
+};
+
+// --- GNSS coordinate conversions. ---
+const WGS84_A  = 6378137.0;                 // Semi-major axis (m).
+const WGS84_F  = 1 / 298.257223563;         // Flattening.
+const WGS84_E2 = WGS84_F * (2 - WGS84_F);   // Eccentricity squared.
+
 // --- General. ---
-const SEND_PREFS                   = '{"page":"operate","sendPrefs":""}';
 const LASER_ON                     = '{"laserOn":""}';
 const LASER_OFF                    = '{"laserOff":""}';
 // const wsMessageWindowMaxCount      = 10;         // Not used? WebSocket message status tracking window (# messages).
-const LOCK_AVERAGE_DURATION_MS     = 2000;          // Two second window for averaging before lock engages.
 let prfGnsMsrInt                   = 0;
 let prfGnsNavRat                   = 0;
 let startTime;
@@ -145,34 +172,18 @@ let convert                        = 1;             // Conversion for default un
  * @since 3.0.12 [2026-01-28-06:00pm] Refactor for status section.
  * @since 3.0.12 [2026-02-07-07:30am] Add SEND_PREFS.
  * @since 3.1.2  [2026-07-05-05:45pm] Remove clearOperateUi().
- * @see   update()         - Update server.
+ * @since 3.4.0  [2026-09-19-11:30am] Remove update() and const SEND_PREFS.
+ * @since 3.4.0  [2026-09-22-09:30am] GNSS coordinate conversions.
  * @see   fix()            - Fix - set state.
  * @see   button()         - Buttons - set button states.
  * @see   toggleButtons()  - Buttons - set icon states.
  * @see   battery()        - Battery - set items.
  * @see   flash()          - Flash an LED.
+ * @see   deg2rad()        - Convert degrees to radians.
+ * @see   rad2deg()        - Convert radians to degrees.
+ * @see   llhToECEF()      - Geodetic (lat, lon, ellipsoid height) -> ECEF (X, Y, Z), in meters.
+ * @see   llToUTM()        - Geodetic (lat, lon) -> UTM (zone, hemisphere, easting, northing).
  */
-
-/**
- * -------------------------------------------------------------------------
- *  Update server.
- * -------------------------------------------------------------------------
- * 
- * @return void  No output is returned.
- * @since  3.0.10 [2026-01-07-04:30pm] New.
- * @since  3.0.11 [2026-01-13-11:45am] UPDATE_INTERVAL.
- * @since  3.0.11 [2026-01-21-09:00am] Check websocket.readyState.
- * @since  3.0.11 [2026-01-21-10:00am] Changed "update" to "?".
- * @since  3.0.12 [2026-01-31-03:30pm] Used UPDATE.
- * @since  3.0.12 [2026-02-07-07:30am] Add SEND_PREFS.
- * @see    webSocketOpened() in global.js.
- */
-function update() {
-
-    // --- Send SEND_PREFS message. ---
-    websocket.send(SEND_PREFS);
-    console.log('browser --> ' + SEND_PREFS);
-}
 
 /**
  * -------------------------------------------------------------------------
@@ -181,8 +192,8 @@ function update() {
  * 
  * Since there is (1) fix state per WebSocket message, also calculate the WebSocket stats.
  *
- * @return void  No output is returned.
- * @since  3.0.3 [2025-10-19-02:00pm].
+ * @return void   No output is returned.
+ * @since  3.0.3  [2025-10-19-02:00pm] New.
  * @since  3.0.10 [2026-01-08-01:30pm] Shortened keywords.
  */
 function fix(state) {
@@ -235,8 +246,8 @@ function fix(state) {
  *  Buttons - set button states.
  * -------------------------------------------------------------------------
  *
- * @return void  No output is returned.
- * @since  3.0.3 [2025-10-13-02:15pm].
+ * @return void   No output is returned.
+ * @since  3.0.3  [2025-10-13-02:15pm] New.
  * @since  3.0.11 [2026-01-20-07:00pm] Change altitude to height.
  * @since  3.0.11 [2026-01-21-09:00am] Check websocket.readyState.
  * @since  3.0.12 [2026-02-25-05:45pm] Websocket send - preserve KV pair order by changing JSON data to array.
@@ -295,8 +306,8 @@ function button(which, action) {
  *  Buttons - set icon states.
  * -------------------------------------------------------------------------
  *
- * @return void  No output is returned.
- * @since  3.0.3  [2025-10-13-02:15pm].
+ * @return void   No output is returned.
+ * @since  3.0.3  [2025-10-13-02:15pm] New.
  * @since  3.0.11 [2026-01-20-07:00pm] Change altitude to height.
  * @since  3.0.11 [2026-01-22-10:30am] Refactor.
  * @since  3.4.0  [2026-09-12-10:15pm] Height/position lock/unlock.
@@ -329,7 +340,7 @@ function toggleButtons(which) {
  * example JSON: {"bat":93.07031,"batc":-1.2}
  *
  * @return void   No output is returned.
- * @since  3.0.7  [2025-11-10-11:30am].
+ * @since  3.0.7  [2025-11-10-11:30am] New.
  * @since  3.0.10 [2026-01-08-12:30pm] Shortened keywords.
  * @since  3.0.12 [2026-02-25-05:45pm] Websocket send - preserve KV pair order by changing JSON data to array.
  */
@@ -396,17 +407,136 @@ function flashRtcm() {
 }
 
 /**
+ * -------------------------------------------------------------------------
+ *  Convert degrees to radians.
+ * -------------------------------------------------------------------------
+ *
+ * @param  Number d Degrees.
+ * @return Number Radians.
+ * @since  3.3.4  [2026-09-21-03:00pm] New.
+ * @see    llhToECEF() in operate.js.
+ * @see    llToUTM() in operate.js.
+ */
+function deg2rad(d) {
+    return d * Math.PI / 180; 
+}
+
+/**
+ * -------------------------------------------------------------------------
+ * Convert radians to degrees.
+ * -------------------------------------------------------------------------
+ *
+ * @param  Number r Radians.
+ * @return Number Degrees.
+ * @since  3.3.4  [2026-09-21-03:00pm] New.
+ */
+function rad2deg(r) {
+    return r * 180 / Math.PI;
+}
+
+/**
+ * -------------------------------------------------------------------------
+ * Geodetic (lat, lon, height) -> ECEF (X, Y, Z), in meters.
+ *  height = ellipsoidal height (HAE), not orthometric/MSL.
+ * -------------------------------------------------------------------------
+ *
+ * @param  Number latDeg Lattitude in degrees.
+ * @param  Number lonDeg Longitude in degrees.
+ * @param  Number heightM Ellipsoidal height in meters.
+ * @return Number x, y, z ECEF X,Y, & Z positions. (GnssPos.x, GnssPos.y, Gnss.z)
+ * @since  3.3.4  [2026-09-21-03:00pm] New.
+ * @see    webSocketRcvMessage() in global.js.
+ */
+function llhToECEF(latDeg, lonDeg, heightM) {
+    latDeg       = Number(latDeg);
+    lonDeg       = Number(lonDeg);
+    heightM      = Number(heightM);
+    const lat    = deg2rad(latDeg);
+    const lon    = deg2rad(lonDeg);
+    const sinLat = Math.sin(lat);
+    const cosLat = Math.cos(lat);
+
+  // --- Radius of curvature in the prime vertical. ---
+  const N = WGS84_A / Math.sqrt(1 - WGS84_E2 * sinLat * sinLat);
+
+  const x = (N + heightM) * cosLat * Math.cos(lon);
+  const y = (N + heightM) * cosLat * Math.sin(lon);
+  const z = (N * (1 - WGS84_E2) + heightM) * sinLat;
+
+  return { x, y, z };
+}
+
+/**
+ * -------------------------------------------------------------------------
+ * Geodetic (lat, lon) -> UTM (zone, hemisphere, easting, northing).
+ * Standard Transverse Mercator projection per NGA/USGS formulas.
+ * -------------------------------------------------------------------------
+ *
+ * @param  Number latDeg Lattitude in degrees.
+ * @param  Number lonDeg Longitude in degrees.
+ * @return Number zone, hemisphere, easting, northing Zone, hemisphere, easting, northing positions.
+ * @since  3.3.4  [2026-09-21-03:00pm] New.
+ * @see    webSocketRcvMessage() in global.js.
+ */
+function llToUTM(latDeg, lonDeg) {
+    latDeg   = Number(latDeg);
+    lonDeg   = Number(lonDeg);
+    const a  = WGS84_A;
+    const e2 = WGS84_E2;
+    const k0 = 0.9996;
+
+    const zone = Math.floor((lonDeg + 180) / 6) + 1;
+    const lonOriginDeg = (zone - 1) * 6 - 180 + 3;
+    const lonOrigin = deg2rad(lonOriginDeg);
+
+    const lat = deg2rad(latDeg);
+    const lon = deg2rad(lonDeg);
+
+    const ePrime2 = e2 / (1 - e2);
+    const N = a / Math.sqrt(1 - e2 * Math.sin(lat) * Math.sin(lat));
+    const T = Math.tan(lat) * Math.tan(lat);
+    const C = ePrime2 * Math.cos(lat) * Math.cos(lat);
+    const A = Math.cos(lat) * (lon - lonOrigin);
+
+    const M = a * (
+      (1 - e2 / 4 - 3 * e2 * e2 / 64 - 5 * e2 * e2 * e2 / 256) * lat
+      - (3 * e2 / 8 + 3 * e2 * e2 / 32 + 45 * e2 * e2 * e2 / 1024) * Math.sin(2 * lat)
+      + (15 * e2 * e2 / 256 + 45 * e2 * e2 * e2 / 1024) * Math.sin(4 * lat)
+      - (35 * e2 * e2 * e2 / 3072) * Math.sin(6 * lat)
+    );
+
+    let easting = k0 * N * (
+      A + (1 - T + C) * Math.pow(A, 3) / 6
+      + (5 - 18 * T + T * T + 72 * C - 58 * ePrime2) * Math.pow(A, 5) / 120
+    ) + 500000.0;
+
+    let northing = k0 * (
+      M + N * Math.tan(lat) * (
+        A * A / 2
+        + (5 - T + 9 * C + 4 * C * C) * Math.pow(A, 4) / 24
+        + (61 - 58 * T + T * T + 600 * C - 330 * ePrime2) * Math.pow(A, 6) / 720
+      )
+    );
+
+    const hemisphere = latDeg >= 0 ? 'N' : 'S';
+    if (latDeg < 0) northing += 10000000.0; // false northing for southern hemisphere
+
+    return { zone, hemisphere, easting, northing };
+}
+
+/**
  * =========================================================================
  *  Event listeners.
  * =========================================================================
  *
- * @since  3.0.3  [2025-10-22-01:30pm].
+ * @since  3.0.3  [2025-10-22-01:30pm] New.
  * @since  3.0.10 [2026-01-07-02:00pm] Add update.
  * @since  3.0.11 [2026-01-20-07:00pm] Change altitude to height.
  * @since  3.0.12 [2026-02-08-05:00pm] Add uptime timer.
  * @since  3.1.0  [2026-03-20-11:15am] Update var names.
  * @since  3.3.5  [2026-09-12-11:15am] Add laser on/off logic to btnLaser.addEventListener().
  * @since  3.4.0  [2026-09-13-02:30pm] Height/position lock/unlock.
+ * @since  3.4.0  [2026-09-17-03:00pm] Vertical slider for numbers.
  * @see global.js.
  */
 
@@ -430,6 +560,14 @@ function flashRtcm() {
     console.log('Show console messages is "' + sessionStorage.getItem("displayJsConsoleMessages") + '".');
 });
 
+// --- Numbers. ---
+numbers.addEventListener('click', async () => {
+    numbers.classList.toggle('fixed-height');
+    numbers.querySelectorAll('.clear').forEach((element, index) => {
+        element.classList.toggle('remove');
+    });
+});
+
 // --- Buttons. ---
 btnLaser.addEventListener('click', async () => {
     btnLaserLabel.classList.toggle('shadow');               // Visual feedback.
@@ -450,14 +588,14 @@ btnHeight.addEventListener('click', () => {
     setTimeout(function() { btnHeightLabel.classList.remove('shadow'); }, 100);
     toggleButtons('height');
     lockIcons[1].classList.add('blink-fast');
-    setTimeout(function() { lockIcons[1].classList.remove('blink-fast')}, LOCK_AVERAGE_DURATION_MS);
+    setTimeout(function() { lockIcons[1].classList.remove('blink-fast')}, prfLckAvgInt * 1000);
 });
 btnPosition.addEventListener('click', () => {
     btnPositionLabel.classList.add('shadow');               // Visual feedback.
     setTimeout(function() { btnPositionLabel.classList.remove('shadow'); }, 100);
     toggleButtons('position');
     lockIcons[2].classList.add('blink-fast');
-    setTimeout(function() { lockIcons[2].classList.remove('blink-fast')}, LOCK_AVERAGE_DURATION_MS);
+    setTimeout(function() { lockIcons[2].classList.remove('blink-fast')}, prfLckAvgInt * 1000);
 });
 btnLockUnlock.addEventListener('click', () => {
     btnLockUnlockLabel.classList.add('shadow');             // Visual feedback.
@@ -477,7 +615,7 @@ btnLockUnlock.addEventListener('click', () => {
         lockIcons[2].classList.add('blink-fast');
         setTimeout(function() { lockIcons[1].classList.remove('blink-fast');
             lockIcons[2].classList.remove('blink-fast');
-         }, LOCK_AVERAGE_DURATION_MS);
+         }, prfLckAvgInt * 1000);
     }
 });
 btnStatus.addEventListener('click', () => {
@@ -492,7 +630,7 @@ btnStatus.addEventListener('click', () => {
  *  Test.
  * =========================================================================
  *
- * @since  3.0.12 [2026-02-08-08:00pm].
+ * @since  3.0.12 [2026-02-08-08:00pm] New.
  */
 
 /**
@@ -500,8 +638,8 @@ btnStatus.addEventListener('click', () => {
  *  Run on page load.
  * =========================================================================
  *
- * @since  3.0.3 [2025-10-16-10:00am].
- * @since  3.1.2  [2026-07-05-05:45pm] Remove clearOperateUi().
+ * @since  3.0.3 [2025-10-16-10:00am] New.
+ * @since  3.1.2 [2026-07-05-05:45pm] Remove clearOperateUi().
  */
 fix(           0);
 battery('soc', 0);

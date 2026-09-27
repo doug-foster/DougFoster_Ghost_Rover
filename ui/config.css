@@ -22,16 +22,18 @@
  * @since  3.1.2  [2026-07-20-10:00pm] Remove .divider, NTRIP active caster from select to switch.
  * @since  3.1.2  [2026-07-28-11:00am] Plain note, add WiFi switch.
  * @since  3.2.1  [2026-08-07-09:15am] Added RTCM bridge mode.
+ * @since  3.4.0  [2026-09-20-09:00am] Added lock-avg-interval.
+ * @since  3.4.1  [2025-10-26-04:45pm] Cleanup formatting.
  * @link   http://dougfoster.me.
-*/
+ */
 
 /**
- * -------------------------------------------------------------------------
- *  General.
- * -------------------------------------------------------------------------
-*/
+ * =========================================================================
+ * Form.
+ * =========================================================================
+ */
 
-/* --- Form --- */
+/* --- Form: general. --- */
 form#config {
     margin-top: 20px;
 }
@@ -121,11 +123,19 @@ form#config {
 #config .config-grid-fields label {
     padding: 5px 5px 5px 0;
 }
-#config .config-grid-fields input {
+#config .config-grid-fields input,
+#config input#lock-avg-interval {
     padding: 5px;
     border: 1px solid var(--gray-2);
     border-radius: 3px;
     font-size: 1rem;
+}
+#config input#lock-avg-interval {       /*  // Newest pref. */
+    width: 30px;
+    margin-right: 10px;
+}
+#config #lock-avg-interval-label {
+    font-size: 16px;
 }
 
 /* -- Form: other. -- */
@@ -154,8 +164,8 @@ form#config {
     border-bottom: 1px solid var(--gray-2);
 }
 
-/* -- Checkbox - https://www.w3schools.com/howto/tryit.asp?filename=tryhow_css_custom_checkbox. -- */
-/* - Checkbox: container. - */
+/* -- Form checkbox - https://www.w3schools.com/howto/tryit.asp?filename=tryhow_css_custom_checkbox. -- */
+/* - Form checkbox: container. - */
 .checkbox-container {
     display: block;
     position: relative;
@@ -173,7 +183,7 @@ form#config {
     font-size: 1rem;;
     display: block;
 }
-/* - Checkbox: hide the browser's default checkbox. - */
+/* - Form checkbox: hide the browser's default checkbox. - */
 .checkbox-container input {
     position: absolute;
     opacity: 0;
@@ -181,7 +191,7 @@ form#config {
     height: 0;
     width: 0;
 }
-/* - Checkbox: custom checkbox. - */
+/* - Form checkbox: custom checkbox. - */
 .checkbox-container .checkmark {
     position: absolute;
     top: 0;
@@ -192,7 +202,7 @@ form#config {
     border-radius: 3px;
     border: 1px solid var(--gray-1);
 }
-/* - Checkbox: checkmark indicator. - */
+/* - Form checkbox: checkmark indicator. - */
 .checkbox-container .checkmark:after {
     content: "";
     position: absolute;
@@ -207,11 +217,11 @@ form#config {
     -ms-transform: rotate(45deg);
     transform: rotate(45deg);
 }
-/* - Checkbox: If checked, background = black. - */
+/* - Form checkbox: If checked, background = black. - */
 .checkbox-container input:checked ~ .checkmark {
     background-color: black !important;
 }
-/* - Checkbox: show the checkmark when checked. - */
+/* - Form checkbox: show the checkmark when checked. - */
 .checkbox-container input:checked ~ .checkmark:after {
     display: block;
 }

@@ -1,0 +1,54 @@
+/**
+ * *************************************************************************
+ *  Ghost Rover 3 - UI CSS.
+ * *************************************************************************
+ *
+ * debug.css
+ *
+ * @author D. Foster <doug@dougfoster.me>.
+ * @since  3.4.0 [2026-09-19-07:30pm] New.
+ * @since  3.4.1  [2025-10-26-04:45pm] Cleanup formatting.
+ * @link   http://dougfoster.me.
+ */
+
+/**
+ * =========================================================================
+ *  Choices.
+ * =========================================================================
+ */
+#debug-choices .choice {
+    padding: 12px;
+    margin: 0 0 8px 0;
+    text-align: left;
+    cursor: pointer;
+}
+#debug-choices .explain-debug {
+    margin: 10px 10px 0 10px;
+    font-family:'Courier New', Courier, monospace;
+    font-size: 14px;
+    font-weight: 100;
+}
+#debug-choices .choice:first-of-type {
+    margin-top: 8px;
+}
+#debug-choices .choice.selected {
+    background-color: var(--gray-1) !important;
+    color: #ffffff;
+}
+#debug-choices .choice:nth-of-type(even) {
+    background-color: var(--gray-4);
+}
+#debug-choices .choice:nth-of-type(odd) {
+    background-color: var(--green-4);
+}
+
+/**
+ * =========================================================================
+ *  Buttons.
+ * =========================================================================
+ */
+#buttons {
+    display:flex;
+    justify-content: space-between;
+    padding: 10px;
+}
