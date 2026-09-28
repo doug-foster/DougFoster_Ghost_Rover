@@ -39,6 +39,8 @@
  * @since  3.4.0  [2026-09-22-09:30am] GNSS coordinate conversions.
  * @since  3.4.1  [2025-10-26-04:45pm] Cleanup formatting.
  * @since  3.4.1  [2025-10-27-11:15am] Add instructions page.
+ * @since  3.4.1  [2025-10-27-06:30pm] Changed toFixed() to toLocaleString() in webSocketRcvMessage(): add commas to UTM & ECF.
+ * @since  3.4.1  [2026-09-27-10:00pm] Added caster.crs.
  * @link   http://dougfoster.me.
  */
 
@@ -58,6 +60,7 @@
  * @since  3.3.5  [2026-09-08-07:45pm] Add MIN_SATELLITE_THRESHHOLD.
  * @since  3.3.5  [2026-09-19-11:15am] Add PAGE constant, change page name tests to use PAGE.
  * @since  3.4.0  [2026-09-22-09:30am] GNSS coordinate conversions.
+ * @since  3.4.1  [2026-09-27-10:00pm] Added caster.crs.
  * @see    setHeights() in config.js.
  * @see    Global vars () WebSockets) in DougFoster_Ghost_Rover.ino.
  */
@@ -98,9 +101,9 @@ const versionRoverId          = document.querySelector('#version-rover');
 let   websocket;
 const caster = [
   { },
-  { id:'', name:'', url:'', mount:'', port:'', version:1, user:'', pass:'', sendGga:0 },
-  { id:'', name:'', url:'', mount:'', port:'', version:1, user:'', pass:'', sendGga:0 },
-  { id:'', name:'', url:'', mount:'', port:'', version:1, user:'', pass:'', sendGga:0 },
+  { id:'', name:'', url:'', mount:'', port:'', version:1, user:'', pass:'', crs:'', sendGga:0 },        // Newest pref.
+  { id:'', name:'', url:'', mount:'', port:'', version:1, user:'', pass:'', crs:'', sendGga:0 },        // Newest pref.
+  { id:'', name:'', url:'', mount:'', port:'', version:1, user:'', pass:'', crs:'', sendGga:0 },        // Newest pref.
 ];
 let jsonObj;
 
@@ -140,6 +143,7 @@ let heightPole               =    0;    // mm.
  * @since  3.2.1 [2026-07-25-04:30pm] add toJson().
  * @since  3.2.1 [2026-08-02-09:30am] Move updateUi() here from operate.js.
  * @since  3.3.5 [2026-09-08-07:45pm] Add MIN_SATELLITE_THRESHHOLD & logic for #start in webSocketRcvMessage().
+ * @since  3.4.1 [2025-10-27-06:30pm] Changed toFixed() to toLocaleString() in webSocketRcvMessage(): add commas to UTM & ECF.
  * @see    webSocketInit()       - WebSocket: init.
  * @see    webSocketOpened()     - WebSocket: opened.
  * @see    webSocketClosed()     - WebSocket: closed.
@@ -306,6 +310,7 @@ async function webSocketStop(event) {
  *     50 = NTRIP caster password           (struct ntripCasterProfile ntripCaster.pass    - char user[48]).
  *     51 = NTRIP caster sendGga            (struct ntripCasterProfile ntripCaster.sendGga - bool ).
  *     52 = GNSS lock averaging interval    (uint16_t prfLckAvgInt).
+ *     53 = NTRIP caster crs                (struct ntripCasterProfile ntripCaster.crs     - char mount[24]).        // Newest pref.
  *
  * @return void  No output is returned.
  * @since  3.0.7 [2025-11-15-02:00pm].
@@ -327,6 +332,8 @@ async function webSocketStop(event) {
  * @since  3.4.0  [2026-09-13-05:30pm] Update RTCM in & NMEA out. Remove rtcmSource for "operate" page.
  * @since  3.4.0  [2026-09-20-05:30pm] Add prfLckAvgInt.
  * @since  3.4.1  [2025-10-27-11:15am] Add instructions page.
+ * @since  3.4.1 [2025-10-27-06:30pm] Changed toFixed() to toLocaleString(): add commas to UTM & ECF.
+ * @since  3.4.1  [2026-09-28-11:30am] Added caster.crs.
  * @see    filesMessage() in files.js.
  */
 function webSocketRcvMessage(event) {
@@ -361,7 +368,7 @@ function webSocketRcvMessage(event) {
         prfHotPas                   = jsonObj["7"];
         hotspotIp                   = jsonObj["34"];
         prfInstrHght                = jsonObj["36"];
-        prfLckAvgInt                = jsonObj["52"];        // Newest pref.
+        prfLckAvgInt                = jsonObj["52"];
         ntripCasterAttributes[1]    = jsonObj["39"];
         ntripCasterAttributes[2]    = jsonObj["40"];
         ntripCasterAttributes[3]    = jsonObj["41"];
@@ -381,6 +388,7 @@ function webSocketRcvMessage(event) {
             caster[i].version = jsonObj["48"];
             caster[i].user    = jsonObj["49"];
             caster[i].pass    = jsonObj["50"];
+            caster[i].crs     = jsonObj["53"];              // Newest pref.
             caster[i].sendGga = Boolean(jsonObj["51"]);
         }
     }
@@ -394,16 +402,16 @@ function webSocketRcvMessage(event) {
                 item.classList.remove('hide');      // Hide/show "choose caster" row.
             });
         }
-        gnssMeasureInterval.value = prfGnsMsrInt;
-        gnssNavRate.value         =  prfGnsNavRat;
+        gnssMeasureInterval.value  = prfGnsMsrInt;
+        gnssNavRate.value          =  prfGnsNavRat;
         outputInterval.textContent = gnssMeasureInterval.value * gnssNavRate.value ;
-        hotspotSsid.value     = jsonObj["6"];
-        hotspotPassword.value = jsonObj["7"];
+        hotspotSsid.value          = jsonObj["6"];
+        hotspotPassword.value      = jsonObj["7"];
         setHeights('init');
         document.querySelector('input[name="switch-ntrip-caster-active"][value="' + prfNtripCasterAct +'"]').checked = true;
-        ntripCaster.value     = prfNtripCasterAct;
+        ntripCaster.value = prfNtripCasterAct;
         ntripAttributes('load');                    // Load UI fields.
-        gnsLckAvgIntrvl.value = jsonObj["52"];      // Newest pref.
+        gnsLckAvgIntrvl.value = jsonObj["52"];      // Newest pref. 2.
     }
 
     // --- Files page. ---
@@ -523,8 +531,8 @@ function webSocketRcvMessage(event) {
             // -- {"36":1201}. --
             statusInstrumentHeight.textContent = jsonObj["36"].toLocaleString();
 
-            // -- {"53":10}. --
-            prfLckAvgInt = jsonObj["52"];      // Newest pref.
+            // -- {"52":10}. --
+            prfLckAvgInt = jsonObj["52"];      // Newest pref. 2.
 
         } else {
 
@@ -561,15 +569,30 @@ function webSocketRcvMessage(event) {
 
             // -- Calculate ECEF values. --
             GnssPosECEF = llhToECEF(latitude, longitude, heightElip);
-            numEcefX.innerHTML = GnssPosECEF.x.toFixed(4);
-            numEcefY.innerHTML = GnssPosECEF.y.toFixed(4);
-            numEcefZ.innerHTML = GnssPosECEF.z.toFixed(4);
+            numEcefX.innerHTML = GnssPosECEF.x.toLocaleString('en-US', {
+                minimumFractionDigits: 4,
+                maximumFractionDigits: 4
+            });;
+            numEcefY.innerHTML = GnssPosECEF.y.toLocaleString('en-US', {
+                minimumFractionDigits: 4,
+                maximumFractionDigits: 4
+            });
+            numEcefZ.innerHTML = GnssPosECEF.z.toLocaleString('en-US', {
+                minimumFractionDigits: 4,
+                maximumFractionDigits: 4
+            });
 
             // -- Calculate UTM values. --
             GnssPosUTM = llToUTM(latitude, longitude);
             numPosUtmZone.innerHTML  = GnssPosUTM.zone + GnssPosUTM.hemisphere;
-            numPosUtmEast.innerHTML  = GnssPosUTM.easting.toFixed(4);
-            numPosUtmNorth.innerHTML = GnssPosUTM.northing.toFixed(4);
+            numPosUtmEast.innerHTML  = GnssPosUTM.easting.toLocaleString('en-US', {
+                minimumFractionDigits: 4,
+                maximumFractionDigits: 4
+            });
+            numPosUtmNorth.innerHTML = GnssPosUTM.northing.toLocaleString('en-US', {
+                minimumFractionDigits: 4,
+                maximumFractionDigits: 4
+            });
 
             // -- {"14":"0.016"}. --
             numHAC.forEach(hac => {
@@ -585,6 +608,9 @@ function webSocketRcvMessage(event) {
             if (jsonObj["16"]) {
                 commRtcm.classList.add('up');
                 flashRtcm();
+
+                // - CRS changes from ZED native EPSG:4979 (WGS 84 - 3D) to RTCM source CRS.
+                numCrs.innerHTML = caster[prfNtripCasterAct].crs;
             } else {
                 commRtcm.classList.remove('up');
             }
@@ -742,6 +768,7 @@ function webSocketRcvMessage(event) {
  * @since  3.1.2 [2026-07-25-04:15pm] New.
  * @since  3.3.1 [2026-08-27-04:45pm] ["JsonDocNtrip["43,47,48, 51"] from str to int.
  * @since  3.4.0  [2026-09-20-04:15pm] Add prfLckAvgInt.
+ * @since  3.4.1  [2026-09-27-10:00pm] Added "53" : ntripCrs.value.
  * @see    webSocketRcvMessage() in global.js.
  * @see    ntripAttributes() in config.js.
  * @see    updateConfigBtn.addEventListener() in config.js.
@@ -767,7 +794,7 @@ function toJson(which) {
                       "40" : ntripCasterAttributes[2],                            // ntripCasterAttributes[2].
                       "41" : ntripCasterAttributes[3],                            // ntripCasterAttributes[3].
                       "42" : switchNtripCasterActive,                             // prfNtripCasterAct.
-                      "52" : gnsLckAvgIntrvl.value                                // prfLckAvgInt.          // Newest pref.
+                      "52" : gnsLckAvgIntrvl.value                                // prfLckAvgInt.
             } )
             break;
         case 'ntripAttributes':
@@ -777,12 +804,13 @@ function toJson(which) {
                                 "43" : parseInt(ntripCaster.value),
                                 "44" : ntripName.value,
                                 "45" : ntripUrl.value,
-                                "46" : ntripMount.value,                                             
-                                "47" : parseInt(ntripPort.value),                                                      
-                                "48" : parseInt(ntripVersion.value),                                                     
-                                "49" : ntripUser.value,                                                
-                                "50" : ntripPassword.value,                       
-                                "51" : Number(ntripSendGGA.checked)  // Send 0/1, not false/true.                    
+                                "46" : ntripMount.value,
+                                "47" : parseInt(ntripPort.value),
+                                "48" : parseInt(ntripVersion.value),
+                                "49" : ntripUser.value,
+                                "50" : ntripPassword.value,
+                                "51" : Number(ntripSendGGA.checked),                // Send 0/1, not false/true.
+                                "53" : ntripCrs.value                               // Newest pref.
                 })
             });
             break;

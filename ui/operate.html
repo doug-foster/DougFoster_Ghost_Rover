@@ -27,6 +27,7 @@
  * @since  3.4.0  [2026-09-17-03:30pm] Vertical slider for numbers.
  * @since  3.4.1  [2025-10-26-04:45pm] Cleanup formatting.
  * @since  3.4.1  [2025-10-27-04:45pm] Correct pos-utm-north.
+ * @since  3.4.1  [2026-09-27-11:45pm] Change id="reference-frame" to id="crs", update CRS titles.
  * @link   http://dougfoster.me.
 -->
 
@@ -81,19 +82,7 @@
                 <section class="numbers fixed-height">
                     <table id="wgs84">
                         <tr>
-                            <td id="reference-frame" class="title" colspan="3">WGS84 / ITRF2020</td>
-                        </tr>
-                        <tr>
-                            <td>Hgt (ellipsoid)</td>
-                            <!-- 3 posn = 10 mm. -->
-                            <td id="height-ellipsoid" class="num">00000.000</td>
-                            <td class="num">+/- <span class="vac">00.000</span></td>
-                        </tr>
-                        <tr>
-                            <td>Hgt (ortho MSL)</td>
-                            <!-- 3 posn = 10 mm. -->
-                            <td id="height-orthometric" class="num">00000.000</td>
-                            <td class="num">+/- <span class="vac">00.000</span></td>
+                            <td id="crs" class="title" colspan="3">EPSG:4979 (WGS 84 - 3D)</td>
                         </tr>
                         <tr>
                             <td>Latitude</td>
@@ -106,11 +95,23 @@
                             <!-- 8 posn = 1.11 mm. -->
                             <td id="longitude" class="num">-000.00000000</td>
                             <td class="num">+/- <span class="hac">00.000</span></td>
-                        </tr>       
+                        </tr>                           
+                        <tr>
+                            <td>Hgt (ellipsoid)</td>
+                            <!-- 3 posn = 10 mm. -->
+                            <td id="height-ellipsoid" class="num">00000.000</td>
+                            <td class="num">+/- <span class="vac">00.000</span></td>
+                        </tr>
+                        <tr>
+                            <td>Hgt (ortho MSL)</td>
+                            <!-- 3 posn = 10 mm. -->
+                            <td id="height-orthometric" class="num">00000.000</td>
+                            <td class="num">+/- <span class="vac">00.000</span></td>
+                        </tr>
                     </table>
                     <table id="utm">
                         <tr>
-                            <td class="title" colspan="3">UTM</td>
+                            <td class="title" colspan="3">EPSG:32618 (UTM)</td>
                         </tr>
                         <tr>
                             <td>Grid Zone</td>
@@ -130,7 +131,7 @@
                     </table>
                     <table id="ecef">
                          <tr>
-                            <td class="title" colspan="3">ECEF</td>
+                            <td class="title" colspan="3">EPSG:4978 (ECEF)</td>
                         </tr>
                         <tr>
                             <td>X</td>

@@ -30,6 +30,7 @@
  * @since  3.4.0  [2026-09-19-11:30am] Remove update() and const SEND_PREFS.
  * @since  3.4.0  [2026-09-20-04:15pm] Add prfLckAvgInt.
  * @since  3.4.1  [2025-10-26-04:45pm] Cleanup formatting.
+ * @since  3.4.1  [2026-09-27-10:00pm] Added caster.crs.
  * @link   http://dougfoster.me.
  */
 
@@ -48,6 +49,7 @@
  * @since 3.1.2   [2026-07-21-02:00pm] Add NTRIP.
  * @since 3.4.0   [2026-09-19-11:30am] Remove update() and const SEND_PREFS.
  * @since 3.4.0   [2026-09-20-04:15pm] Add prfLckAvgInt.
+ * @since 3.4.1   [2026-09-27-06:45pm] Add ntripCrs.
  */
 
 const gnssMeasureInterval   = document.querySelector('#config #gnss-measure-interval');
@@ -85,11 +87,12 @@ const ntripVersion          = document.querySelector('#config #ntrip-version');
 const ntripUser             = document.querySelector('#config #ntrip-user');
 const ntripPassword         = document.querySelector('#config #ntrip-password');
 const ntripSendGGA          = document.querySelector('#config #ntrip-send-gga input');
+const ntripCrs              = document.querySelector('#config #ntrip-crs');         // Newest pref.
 const ntripCasterdup        = document.querySelector('#config #ntrip-caster-dup');
 const switchRtcmInButtons   = document.querySelector('#rtcm-in-buttons');
 const ntripCasterActive     = document.querySelector('#ntrip-caster-active');
 const chooseCaster          = document.querySelectorAll('.choose-caster');
-const gnsLckAvgIntrvl       = document.querySelector('#lock-avg-interval');   // Newest pref.
+const gnsLckAvgIntrvl       = document.querySelector('#lock-avg-interval');
 const PREF_RESET            = '{"page":"config","resetPrefs":""}';
 let   ntripCasterAttributes = [];
 let   prfNtripCasterAct     = 0;
@@ -210,6 +213,7 @@ function setHeights(action) {
  * @since  3.1.2 [2026-07-17-09:30pm] ntripCasterAttributes stored as string, not array.
  * @since  3.2.1 [2026-07-25-04:00pm] Moved JSON to webSocketRcvMessage() & toJson() in global.js.
  * @since  3.4.0 [2026-09-20-09:30am] Replaced clearMessageField().
+ * @since  3.4.1 [2026-09-27-10:00pm] Added caster.crs.
  * @see    uiPrefs().
  */
 function ntripAttributes(action) {
@@ -241,6 +245,7 @@ function ntripAttributes(action) {
         ntripVersion.value   = caster[parseInt(which)].version;
         ntripUser.value      = caster[parseInt(which)].user;
         ntripPassword.value  = caster[parseInt(which)].pass;
+        ntripCrs.value       = caster[parseInt(which)].crs;                 // Newest pref.
         ntripSendGGA.checked = Boolean(caster[parseInt(which)].sendGga);
     }
     setTimeout(function() {

@@ -42,6 +42,8 @@
  * @since  3.3.5 [2026-09-07-01:15pm] Removed checkLoopTimers() in loop(), replaced with FreeRTOS tasks.
  * @since  3.4.0 [2026-09-13-05:30pm] Height/position lock/unlock.
  * @since  3.4.0 [2026-09-20-05:30pm] Add prfLckAvgInt.
+ * @since  3.4.1 [2026-09-27-10:00pm] Added caster.crs.
+ * @since  3.4.1 [2026-09-28-12:30pm] ntripCasterProfile.crs from char[24] to char[48].
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover_BT_relay.
  * @see    https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
@@ -455,6 +457,8 @@
  * @since 3.3.1  [2026-08-29-03:00pm] New debug vars. Remove CHECK_WIRE1.
  * @since  3.4.0 [2026-09-12-07:15pm] Height/position lock/unlock.
  * @since  3.4.0 [2026-09-20-05:30pm] Add prfLckAvgInt.
+ * @since  3.4.1 [2026-09-27-10:00pm] Added ntripCaster.crs.
+ * @since  3.4.1 [2026-09-28-12:30pm] ntripCasterProfile.crs from char[24] to char[48].
  */
 
 // --- Increase default ESP32 stack size from 8KB to 16KB.
@@ -634,9 +638,9 @@ bool laserOnFlag                    = false;                    // Laser state.
 bool commandFlag[NUM_COMMANDS]      = {false};                  // Debug command flags.
 
 // --- Preferences. ---
-const char        DEF_NTRIP_CAST_ATTR_1[] = "{\"43\":1,\"44\":\"PointPerfect (SparkPNT)\",\"45\":\"ppntrip.services.u-blox.com\",\"46\":\"NEAR-RTCM\",\"47\":2101,\"48\":1,\"49\":\"tbd\",\"50\":\"tbd\",\"51\":1}";
-const char        DEF_NTRIP_CAST_ATTR_2[] = "{\"43\":2,\"44\":\"\",\"45\":\"\",\"46\":\"\",\"47\":2101,\"48\":1,\"49\":\"\",\"50\":\"\",\"51\":1}";
-const char        DEF_NTRIP_CAST_ATTR_3[] = "{\"43\":3,\"44\":\"\",\"45\":\"\",\"46\":\"\",\"47\":2101,\"48\":1,\"49\":\"\",\"50\":\"\",\"51\":1}";
+const char        DEF_NTRIP_CAST_ATTR_1[] = "{\"43\":1,\"44\":\"PointPerfect (SparkPNT)\",\"45\":\"ppntrip.services.u-blox.com\",\"46\":\"NEAR-RTCM\",\"47\":2101,\"48\":1,\"49\":\"tbd\",\"50\":\"tbd\",\"51\":1,\"53\":\"\"}";    // Newest pref.
+const char        DEF_NTRIP_CAST_ATTR_2[] = "{\"43\":2,\"44\":\"\",\"45\":\"\",\"46\":\"\",\"47\":2101,\"48\":1,\"49\":\"\",\"50\":\"\",\"51\":1,\"53\":\"\"}";
+const char        DEF_NTRIP_CAST_ATTR_3[] = "{\"43\":3,\"44\":\"\",\"45\":\"\",\"46\":\"\",\"47\":2101,\"48\":1,\"49\":\"\",\"50\":\"\",\"51\":1,\"53\":\"\"}";
 const uint16_t    NTRIP_CAST_ATTR_LEN     = 512;                // Length of character array for NTRIP caster attibute profile.
       char        prfUnt[6];                                    // Distance units: meter/feet (used only in browser).
       char        prfRtcmInSource[8];                           // RTCM in source: off, radio, ntrip, ...
@@ -647,7 +651,7 @@ const uint16_t    NTRIP_CAST_ATTR_LEN     = 512;                // Length of cha
       uint8_t     prfGnsNavRat;                                 // ZED: OUTPUT every X (e.g. 5) MEASURE intervals every (e.g. 5*100=500) ms.
       uint16_t    prfGnsMsrInt;                                 // ZED: MEASURE every Y (e.g. 100) ms.
       uint16_t    prfInstrHgt;                                  // Instrument height (includes rover height + pole height).
-      uint16_t    prfLckAvgInt;                                 // GNSS lock averaging interval.    // Newest pref.
+      uint16_t    prfLckAvgInt;                                 // GNSS lock averaging interval.
       Preferences roverPrefs;                                   // Rover's NVS preferences namespace.
       enum        prefAction {                                  // Readable index for preference actions.
           PREF_INIT,                                            // 0.
@@ -665,6 +669,7 @@ struct ntripCasterProfile {                                     // NTRIP caster 
     char     mount[24];
     char     user[48];
     char     pass[48];
+    char     crs[48];                                           // Newest pref.
     uint8_t  id;
     uint8_t  version;
     uint16_t port;
@@ -861,6 +866,7 @@ void statusLedOn() {
  * @since  3.3.1  [2026-08-27-02:30pm] ["JsonDocNtrip["43,47,48, 51"] from char to int.
  * @since  3.3.1  [2026-08-27-02:00pm] Add PREF_RESET_NO_REBOOT, changed PREF_RESET to call prefUtility(PRF_SET).
  * @since  3.4.0  [2026-09-20-05:30pm] Add prfLckAvgInt.
+ * @since  3.4.1  [2026-09-27-10:00pm] Added ntripCaster.crs.
  * @see    Global vars: Preference defaults, setup().
  * @link   https://docs.espressif.com/projects/arduino-esp32/en/latest/tutorials/preferences.html.
  * @link   https://github.com/espressif/arduino-esp32/tree/master/libraries/Preferences/.
@@ -881,7 +887,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
     const uint8_t   DEF_GNS_NAV_RAT         = 2;                // Default ZED rate (times/interval): OUTPUT a new solution.                        - Matching global var: uint8_t  prfGnsNavRat.
     const uint16_t  DEF_GNS_MSR_INT         = 100;              // Default ZED interval (ms): CREATE a new solution.                                - Matching global var: uint16_t prfGnsMsrInt.
     const uint16_t  DEF_INSTR_HGT           = 128;              // Default instrument height (mm - includes rover height [128] + pole height [0]).  - Matching global var: uint16_t prfInstrHgt.
-    const uint16_t  DEF_LCK_AVG_INT         = 3;                // Default GNSS lock averaging interval.  // Newest pref.
+    const uint16_t  DEF_LCK_AVG_INT         = 3;                // Default GNSS lock averaging interval.  // Newest pref. 2.
     const uint16_t  NUM_PREFS               = 13;               // Number of preferences being used.
           size_t    remaining               = 0;                // Number of bytes remaining that can be written to char array. 
           bool      hasKey                  = false;
@@ -924,7 +930,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             prfGnsNavRat    = roverPrefs.getUShort("prfGnsNavRat");           
             prfGnsMsrInt    = roverPrefs.getUShort("prfGnsMsrInt");
             prfInstrHgt     = roverPrefs.getUShort("prfInstrHgt");
-            prfLckAvgInt    = roverPrefs.getUShort("prfLckAvgInt");     // Newest pref.
+            prfLckAvgInt    = roverPrefs.getUShort("prfLckAvgInt");     // Newest pref. 2.
 
             // - Create NTRIP caster JSON doc from embedded JSON string for active caster. -
             // Embedded JSON string allows attributes for an NTRIP caster to be stored as a single preference. 
@@ -942,6 +948,10 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             strlcpy(ntripCaster.mount, JsonDocNtrip["46"], sizeof(ntripCaster.mount));
             strlcpy(ntripCaster.user,  JsonDocNtrip["49"],  sizeof(ntripCaster.user));
             strlcpy(ntripCaster.pass,  JsonDocNtrip["50"],  sizeof(ntripCaster.pass));
+            // A newly added pref has never been saved to NVS. Test if it exists before trying to copy.  [2026-09-27]
+            if (JsonDocNtrip["53"].is<JsonVariant>()) {
+                strlcpy(ntripCaster.crs, JsonDocNtrip["53"], sizeof(ntripCaster.crs));      // Newest pref.
+            }
             ntripCaster.id      = JsonDocNtrip["43"];
             ntripCaster.port    = JsonDocNtrip["47"];
             ntripCaster.version = JsonDocNtrip["48"];
@@ -971,7 +981,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             roverPrefs.putUShort("prfGnsNavRat",    prfGnsNavRat);        // Store as "prfGnsNavRat"        (sent/rcvd as "5").
             roverPrefs.putUShort("prfGnsMsrInt",    prfGnsMsrInt);        // Store as "prfGnsMsrInt"        (sent/rcvd as "4").
             roverPrefs.putUShort("prfInstrHgt",     prfInstrHgt);         // Store as "prfInstrHgt"         (sent/rcvd as "36" with value in mm, e.g. "165").
-            roverPrefs.putUShort("prfLckAvgInt",    prfLckAvgInt);        // Store as "prfLckAvgInt"        (sent/rcvd as "52").    // Newest pref.
+            roverPrefs.putUShort("prfLckAvgInt",    prfLckAvgInt);        // Store as "prfLckAvgInt"        (sent/rcvd as "52").    // Newest pref. 2.
 
             // -- Close name space. --
             roverPrefs.end();
@@ -995,7 +1005,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             prfGnsNavRat               = DEF_GNS_NAV_RAT;
             prfGnsMsrInt               = DEF_GNS_MSR_INT;
             prfInstrHgt                = DEF_INSTR_HGT;
-            prfLckAvgInt               = DEF_LCK_AVG_INT;   // Newest pref.
+            prfLckAvgInt               = DEF_LCK_AVG_INT;   // Newest pref. 2.
 
             // -- Save to NVS. --
             logPrint("Preference globals reset to defaults.");
@@ -1031,7 +1041,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             snprintf(outputBuffer, sizeof(outputBuffer), "prfGnsMsrInt           %u   %u   %u",             DEF_GNS_MSR_INT,    roverPrefs.getUShort("prfGnsMsrInt"),    prfGnsMsrInt);
             logPrint(outputBuffer);
             snprintf(outputBuffer, sizeof(outputBuffer), "prfLckAvgInt           %u   %u   %u",             DEF_LCK_AVG_INT,    roverPrefs.getUShort("prfLckAvgInt"),    prfLckAvgInt);
-            logPrint(outputBuffer);     // Newest pref.
+            logPrint(outputBuffer);
             snprintf(outputBuffer, sizeof(outputBuffer), "prfNtripCastAct        %u   %u   %u",             DEF_NTRIP_CAST_ACT, roverPrefs.getUShort("prfNtripCastAct"), prfNtripCastAct);
             logPrint(outputBuffer);
             logPrint(" ");
@@ -1071,6 +1081,8 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             snprintf(outputBuffer, sizeof(outputBuffer), "ntripCaster.user       \"%s\"", ntripCaster.user);
             logPrint(outputBuffer);
             snprintf(outputBuffer, sizeof(outputBuffer), "ntripCaster.pass       \"%s\"", ntripCaster.pass);
+            logPrint(outputBuffer);
+            snprintf(outputBuffer, sizeof(outputBuffer), "ntripCaster.crs       \"%s\"", ntripCaster.crs);      // Newest pref.
             logPrint(outputBuffer);
             snprintf(outputBuffer, sizeof(outputBuffer), "ntripCaster.id         %d", ntripCaster.id);
             logPrint(outputBuffer);
@@ -3056,7 +3068,8 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
  *     49 = NTRIP caster user               (struct ntripCasterProfile ntripCaster.user    - char user[48]).
  *     50 = NTRIP caster password           (struct ntripCasterProfile ntripCaster.pass    - char user[48]).
  *     51 = NTRIP caster sendGga            (struct ntripCasterProfile ntripCaster.sendGga - bool ).
- *     52 = GNSS lock averaging interval    (uint16_t prfLckAvgInt).    // Newest pref.
+ *     52 = GNSS lock averaging interval    (uint16_t prfLckAvgInt).
+ *     53 = NTRIP caster crs                (struct ntripCasterProfile ntripCaster.crs     - char mount[24]).        // Newest pref.
  *
  *  --- Description of exchange protocol. ---
  *
@@ -3078,7 +3091,7 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
  *       "42":"1".
  *
  *  -- NTRIP CASTER PREFERENCE. --
- *       "setNtripCasterPref":"{\"43\":1,\"44\":\"PointPerfect (SparkPNT)\",\"45\":\"ppntrip.services.u-blox.com\",\"46\":\"NEAR-RTCM\",\"47\":2101,\"48\":1,\"49\":\"abcdefghijkl\",\"50\":\"abcdefghij\,\"51\":1}",
+ *       "setNtripCasterPref":"{\"43\":1,\"44\":\"PointPerfect (SparkPNT)\",\"45\":\"ppntrip.services.u-blox.com\",\"46\":\"NEAR-RTCM\",\"47\":2101,\"48\":1,\"49\":\"abcdefghijkl\",\"50\":\"abcdefghij\",\"51\":1,\"53\":\"abcdefghij\"}",
  *
  *  -- GNSS STATUS. --
  *       "8":1,
@@ -3229,6 +3242,12 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
  *       browser (sends)    --> {"page":"restart","restartGR-MCU":""}'.
  *       browser (receives) <-- {"restartGR-MCUResp":"GR-MCU will restart."}
  * 
+ *  -- Instructions page. --
+ *     - Hello. -
+ *
+ *  -- Wiring page. --
+ *     - Hello. -
+ * 
  *  -- Test. --
  *     - Echo. -
  *       browser (sends)    --> {"page":"TBD","echo":"some text"}.
@@ -3335,7 +3354,7 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
         jsonDocToBrowser["7"]  = prfHotPas;
         jsonDocToBrowser["35"] = clientId;
         jsonDocToBrowser["36"] = prfInstrHgt;
-        jsonDocToBrowser["52"] = prfLckAvgInt;      // Newest pref.
+        jsonDocToBrowser["52"] = prfLckAvgInt;      // Newest pref. 2.
         jsonDocToBrowser["39"] = prfNtripCastAttr[0];
         jsonDocToBrowser["40"] = prfNtripCastAttr[1];
         jsonDocToBrowser["41"] = prfNtripCastAttr[2];
@@ -3360,7 +3379,7 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
         prfGnsNavRat    = jsonDocFromBrowser["5"];
         prfGnsMsrInt    = jsonDocFromBrowser["4"];
         prfInstrHgt     = jsonDocFromBrowser["36"];
-        prfLckAvgInt    = jsonDocFromBrowser["52"];     // Newest pref.
+        prfLckAvgInt    = jsonDocFromBrowser["52"];     // Newest pref. 2.
 
         // -- Set new preferences from global vars. --
         prefUtility(PREF_SET);
