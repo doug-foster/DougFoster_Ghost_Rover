@@ -144,9 +144,9 @@
  *     -- 0.5.1 -> 0.6.1 builds: Moved BLE relay from primary MCU to secondary MCU since BleSerial library is a space pig.
  *
  * --- // ToDo: ---
+ *     - Update comments & doc.
+ *     - Add RTCM page (like NMEA)?
  *     - Update RTKEverywhere for base station.
- *     - Add RTCM page.
- *     - Operate.js/operate.html page - add ability to select coordinates (lat/lon, ECEF, UTM northing & easting)  
  */
 
 /**

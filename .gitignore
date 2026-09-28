@@ -1,3 +1,10 @@
+# Visual Studio Code files
+.vscode
+
+# Operating System Files
 .DS_Store
-/scratch/
+
+# Project files
 /build/
+/doc/
+/scratch/
