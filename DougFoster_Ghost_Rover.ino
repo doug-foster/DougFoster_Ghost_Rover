@@ -76,93 +76,7 @@
  *  Comments.
  * -------------------------------------------------------------------------
  * 
- * @since 3.1.1 [2026-06-25-01:00pm] New.
- * @since 3.4.2 [2026-10-05-09:15pm] Updated.
- * 
- * --- Description & operation. ---
- *     -- Primary use is GNSS rover.
- *        - Receives RTCM corrections from either:
- *          1) External NTRIP client over TCP/IP
- *          2) Internal NTRIP client over TCP/IP
- *          3) Base station over point-to-point radio.
- *        - Outputs NMEA sentences over TCP/IP to external mapping software.
- *        - Managed & operated via Web based interface.
- *
- * --- Major components: rover. ---
- *     -- MCU board           https://www.sparkfun.com/sparkfun-thing-plus-esp32-s3.html (SparkFun Thing Plus - ESP32-S3).
- *        - micro SD card    https://www.amazon.com/dp/B0BDYVC5TD (SanDisk 128GB ImageMate microSDXC UHS-1 - Up to 140MB/s).
- *     -- GNSS board         https://www.sparkfun.com/sparkfun-gps-rtk-sma-breakout-zed-f9p-qwiic.html (SparkFun GPS-RTK-SMA Breakout - ZED-F9P (Qwiic) - I2C address 0x42).
- *     -- HC-12 RF radio     https://www.amazon.com/dp/B01MYTE1XR (HiLetgo HC-12 433Mhz SI4438).
- * 
- * --- Major components: base. ---
- *     -- base station       https://www.sparkfun.com/sparkfun-rtk-evk.html (SparkFun RTK EVK).
- *     -- RTCM relay MCU     https://www.sparkfun.com/sparkfun-thing-plus-esp32-s3.html (SparkFun Thing Plus - ESP32-S3).
- *     -- HC-12 RF radio     https://www.amazon.com/dp/B01MYTE1XR (HiLetgo HC-12 433Mhz SI4438).
- *
- * --- Other components. ---
- *     -- Rover GNSS antenna. --
- *        - GNSS antenna (L1/L2/L5, TNC-F)            https://www.sparkfun.com/gnss-multi-band-l1-l2-l5-surveying-antenna-tnc-spk6618h.html.
- *        - adapter (TNC-M to SMA-M)                  https://www.amazon.com/dp/B0BGPJP3J3.
- *        - adapter (SMA-M to SMA-F)                  https://www.amazon.com/dp/B00VHAZ0KW.
- *        - cable (SMA-F bulkhead to SMA-M, 6" RG316) https://www.amazon.com/dp/B081BHHPHQ.
- *     -- Rover RF radio. --
- *        - radio (433.4-473.0 MHz, 100mW, U.FL)      https://www.amazon.com/dp/B01MYTE1XR (HiLetgo HC-12 433Mhz SI4438).
- *        - antenna (UHF 400-960 MHz, BNC-M)          https://www.amazon.com/dp/B07R4PGZK3.
- *        - cable (BNC-F bulkhead to U.FL, 8" RG178)  https://www.amazon.com/dp/B098HX6NFH.
- *     -- Rover web based UI display. --
- *        - Straight Talk Motorola G 5G, 64GB (2)     https://www.walmart.com/ip/ST-MOTOROLA-XT2513V-CDMA-LTE-GRAY-HANDSET-64GB-WALMART-POSA/14552506783.
- *     -- Rover Misc. --
- *        - I2C Qwiic cable kit                       https://www.amazon.com/dp/B08HQ1VSVL.
- *        - push button switch (12mm latching)        https://www.amazon.com/dp/B0BXPFW69R.
- *        - 3.7V Lipo battery (4000mAh)               https://www.amazon.com/dp/B0CNLNY597.
- *        - battery (+5V 2.4A max, 8000 mAh)          https://www.walmart.com/ip/onn-8000mAh-Portable-Battery-Power-Bank-with-USB-A-to-C-Charging-Cable-LED-Indicator-Black/5266111773.
- *        - enclosure (Pelican Micro Case 1040)       https://www.rei.com/product/778220/pelican-micro-case-1040-with-carabiner.
- *       - GNSS antenna thread adapter                https://www.sparkfun.com/antenna-thread-adapter-1-4in-to-5-8in.html.
- *       - FALCAM F38 Quick Release                   https://www.amazon.com/dp/B0CPPHWW9D.
- *     -- Rover (hold by hand). --
- *        - pistol grip handle                        https://www.amazon.com/dp/B01FUEXLGU.
- *        - tripod legs                               https://www.amazon.com/dp/B07GST1C2Z.
- *     -- Rover (hold by pole). --
- *        - aluminum SingularXYZ GPS pole             https://www.amazon.com/dp/B0F9FLFXLV (5.91ft/1.8m telescoping).
- *        - 5/8"-11 female to 1/4"-20 male adapter    https://www.amazon.com/dp/B0DYHTQWZW (stainless steel, .375"/9.53mm high).
- *        - magnetic phone/tripod mount (3)           https://www.amazon.com/dp/B0D21RP69C.
- *        - battery/smartphone holder                 https://www.amazon.com/dp/B07S8TTH34.
- *        - other: nuts, bolts, 1/4-10 bolt, washers, USB-A power cable, heat shrink tubing.
- *     -- Base Misc. --
- *        - mini tripod                               https://www.amazon.com/dp/B0CQ6WTRW6.
- *        - laser pointer                             https://www.petsmart.com/cat/toys/interactive-and-electronic/whisker-city-thrills-and-chills-laser-cat-toy-84577.html.
- *        - battery/smartphone holder                 https://www.amazon.com/dp/B07S8TTH34.
- *        - LED (5mm)                                 https://www.amazon.com/dp/B0739RYXVC.
- *        - LED cover (5mm LED bulb socket)           https://www.amazon.com/dp/B07CQ6TH14.
- *        - 3.5mm/ 0.14 in. pitch 10 pin pluggable PCB screw terminal block connector (female)  https://www.amazon.com/dp/B0BPHLZ8XN.
- *        - same as rover: ESP32-S3, 5v battery, battery/smartphone holder, GNSS antenna/adapters/cable, HC-12 radio/cabl/antenna.
- *        - other: nuts, 1/4" thread rod, 1.25" round bubble level.
- * 
- * --- Misc. references. ---
- *     -- EVK         https://docs.sparkfun.com/SparkFun_RTK_EVK/introduction/.
- *     -- HC-12       https://www.elecrow.com/download/HC-12.pdf.
- *     -- PyGPSClient https://github.com/semuconsulting/PyGPSClient.
- *     -- SW Maps     https://aviyaantech.com/swmaps/.
- *     -- GNSS Master https://www.gnssmaster.com.
- *     -- RTK         https://learn.sparkfun.com/tutorials/what-is-gps-rtk/all.
- *     -- NMEA        https://cdn.sparkfun.com/assets/a/3/2/f/a/NMEA_Reference_Manual-Rev2.1-Dec07.pdf.
- *                    https://swairlearn.bluecover.pt/nmea_analyser.
- *     -- SparkFun    https://learn.sparkfun.com/tutorials/tags/gnss.
- *     -- Pin config  https://roboticsbackend.com/arduino-uno-pins-a-complete-practical-guide/.
- * 
- * --- Dev environment. ---
- *     -- IDE      VS Code & Arduino Maker Workshop 1.1.11 extension (uses Arduino CLI 1.2.0).
- *                 https://marketplace.visualstudio.com/items?itemName=TheLastOutpostWorkshop.arduino-maker-workshop.
- *     -- Platform https://github.com/espressif/arduino-esp32/releases#release-3.3.11 (Arduino Release v3.3.11 based on ESP-IDF v5.5.5).
- *     -- FQBN     "Sparkfun ESP32-S3 Thing Plus" (~/Library/Arduino15/packages/esp32/hardware/esp32/3.3.10/boards.txt).
- * 
- * --- Caveats. ---
- *     -- None known.
- * 
- * --- Misc notes. ---
- *     -- Changed from BLE to TCP/IP for NMEA relay since BleSerial library is a space pig (see GNSS Master).
- *
- * --- // ToDo: ---
+ * @see README.md.
  */
 
 /**
@@ -638,18 +552,52 @@ const TickType_t EVERY_10000MS_INTERVAL = 10000/portTICK_PERIOD_MS;             
       TickType_t buildOperDataInterval  = (prfGnsNavRat * prfGnsMsrInt)/portTICK_PERIOD_MS;  // Time (ms) [pref based] between operate page updates.
 
 // --- Lock/average state. ---
-      int64_t  heightLockAveragingStart   = 0;
-      int64_t  positionLockAveragingStart = 0;
-      double   heightLockSumOrtho         = 0;
-      double   heightLockSumGeoidSep      = 0;
-      uint32_t heightLockSampleCount      = 0;
-      double   positionLockSumLat         = 0;
-      double   positionLockSumLon         = 0;
-      uint32_t positionLockSampleCount    = 0;
-      double   lockedLat                  = 0;
-      double   lockedLon                  = 0;
-      float    lockedHeightOrtho          = 0;
-      float    lockedGeoidSep             = 0;       // heightEllipsoid - heightOrthometric, frozen at lock time.
+// === New lock code - begin. ===
+    //   int64_t  heightLockAveragingStart   = 0;
+    //   int64_t  positionLockAveragingStart = 0;
+    //   double   heightLockSumOrtho         = 0;
+    //   double   heightLockSumGeoidSep      = 0;
+    //   uint32_t heightLockSampleCount      = 0;
+    //   double   positionLockSumLat         = 0;
+    //   double   positionLockSumLon         = 0;
+    //   uint32_t positionLockSampleCount    = 0;
+    //   double   lockedLat                  = 0;
+    //   double   lockedLon                  = 0;
+    //   float    lockedHeightOrtho          = 0;
+    //   float    lockedGeoidSep             = 0;       // heightEllipsoid - heightOrthometric, frozen at lock time.
+
+const uint16_t LOCK_MAX_SAMPLES           = 200;        // Circular buffer cap for MAD - bounds memory regardless of prfLckAvgInt.
+const double   MAD_SCALE                  = 1.4826;     // Scales MAD to be comparable to std dev for normally-distributed data.
+const double   MAD_REJECT_K               = 3.0;        // Reject samples beyond k * scaled MAD from the window's median.
+      uint16_t heightSampleBufIdx         = 0;          // Next write position in heightOrthoSamples/heightGeoidSepSamples.
+      uint16_t heightSampleBufCount       = 0;          // Valid sample count in height circular buffers (caps at LOCK_MAX_SAMPLES).
+      uint16_t positionSampleBufIdx       = 0;          // Next write position in positionLatSamples/positionLonSamples.
+      uint16_t positionSampleBufCount     = 0;          // Valid sample count in position circular buffers (caps at LOCK_MAX_SAMPLES).
+      uint32_t positionWelfordCountLat    = 0;          // # of accepted (non-outlier) latitude samples folded into Welford mean.
+      uint32_t positionWelfordCountLon    = 0;          // # of accepted (non-outlier) longitude samples folded into Welford mean.
+      uint32_t heightWelfordCountGeoidSep = 0;          // # of accepted (non-outlier) geoid separation samples folded into Welford mean.
+      uint32_t heightWelfordCountOrtho    = 0;          // # of accepted (non-outlier) orthometric height samples folded into Welford mean.
+      int64_t  heightLockAveragingStart   = 0;          // esp_timer_get_time() when height lock averaging window began.
+      int64_t  positionLockAveragingStart = 0;          // esp_timer_get_time() when position lock averaging window began.
+      float    lockedHeightOrtho          = 0;          // Final locked orthometric height, frozen at lock time.
+      float    lockedGeoidSep             = 0;          // heightEllipsoid - heightOrthometric, frozen at lock time.
+      double   lockedLat                  = 0;          // Final locked latitude, frozen at lock time.
+      double   lockedLon                  = 0;          // Final locked longitude, frozen at lock time.
+      double   heightWelfordMeanOrtho     = 0;          // Welford running mean - accepted (non-outlier) samples only.
+      double   heightWelfordM2Ortho       = 0;          // Welford running sum of squared deviations.
+      double   heightWelfordMeanGeoidSep  = 0;          // Welford running mean - accepted (non-outlier) geoid separation samples only.
+      double   heightWelfordM2GeoidSep    = 0;          // Welford running sum of squared deviations (geoid separation).
+      double   positionWelfordMeanLat     = 0;          // Welford running mean - accepted (non-outlier) latitude samples only.
+      double   positionWelfordM2Lat       = 0;          // Welford running sum of squared deviations (latitude).
+      double   positionWelfordMeanLon     = 0;          // Welford running mean - accepted (non-outlier) longitude samples only.
+      double   positionWelfordM2Lon       = 0;          // Welford running sum of squared deviations (longitude).
+      double   positionLatSamples[LOCK_MAX_SAMPLES];    // Circular buffer for MAD.
+      double   positionLonSamples[LOCK_MAX_SAMPLES];    // Shares index/count with positionLatSamples.
+      double   heightOrthoSamples[LOCK_MAX_SAMPLES];    // Circular buffer for MAD.
+      double   heightGeoidSepSamples[LOCK_MAX_SAMPLES]; // Shares index/count with heightOrthoSamples (sampled together).
+      double   madScratchA[LOCK_MAX_SAMPLES];           // Reused sort scratch - single-threaded call site only.
+      double   madScratchB[LOCK_MAX_SAMPLES];           // Reused scratch for sorted absolute deviations - single-threaded call site only.
+// === New lock code - end. ===
 
 // --- Declaration. ---
 // --- Test. ---
@@ -680,6 +628,11 @@ const TickType_t EVERY_10000MS_INTERVAL = 10000/portTICK_PERIOD_MS;             
  * @see   decimalDegreesToNmea()  - Convert decimal degrees to NMEA ddmm.mmmmmmm / dddmm.mmmmmmm format.
  * @see   substituteLockedNmea()  - Substitute locked position/height values into full NMEA sentence.
  * @see   stringToHex()           - Display a string in hex.
+ * @see   compareDoubles()        - Lock averaging: Qsort() comparator for doubles.
+ * @see   computeMedian()         - Lock averaging: Median of an array of doubles.
+ * @see   madIsOutlier()          = Lock averaging: MAD-based outlier test.
+ * @see   bufferAddPair()         - Lock averaging: Append a sample pair into two parallel circular buffers sharing one index.
+ * @see   welfordUpdate()         - Lock averaging: Welford's online algorithm.
  */
 
   /**
@@ -1151,18 +1104,77 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
         accuracyHorizontal = roverGNSS.getHorizontalAccuracy() / 10000.0;
         accuracyVertical   = roverGNSS.getVerticalAccuracy()   / 10000.0;
 
+// === New lock code - begin. ===
+        // // -- Height lock averaging. --
+        // if (heightLockAveragingFlag) {
+        //     heightLockSumOrtho    += heightOrthometric;
+        //     heightLockSumGeoidSep += (heightEllipsoid - heightOrthometric);
+        //     heightLockSampleCount++;
+        //     if ((esp_timer_get_time() - heightLockAveragingStart) >= prfLckAvgInt * 1000000) {
+        //         lockedHeightOrtho       = heightLockSumOrtho / heightLockSampleCount;
+        //         lockedGeoidSep          = heightLockSumGeoidSep / heightLockSampleCount;
+        //         heightLockAveragingFlag = false;
+        //         heightLockFlag          = true;
+        //         snprintf(outputBuffer, sizeof(outputBuffer), "Height locked @ %.4f m (%u samples in %u secs).", lockedHeightOrtho, heightLockSampleCount, prfLckAvgInt);
+        //         if (commandFlag[DEBUG_BTNS]) {                      // Debug.    
+        //             logPrint(outputBuffer);
+        //         }
+        //     }
+        // }
+        // if (heightLockFlag) {
+        //     heightOrthometric = lockedHeightOrtho;
+        //     heightEllipsoid   = lockedHeightOrtho + lockedGeoidSep;
+        // }
+
+        // // -- Position lock averaging. --
+        // if (positionLockAveragingFlag) {
+        //     positionLockSumLat += lat;
+        //     positionLockSumLon += lon;
+        //     positionLockSampleCount++;
+        //     if ((esp_timer_get_time() - positionLockAveragingStart) >= prfLckAvgInt * 1000000) {
+        //         lockedLat                 = positionLockSumLat / positionLockSampleCount;
+        //         lockedLon                 = positionLockSumLon / positionLockSampleCount;
+        //         positionLockAveragingFlag = false;
+        //         positionLockFlag          = true;
+        //         snprintf(outputBuffer, sizeof(outputBuffer), "Position locked @ Lat %.9f, Lon %.9f (%u samples in %u secs).", lockedLat, lockedLon, positionLockSampleCount, prfLckAvgInt);
+        //         if (commandFlag[DEBUG_BTNS]) {                      // Debug.
+        //             logPrint(outputBuffer);
+        //         }
+        //     }
+        // }
+
+        // if (positionLockFlag) {
+        //     lat = lockedLat;
+        //     lon = lockedLon;
+        // }
+
         // -- Height lock averaging. --
         if (heightLockAveragingFlag) {
-            heightLockSumOrtho    += heightOrthometric;
-            heightLockSumGeoidSep += (heightEllipsoid - heightOrthometric);
-            heightLockSampleCount++;
+            const double HEIGHT_MAD_EPSILON = 0.001;      // 1 mm floor.
+            double geoidSepSample = heightEllipsoid - heightOrthometric;
+
+            bool orthoIsOutlier    = madIsOutlier(heightOrthoSamples,    heightSampleBufCount, heightOrthometric, HEIGHT_MAD_EPSILON);
+            bool geoidSepIsOutlier = madIsOutlier(heightGeoidSepSamples, heightSampleBufCount, geoidSepSample,    HEIGHT_MAD_EPSILON);
+
+            bufferAddPair(heightOrthoSamples, heightGeoidSepSamples, heightSampleBufIdx, heightSampleBufCount,
+                LOCK_MAX_SAMPLES, heightOrthometric, geoidSepSample);
+
+            if (!orthoIsOutlier) {
+                welfordUpdate(heightWelfordMeanOrtho, heightWelfordM2Ortho, heightWelfordCountOrtho, heightOrthometric);
+            }
+            if (!geoidSepIsOutlier) {
+                welfordUpdate(heightWelfordMeanGeoidSep, heightWelfordM2GeoidSep, heightWelfordCountGeoidSep, geoidSepSample);
+            }
+
             if ((esp_timer_get_time() - heightLockAveragingStart) >= prfLckAvgInt * 1000000) {
-                lockedHeightOrtho       = heightLockSumOrtho / heightLockSampleCount;
-                lockedGeoidSep          = heightLockSumGeoidSep / heightLockSampleCount;
+                lockedHeightOrtho       = heightWelfordMeanOrtho;
+                lockedGeoidSep          = heightWelfordMeanGeoidSep;
                 heightLockAveragingFlag = false;
                 heightLockFlag          = true;
-                snprintf(outputBuffer, sizeof(outputBuffer), "Height locked @ %.4f m (%u samples in %u secs).", lockedHeightOrtho, heightLockSampleCount, prfLckAvgInt);
-                if (commandFlag[DEBUG_BTNS]) {                      // Debug.    
+                snprintf(outputBuffer, sizeof(outputBuffer), "Height locked @ %.4f m (%u/%u ortho, %u/%u geoidSep accepted in %u secs).",
+                    lockedHeightOrtho, heightWelfordCountOrtho, heightSampleBufCount,
+                    heightWelfordCountGeoidSep, heightSampleBufCount, prfLckAvgInt);
+                if (commandFlag[DEBUG_BTNS]) {
                     logPrint(outputBuffer);
                 }
             }
@@ -1174,25 +1186,39 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
 
         // -- Position lock averaging. --
         if (positionLockAveragingFlag) {
-            positionLockSumLat += lat;
-            positionLockSumLon += lon;
-            positionLockSampleCount++;
+            const double POSITION_MAD_EPSILON = 0.0000001;   // ~1.1 cm at this latitude - floor only, not a precision claim.
+
+            bool latIsOutlier = madIsOutlier(positionLatSamples, positionSampleBufCount, lat, POSITION_MAD_EPSILON);
+            bool lonIsOutlier = madIsOutlier(positionLonSamples, positionSampleBufCount, lon, POSITION_MAD_EPSILON);
+
+            bufferAddPair(positionLatSamples, positionLonSamples, positionSampleBufIdx, positionSampleBufCount,
+                LOCK_MAX_SAMPLES, lat, lon);
+
+            if (!latIsOutlier) {
+                welfordUpdate(positionWelfordMeanLat, positionWelfordM2Lat, positionWelfordCountLat, lat);
+            }
+            if (!lonIsOutlier) {
+                welfordUpdate(positionWelfordMeanLon, positionWelfordM2Lon, positionWelfordCountLon, lon);
+            }
+
             if ((esp_timer_get_time() - positionLockAveragingStart) >= prfLckAvgInt * 1000000) {
-                lockedLat                 = positionLockSumLat / positionLockSampleCount;
-                lockedLon                 = positionLockSumLon / positionLockSampleCount;
+                lockedLat                 = positionWelfordMeanLat;
+                lockedLon                 = positionWelfordMeanLon;
                 positionLockAveragingFlag = false;
                 positionLockFlag          = true;
-                snprintf(outputBuffer, sizeof(outputBuffer), "Position locked @ Lat %.9f, Lon %.9f (%u samples in %u secs).", lockedLat, lockedLon, positionLockSampleCount, prfLckAvgInt);
-                if (commandFlag[DEBUG_BTNS]) {                      // Debug.
+                snprintf(outputBuffer, sizeof(outputBuffer), "Position locked @ Lat %.9f (%u/%u), Lon %.9f (%u/%u) in %u secs.",
+                    lockedLat, positionWelfordCountLat, positionSampleBufCount,
+                    lockedLon, positionWelfordCountLon, positionSampleBufCount, prfLckAvgInt);
+                if (commandFlag[DEBUG_BTNS]) {
                     logPrint(outputBuffer);
                 }
             }
         }
-
         if (positionLockFlag) {
             lat = lockedLat;
             lon = lockedLon;
         }
+// === New lock code - end. ===
     }
 }
 
@@ -1660,6 +1686,96 @@ void stringToHex(const char *src, char *dst, size_t dst_len) {
         src++;
     }
 }
+
+// === New lock code - begin. ===
+/**
+ * -------------------------------------------------------------------------
+ *  qsort() comparator for doubles.  //ToDo: doc blocks.
+ * -------------------------------------------------------------------------
+ */
+int compareDoubles(const void *a, const void *b) {
+    double da = *(const double*)a, db = *(const double*)b;
+    return (da > db) - (da < db);
+}
+
+/**
+ * -------------------------------------------------------------------------
+ *  Median of an array of doubles. Sorts a scratch copy - does not mutate src.
+ * -------------------------------------------------------------------------
+ *
+ * @param  double* src     Source array.
+ * @param  uint16_t n      Element count.
+ * @param  double* scratch Caller-owned scratch buffer, sized >= n.
+ * @return double          Median value.
+ */
+double computeMedian(const double *src, uint16_t n, double *scratch) {
+    memcpy(scratch, src, n * sizeof(double));
+    qsort(scratch, n, sizeof(double), compareDoubles);
+    if (n % 2 == 1) {
+        return scratch[n / 2];
+    }
+    return (scratch[n / 2 - 1] + scratch[n / 2]) / 2.0;
+}
+
+/**
+ * -------------------------------------------------------------------------
+ *  MAD-based outlier test: is 'sample' beyond MAD_REJECT_K scaled-MAD from
+ *  the current window's median?
+ * -------------------------------------------------------------------------
+ *
+ * @param  double* buf     Circular buffer of recent samples (unsorted, any order).
+ * @param  uint16_t n      Valid sample count currently in buf.
+ * @param  double sample   Candidate value to test.
+ * @param  double epsilon  Floor for the rejection threshold - guards against MAD
+ *                         collapsing to ~0 when recent samples are near-identical,
+ *                         which would otherwise reject on floating-point noise alone.
+ * @return bool            True if sample should be rejected as an outlier.
+ */
+bool madIsOutlier(const double *buf, uint16_t n, double sample, double epsilon) {
+    if (n < 3) {
+        return false;    // Not enough history yet to judge - accept.
+    }
+    double median = computeMedian(buf, n, madScratchA);
+    for (uint16_t i = 0; i < n; i++) {
+        madScratchB[i] = fabs(buf[i] - median);
+    }
+    qsort(madScratchB, n, sizeof(double), compareDoubles);
+    double mad = (n % 2 == 1) ? madScratchB[n / 2] : (madScratchB[n / 2 - 1] + madScratchB[n / 2]) / 2.0;
+    double threshold = MAD_REJECT_K * MAD_SCALE * mad;
+    if (threshold < epsilon) {
+        threshold = epsilon;
+    }
+    return (fabs(sample - median) > threshold);
+}
+
+/**
+ * -------------------------------------------------------------------------
+ *  Append a sample pair into two parallel circular buffers sharing one index.
+ * -------------------------------------------------------------------------
+ */
+void bufferAddPair(double *bufA, double *bufB, uint16_t &idx, uint16_t &count, uint16_t maxLen, double valA, double valB) {
+    bufA[idx] = valA;
+    bufB[idx] = valB;
+    idx = (idx + 1) % maxLen;
+    if (count < maxLen) {
+        count++;
+    }
+}
+
+/**
+ * -------------------------------------------------------------------------
+ *  Welford's online algorithm - update running mean & M2 (sum of squared
+ *  deviations) with one new sample. No history storage required.
+ * -------------------------------------------------------------------------
+ */
+void welfordUpdate(double &mean, double &M2, uint32_t &count, double newValue) {
+    count++;
+    double delta = newValue - mean;
+    mean += delta / count;
+    double delta2 = newValue - mean;
+    M2 += delta * delta2;
+}
+// === New lock code - end. ===
 
 /**
  * =========================================================================
@@ -2985,16 +3101,16 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
  * -------------------------------------------------------------------------
  * 
  * Operation summary:
- *  1. Pull (xQueueReceive) JSON struct (data & length) from GhostRover FreeRTOS QueueHandle_t wsRxQueue.
- *     JSON struct was pushed (xQueueSend) into GhostRover FreeRTOS QueueHandle_t wsRxQueue by onWebSocketEvent().
- *  2. If data pulled from queue, deserialize into jsonDocFromBrowser.
- *  3. Clear jsonDocToBrowser & response.
- *  4. Save browser page name as global var.
- *  5. Set global vars from jsonDocFromBrowser message. Read/set preferences if on config page.
- *  6. Fill jsonDocToBrowser with response and/or data (depends on which browser page).
- *  7. If preferences changed, restart ESP32 (restartGrMcuFlag).
- *  8. sendDataToBrowser().
- *  8.1  WebSocket send.
+ *  1.  Pull (xQueueReceive) JSON struct (data & length) from GhostRover FreeRTOS QueueHandle_t wsRxQueue.
+ *       JSON struct was pushed (xQueueSend) into GhostRover FreeRTOS QueueHandle_t wsRxQueue by onWebSocketEvent().
+ *  2.  If data pulled from queue, deserialize into jsonDocFromBrowser.
+ *  3.  Clear jsonDocToBrowser & response.
+ *  4.  Save browser page name as global var.
+ *  5.  Set global vars from jsonDocFromBrowser message. Read/set preferences if on config page.
+ *  6.  Fill jsonDocToBrowser with response and/or data (depends on which browser page).
+ *  7.  If preferences changed, restart ESP32 (restartGrMcuFlag).
+ *  8.  sendDataToBrowser().
+ *  8.1 WebSocket send.
  * 
  * jsonDocFromBrowser is ONLY touched by this function.
  * jsonDocToBrowser & response are ONLY touched by this function and sendDataToBrowser().
@@ -3465,9 +3581,20 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
     // --- Operate page. Height lock/unlock button. ---
     // -------------------------------------------------------------------------
     if (jsonDocFromBrowser["heightLock"].is<JsonVariant>()) {
-        heightLockSumOrtho       = 0;
-        heightLockSumGeoidSep    = 0;
-        heightLockSampleCount    = 0;
+// === New lock code - begin. ===
+        // heightLockSumOrtho       = 0;
+        // heightLockSumGeoidSep    = 0;
+        // heightLockSampleCount    = 0;
+        heightSampleBufIdx         = 0;
+        heightSampleBufCount       = 0;
+        heightWelfordMeanOrtho     = 0;
+        heightWelfordM2Ortho       = 0;
+        heightWelfordCountOrtho    = 0;
+        heightWelfordMeanGeoidSep  = 0;
+        heightWelfordM2GeoidSep    = 0;
+        heightWelfordCountGeoidSep = 0;
+// === New lock code - end. ===
+
         heightLockAveragingStart = esp_timer_get_time();
         heightLockAveragingFlag  = true;
         heightLockFlag           = false;                   // Not locked yet - averaging first.
@@ -3495,9 +3622,20 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
     // --- Operate page. Position lock/unlock button. ---
     // -------------------------------------------------------------------------
     if (jsonDocFromBrowser["positionLock"].is<JsonVariant>()) {
-        positionLockSumLat         = 0;
-        positionLockSumLon         = 0;
-        positionLockSampleCount    = 0;
+
+// === New lock code - begin. ===
+        // positionLockSumLat         = 0;
+        // positionLockSumLon         = 0;
+        // positionLockSampleCount    = 0;
+        positionSampleBufIdx       = 0;
+        positionSampleBufCount     = 0;
+        positionWelfordMeanLat     = 0;
+        positionWelfordM2Lat       = 0;
+        positionWelfordCountLat    = 0;
+        positionWelfordMeanLon     = 0;
+        positionWelfordM2Lon       = 0;
+        positionWelfordCountLon    = 0;
+// === New lock code - end. ===
         positionLockAveragingStart = esp_timer_get_time();
         positionLockAveragingFlag  = true;
         positionLockFlag           = false;
