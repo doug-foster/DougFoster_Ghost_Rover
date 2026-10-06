@@ -41,6 +41,8 @@
  * @since  3.4.1  [2025-10-27-11:15am] Add instructions page.
  * @since  3.4.1  [2025-10-27-06:30pm] Changed toFixed() to toLocaleString() in webSocketRcvMessage(): add commas to UTM & ECF.
  * @since  3.4.1  [2026-09-27-10:00pm] Added caster.crs.
+ * @since  3.4.2  [2026-10-03-10:00pm] Removed laser feature.
+ * @since  3.4.2  [2026-10-04-05:15pm] Changed LLH, UTM, ECEF to 1 mm precision in webSocketRcvMessage().
  * @link   http://dougfoster.me.
  */
 
@@ -111,24 +113,51 @@ let jsonObj;
 // let prfGnsMsrInt = 0;
 // let prfGnsNavRat = 0;
 
-// --- SFESPK6618H antenna phase center offsets. ---
-// https://community.sparkfun.com/t/spk6618h-antenna-north-marker/68211/5
-// Frequency  North Offset (mm)  East Offset (mm) Up Offset (mm)
-// L1 (GPS)	    +0.47	      -1.26	     48.02
-// L2 (GPS)	    +2.73	      -1.87	     35.91
-// L5 (GPS)	    +3.16	      -2.02	     36.91
-// Since North & East offsets are so small, ignore them.
-const HEIGHT_APC_TO_ARP      =   48;    // Antenna phase center to Antenna Reference Position height (mm).
-const HEIGHT_ARP_TO_QR_PLATE =   66;    // Antenna Reference Position to bottom of FALCAM F38 Quick Release plate height (mm).
-const HEIGHT_QUICK_RELEASE   =   14;    // FALCAM F38 Quick Release total height (mm).
-                                        // Quick Release plate height                  ( 0.25 inch =    6.4 mm).
-                                        // Quick Release receiver height               ( 0.31 inch =    7.9 mm).
-                                        // Quick Release total height                  ( 0.56 inch =    14.3mm).
-const HEIGHT_GRIP_TRIPOD     =  166;    // Gun grip + washer + Zeadio tripod           ( 6.53 inch =  165.8 mm).
-const HEIGHT_XYZPOLE_0       =  691;    // SingularXYZ pole - no extensions out        (27.19 inch =  690.6 mm).
-const HEIGHT_XYZPOLE_1       = 1073;    // SingularXYZ pole - top 1 extension out      (42.25 inch = 1073.2 mm).
-const HEIGHT_XYZPOLE_2       = 1468;    // SingularXYZ pole - top 1 & 2 extensions out (57.81 inch = 1468.4 mm).
-const HEIGHT_XYZPOLE_3       = 1819;    // SingularXYZ pole - all 3 extensions out     (71.60 inch = 1818.6 mm).
+
+ /**
+ * -------------------------------------------------------------------------
+ *  Instrument height calculations
+ * -------------------------------------------------------------------------
+ *
+ * @since 3.4.2 [2026-09-28-05:00pm] New.
+ * 
+ * --- SFESPK6618H antenna phase center offsets. ---
+ * https://community.sparkfun.com/t/spk6618h-antenna-north-marker/68211/5
+ * Frequency  North Offset (mm)  East Offset (mm) Up Offset (mm)
+ * L1 (GPS)	    +0.47	      -1.26	     48.02
+ * L2 (GPS)	    +2.73	      -1.87	     35.91
+ * L5 (GPS)	    +3.16	      -2.02	     36.91
+ * Since North & East offsets are so small, ignore them.
+ * 
+ * --- GNSS heights. ---
+ * @see Global vars section in global.js.
+ * const HEIGHT_APC_TO_ARP      =   48;    // Antenna phase center to Antenna Reference Position height (mm).
+ * const HEIGHT_ARP_TO_QR_PLATE =   66;    // Antenna Reference Position to bottom of FALCAM F38 Quick Release plate height (mm).
+ *   Note : HEIGHT_ARP_TO_QR_PLATE includes .18 inch/4.76 mm height for 5/8"-11 to 1/4"-20 thread adapter.
+ * const HEIGHT_QUICK_RELEASE   =   14;    // FALCAM F38 Quick Release total height (mm).
+ *                                         // Quick Release plate height                  ( 0.25 inch =    6.4 mm).
+ *                                         // Quick Release receiver height               ( 0.31 inch =    7.9 mm).
+ *                                         // Quick Release total height                  ( 0.56 inch =    14.3mm).
+ * const HEIGHT_ROVER           = HEIGHT_APC_TO_ARP (48) + HEIGHT_ARP_TO_QR_PLATE (66) + HEIGHT_QUICK_RELEASE(14) = 128 mm.
+ *
+ * const HEIGHT_GRIP_TRIPOD     =  166;    // Gun grip + washer + Zeadio tripod           ( 6.53 inch =  165.8 mm).
+ * 
+ * const HEIGHT_XYZPOLE_0       =  691;    // SingularXYZ pole - no extensions out        (27.19 inch =  690.6 mm).
+ * const HEIGHT_XYZPOLE_1       = 1073;    // SingularXYZ pole - top 1 extension out      (42.25 inch = 1073.2 mm).
+ * const HEIGHT_XYZPOLE_2       = 1468;    // SingularXYZ pole - top 1 & 2 extensions out (57.81 inch = 1468.4 mm).
+ * const HEIGHT_XYZPOLE_3       = 1819;    // SingularXYZ pole - all 3 extensions out     (71.60 inch = 1818.6 mm).
+ *   Note : HEIGHT_XYZPOLE_0-3 include .37 inch/9.53 mm height for 5/8"-11 to 1/4"-20 thread adapter.
+ * 
+ * Instrument height (always in mm) = HEIGHT_ROVER(128) + pole/tripod height.
+ */
+const HEIGHT_APC_TO_ARP      =   48;
+const HEIGHT_ARP_TO_QR_PLATE =   66;
+const HEIGHT_QUICK_RELEASE   =   14;
+const HEIGHT_GRIP_TRIPOD     =  166;
+const HEIGHT_XYZPOLE_0       =  691;
+const HEIGHT_XYZPOLE_1       = 1073;
+const HEIGHT_XYZPOLE_2       = 1468;
+const HEIGHT_XYZPOLE_3       = 1819;
 const HEIGHT_ROVER           = HEIGHT_APC_TO_ARP + HEIGHT_ARP_TO_QR_PLATE + HEIGHT_QUICK_RELEASE;  // 48 + 66 + 14 = 128.
 let heightUnits              = 'mm';
 let heightPole               =    0;    // mm.
@@ -334,6 +363,7 @@ async function webSocketStop(event) {
  * @since  3.4.1  [2025-10-27-11:15am] Add instructions page.
  * @since  3.4.1 [2025-10-27-06:30pm] Changed toFixed() to toLocaleString(): add commas to UTM & ECF.
  * @since  3.4.1  [2026-09-28-11:30am] Added caster.crs.
+ * @since  3.4.2  [2026-10-04-05:15pm] Changed LLH, UTM, ECEF to 1 mm precision.
  * @see    filesMessage() in files.js.
  */
 function webSocketRcvMessage(event) {
@@ -552,46 +582,46 @@ function webSocketRcvMessage(event) {
             }
 
             // -- {"10":"xx.xx"} 3 posn = 10 mm. --
-            heightElip = (Math.round(jsonObj["10"] * 100) / 100 * convert).toFixed(3);
+            heightElip = (Math.round(jsonObj["10"] * 100) / 100 * convert).toFixed(3);      // 1mm precision.
             numHeightElip.innerHTML = heightElip;
 
             // -- {"11":"127.05"}. 3 posn = 10 mm. --
-            heightOrth = (Math.round(jsonObj["11"] * 100) / 100 * convert).toFixed(3);
+            heightOrth = (Math.round(jsonObj["11"] * 100) / 100 * convert).toFixed(3);      // 1mm precision.
             numHeightOrth.innerHTML = heightOrth;
 
             // -- {"12":"35.60599395,"} 8 posn = 1.11 mm. --
-            latitude = (Math.round(jsonObj["12"] * 100000000) / 100000000).toFixed(9);
+            latitude = (Math.round(jsonObj["12"] * 100000000) / 100000000).toFixed(8);      // 1mm precision.
             numLatitude.innerHTML = latitude;
 
             // -- {"13":"-78.79439717"} 8 posn = 1.11 mm. --
-            longitude = (Math.round(jsonObj["13"] * 100000000) / 100000000).toFixed(9);
+            longitude = (Math.round(jsonObj["13"] * 100000000) / 100000000).toFixed(8);      // 1mm precision.
             numLongitude.innerHTML = longitude;
 
             // -- Calculate ECEF values. --
-            GnssPosECEF = llhToECEF(latitude, longitude, heightElip);
+            GnssPosECEF = llhToECEF(latitude, longitude, heightElip);       // 1mm precision.
             numEcefX.innerHTML = GnssPosECEF.x.toLocaleString('en-US', {
-                minimumFractionDigits: 4,
-                maximumFractionDigits: 4
+                minimumFractionDigits: 3,
+                maximumFractionDigits: 3
             });;
             numEcefY.innerHTML = GnssPosECEF.y.toLocaleString('en-US', {
-                minimumFractionDigits: 4,
-                maximumFractionDigits: 4
+                minimumFractionDigits: 3,
+                maximumFractionDigits: 3
             });
             numEcefZ.innerHTML = GnssPosECEF.z.toLocaleString('en-US', {
-                minimumFractionDigits: 4,
-                maximumFractionDigits: 4
+                minimumFractionDigits: 3,
+                maximumFractionDigits: 3
             });
 
             // -- Calculate UTM values. --
             GnssPosUTM = llToUTM(latitude, longitude);
-            numPosUtmZone.innerHTML  = GnssPosUTM.zone + GnssPosUTM.hemisphere;
+            numPosUtmZone.innerHTML  = GnssPosUTM.zone + GnssPosUTM.hemisphere;       // 1mm precision.
             numPosUtmEast.innerHTML  = GnssPosUTM.easting.toLocaleString('en-US', {
-                minimumFractionDigits: 4,
-                maximumFractionDigits: 4
+                minimumFractionDigits: 3,
+                maximumFractionDigits: 3
             });
             numPosUtmNorth.innerHTML = GnssPosUTM.northing.toLocaleString('en-US', {
-                minimumFractionDigits: 4,
-                maximumFractionDigits: 4
+                minimumFractionDigits: 3,
+                maximumFractionDigits: 3
             });
 
             // -- {"14":"0.016"}. --
@@ -684,7 +714,6 @@ function webSocketRcvMessage(event) {
             // -- {"38":0}. --
             statusRtcmSentenceRateId.textContent = jsonObj["38"].toFixed(2);
 
-            // case 'laser':                   // {"laser":"locked"}.
             // case 'height':                  // {"height":"locked"}.
             // case 'position':                // {"position":"locked"}.
             //     button(key, value);
@@ -705,7 +734,8 @@ function webSocketRcvMessage(event) {
                 updateUi('internetIsNotConnected');
             }
             // - Success. Update display. -
-            if (messageField.innerText.includes('CONNECTED to Internet')) {
+            if ((messageField.innerText.includes('CONNECTED to Internet')) ||
+                (messageField.innerText.includes('Internet still CONNECTED'))) {
                 updateUi('internetIsConnected');
             }
         } else if (undefined !== jsonObj["disconnectInternetResp"]) {

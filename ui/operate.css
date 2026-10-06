@@ -24,6 +24,7 @@
  * @since  3.4.0  [2026-09-13-02:30pm] Height/position lock/unlock.
  * @since  3.4.0  [2026-09-17-03:00pm] Vertical slider for numbers.
  * @since  3.4.1  [2025-10-26-04:45pm] Cleanup formatting.
+ * @since  3.4.2  [2026-10-03-10:00pm] Removed laser feature.
  * @link   http://dougfoster.me.
  */
 
@@ -214,12 +215,6 @@
 }
 .buttons #height .label {
     background-color: #3498db;
-}
-.buttons #laser .icon {
-    background-color: #c54133; 
-}
-.buttons #laser .label {
-    background-color: #e74c3c;
 }
 .buttons #position .icon {
     background-color: #27ae60; 

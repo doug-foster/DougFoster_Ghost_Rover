@@ -82,9 +82,6 @@ const numPosUtmNorth               = document.querySelector('.numbers #pos-utm-n
 const numCrs                       = document.querySelector('.numbers #crs');
 
 // --- Section: Buttons. ---
-const btnLaser                     = document.querySelector('.buttons #laser');
-const btnLaserIcon                 = document.querySelector('.buttons #laser .icon');
-const btnLaserLabel                = document.querySelector('.buttons #laser .label');
 const btnHeight                    = document.querySelector('.buttons #height');
 const btnHeightIcon                = document.querySelector('.buttons #height .icon');
 const btnHeightLabel               = document.querySelector('.buttons #height .label');
@@ -154,8 +151,6 @@ const WGS84_F  = 1 / 298.257223563;         // Flattening.
 const WGS84_E2 = WGS84_F * (2 - WGS84_F);   // Eccentricity squared.
 
 // --- General. ---
-const LASER_ON                     = '{"laserOn":""}';
-const LASER_OFF                    = '{"laserOff":""}';
 // const wsMessageWindowMaxCount      = 10;         // Not used? WebSocket message status tracking window (# messages).
 let prfGnsMsrInt                   = 0;
 let prfGnsNavRat                   = 0;
@@ -259,10 +254,6 @@ function button(which, action) {
     let icon = null, label = null;
     let message;
     switch (which) {
-        case 'laser':
-            icon  = btnLaserIcon;
-            label = btnLaserLabel;
-            break;
         case 'height':
             icon  = btnHeightIcon;
             label = btnHeightLabel;
@@ -318,9 +309,6 @@ function toggleButtons(which) {
     let buttonIcon = null;
     let buttonState;
     switch (which) {
-        case 'laser':
-            buttonIcon = btnLaserIcon;
-            break;
         case 'height':
             buttonIcon = btnHeightIcon;
             break;
@@ -572,20 +560,6 @@ numbers.addEventListener('click', async () => {
 });
 
 // --- Buttons. ---
-btnLaser.addEventListener('click', async () => {
-    btnLaserLabel.classList.toggle('shadow');               // Visual feedback.
-    setTimeout(function() { btnLaserLabel.classList.remove('shadow'); }, 100);
-    toggleButtons('laser');
-    if ((websocket) && (1 == websocket.readyState) && btnLaser.classList.contains('locked')) {
-        btnLaser.classList.remove('locked');
-        websocket.send(LASER_OFF);          // Send message to rover.
-        console.log('browser --> ' + LASER_OFF);
-    } else {
-        btnLaser.classList.add('locked');
-        websocket.send(LASER_ON);          // Send message to rover.
-        console.log('browser --> ' + LASER_ON);
-    }
-});
 btnHeight.addEventListener('click', () => {
     btnHeightLabel.classList.add('shadow');                 // Visual feedback.
     setTimeout(function() { btnHeightLabel.classList.remove('shadow'); }, 100);
@@ -604,7 +578,6 @@ btnLockUnlock.addEventListener('click', () => {
     btnLockUnlockLabel.classList.add('shadow');             // Visual feedback.
     setTimeout(function() { btnLockUnlockLabel.classList.remove('shadow'); }, 100);
     if(btnLockUnlock.classList.contains('locked')) {
-        button('laser', 'Unlock');
         button('height', 'Unlock');
         button('position', 'Unlock');
         btnLockUnlockLabel.innerText = 'LOCK';              // Udpate lock/unlock button.
