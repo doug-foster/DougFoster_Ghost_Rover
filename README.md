@@ -302,4 +302,4 @@ A copy of the GNU General Public License is [included](LICENSE.txt) in this repo
 ## About me
 [&uarr; Table of Contents](#table-of-contents)
 
-You can lern more about the developer at https://dougfoster.me.
+You can learn more about the developer at https://dougfoster.me.
