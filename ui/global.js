@@ -43,6 +43,7 @@
  * @since  3.4.1  [2026-09-27-10:00pm] Added caster.crs.
  * @since  3.4.2  [2026-10-03-10:00pm] Removed laser feature.
  * @since  3.4.2  [2026-10-04-05:15pm] Changed LLH, UTM, ECEF to 1 mm precision in webSocketRcvMessage().
+ * @since  3.4.2  [2026-10-06-04:45pm] Add logic to flip btnNtripCasterFiller & btnNtripCaster visibility in webSocketRcvMessage().
  * @link   http://dougfoster.me.
  */
 
@@ -173,6 +174,7 @@ let heightPole               =    0;    // mm.
  * @since  3.2.1 [2026-08-02-09:30am] Move updateUi() here from operate.js.
  * @since  3.3.5 [2026-09-08-07:45pm] Add MIN_SATELLITE_THRESHHOLD & logic for #start in webSocketRcvMessage().
  * @since  3.4.1 [2025-10-27-06:30pm] Changed toFixed() to toLocaleString() in webSocketRcvMessage(): add commas to UTM & ECF.
+ * @since  3.4.2 [2026-10-06-04:45pm] Add logic to flip btnNtripCasterFiller & btnNtripCaster visibility in webSocketRcvMessage().
  * @see    webSocketInit()       - WebSocket: init.
  * @see    webSocketOpened()     - WebSocket: opened.
  * @see    webSocketClosed()     - WebSocket: closed.
@@ -361,9 +363,10 @@ async function webSocketStop(event) {
  * @since  3.4.0  [2026-09-13-05:30pm] Update RTCM in & NMEA out. Remove rtcmSource for "operate" page.
  * @since  3.4.0  [2026-09-20-05:30pm] Add prfLckAvgInt.
  * @since  3.4.1  [2025-10-27-11:15am] Add instructions page.
- * @since  3.4.1 [2025-10-27-06:30pm] Changed toFixed() to toLocaleString(): add commas to UTM & ECF.
+ * @since  3.4.1  [2025-10-27-06:30pm] Changed toFixed() to toLocaleString(): add commas to UTM & ECF.
  * @since  3.4.1  [2026-09-28-11:30am] Added caster.crs.
  * @since  3.4.2  [2026-10-04-05:15pm] Changed LLH, UTM, ECEF to 1 mm precision.
+ * @since  3.4.2  [2026-10-06-04:45pm] Add logic to flip btnNtripCasterFiller & btnNtripCaster visibility in webSocketRcvMessage().
  * @see    filesMessage() in files.js.
  */
 function webSocketRcvMessage(event) {
@@ -722,6 +725,14 @@ function webSocketRcvMessage(event) {
 
     // --- Menu page. ---
     if ('menu' == PAGE) {
+
+        if (prfRtcIn == 'ntrip') {
+            btnNtripCaster.classList.remove('hide');
+            btnNtripCasterFiller.classList.add('hide');
+        } else {                                // "off","radio", ....
+            btnNtripCaster.classList.add('hide');
+            btnNtripCasterFiller.classList.remove('hide');
+        }
 
         // -- Internet. --
         if (undefined !== jsonObj["connectInternetResp"]) {

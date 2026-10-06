@@ -571,8 +571,8 @@ btnPosition.addEventListener('click', () => {
     btnPositionLabel.classList.add('shadow');               // Visual feedback.
     setTimeout(function() { btnPositionLabel.classList.remove('shadow'); }, 100);
     toggleButtons('position');
-    lockIcons[2].classList.add('blink-fast');
-    setTimeout(function() { lockIcons[2].classList.remove('blink-fast')}, prfLckAvgInt * 1000);
+    lockIcons[0].classList.add('blink-fast');
+    setTimeout(function() { lockIcons[0].classList.remove('blink-fast')}, prfLckAvgInt * 1000);
 });
 btnLockUnlock.addEventListener('click', () => {
     btnLockUnlockLabel.classList.add('shadow');             // Visual feedback.
@@ -587,10 +587,10 @@ btnLockUnlock.addEventListener('click', () => {
         button('position', 'Lock');
         btnLockUnlockLabel.innerText = 'UNLOCK';            // Udpate lock/unlock button.
         btnLockUnlock.classList.add('locked');
+        lockIcons[0].classList.add('blink-fast');
         lockIcons[1].classList.add('blink-fast');
-        lockIcons[2].classList.add('blink-fast');
         setTimeout(function() { lockIcons[1].classList.remove('blink-fast');
-            lockIcons[2].classList.remove('blink-fast');
+            lockIcons[0].classList.remove('blink-fast');
          }, prfLckAvgInt * 1000);
     }
 });

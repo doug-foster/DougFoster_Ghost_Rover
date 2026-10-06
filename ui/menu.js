@@ -17,6 +17,7 @@
  * @since  3.4.0  [2026-09-19-11:30am] Remove update().
  * @since  3.4.0  [2026-09-19-11:30am] Remove update() and const SEND_PREFS.
  * @since  3.4.1  [2025-10-26-04:45pm] Cleanup formatting.
+ * @since  3.4.2  [2026-10-06-04:45pm] Add btnNtripCasterFiller.
  * @link   http://dougfoster.me.
  */
 
@@ -30,8 +31,8 @@
  * @since  3.3.4  [2026-09-17-07:15pm] Migrated ntrip.js to menu.js.
  * @since  3.3.4  [2026-09-18-03:00pm] Move restart, Internet, & NTRIP back to menu page. 
  * @since  3.4.0  [2026-09-19-11:30am] Remove update() and const SEND_PREFS.
+ * @since  3.4.2  [2026-09-19-11:30am] Add btnNtripCasterFiller.
  */
-
 const RESTART                 = '{"page":"menu","restartGR-MCU":""}';
 const CONNECT_INTERNET        = '{"connectInternet":""}';
 const DISCONNECT_INTERNET     = '{"disconnectInternet":""}';
@@ -40,6 +41,7 @@ const DISCONNECT_NTRIP_CASTER = '{"disconnectNtripCaster":""}';
 const btnRestart              = document.querySelector('#menu-items #restart');
 const btnInternet             = document.querySelector('#menu-items #internet');
 const btnNtripCaster          = document.querySelector('#menu-items #ntrip-caster');
+const btnNtripCasterFiller    = document.querySelector('#menu-items #ntrip-caster-filler');
 const stateInternet           = document.querySelector('#menu-items #internet .state');
 const stateNtripCaster        = document.querySelector('#menu-items #ntrip-caster .state');
 const rtcmStatusMessage       = document.querySelector('#menu-items #rtcm-status.note');
