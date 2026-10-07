@@ -2,7 +2,7 @@
 Last update: 2026-10-06 (V 3.4.2)
 
 ## Table of Contents
-[GitHub repositories](#github-repositories)<br>
+[GitHub repository](#github-repository)<br>
 [Description](#description)<br>
 [User interface](#user-interface)<br>
 [GNSS coordinate Locking](#gnss-coordinate-locking)<br>
@@ -16,14 +16,13 @@ Last update: 2026-10-06 (V 3.4.2)
 [License](#license)<br>
 [About me](#about-me)<br>
 
-## GitHub repositories
-[&uarr; Table of Contents](#table-of-contents) 
+## GitHub repository
+[&uarr;](#table-of-contents) 
 
 * https://github.com/doug-foster/DougFoster_Ghost_Rover
-* https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay
 
 ## Description
-[&uarr; Table of Contents](#table-of-contents) 
+[&uarr;](#table-of-contents) 
 
 
 ![Ghost Rover V3.4 - operation diagram](ui/operation.png)
@@ -44,7 +43,7 @@ GhostRover is a GNSS rover. It can receive input RTCM corrections from:
 GhostRover outputs NMEA sentences over TCP/IP to a TCP client (GNSS Master) running on the Mapping device. The NMEA sentences are then forwarded internally to the Mapping software (SW Maps). Survey points and photos are recorded using SW Maps.
 
 ## User interface
-[&uarr; Table of Contents](#table-of-contents) 
+[&uarr;](#table-of-contents) 
 
 GhostRover is managed & operated via a set of web pages running in a Chrome browser on the UI device:
 * Menu - The main (home) page with several buttons:
@@ -98,14 +97,14 @@ The "Operate" page is used to operate GhostRover. The following is displayed:
     * Lock - Both current height & position can be locked/unlocked.
 
 ## GNSS coordinate locking
-[&uarr; Table of Contents](#table-of-contents) 
+[&uarr;](#table-of-contents) 
 
 When a button is pressed (e.g. lock mode), a blinking lock icon is displayed on the button. The blinking lock icon remains for a length of time (set by a configuration preference) while the received coordinates are averaged. Once averaged, the respective coordinates are frozen and all NMEA messages sent from GhostRover to the mapping software will contain those frozen coordinates (with a new, correctly calculated sentence checksum). During this time GhostRover can be physically moved, but the "spoofed" coordinates used by the mapping software remain frozen. Once the survey point has been recorded and geo-located photos taken, the button can be pressed again to unlock and instantly return to normal operation.
 
 The lock averaging process takes place on GhostRover's MCU (not in the UI's Javascript). It's rather complex and uses a combination of MAD (Median Absolute Deviation) and Welford's online algorithm for running mean/variance. There is a circular buffer for the samples, from which MAD throws out the outliers. The Welford algorithm folds in all non-outliers and accumulates a running mean. I'll try to write up a better explanation summary later, but for now review the code. It's complex, but it's also more accurate than just a standard summation/average of the readings during the lock period. 
 
 ## Hardware
-[&uarr; Table of Contents](#table-of-contents) 
+[&uarr;](#table-of-contents) 
 
 ### Rover
 ![Ghost Rover V3.4 - wiring diagram](ui/wiring.png)
@@ -183,7 +182,7 @@ The lock averaging process takes place on GhostRover's MCU (not in the UI's Java
     * Laser pointer - https://www.petsmart.com/cat/toys/interactive-and-electronic/whisker-city-thrills-and-chills-laser-cat-toy-84577.html
 
 ## Software
-[&uarr; Table of Contents](#table-of-contents) 
+[&uarr;](#table-of-contents) 
 
 ### DougFoster_Ghost_Rover.ino
 The code (C, HTML, CSS, & JS) has _lots_ of comments.
@@ -249,7 +248,7 @@ If you make changes to the code, be careful of how functions running independent
 * "Sparkfun ESP32-S3 Thing Plus" - ~/Library/Arduino15/packages/esp32/hardware/esp32/3.3.10/boards.txt
 
 ## References
-[&uarr; Table of Contents](#table-of-contents) 
+[&uarr;](#table-of-contents) 
 
 * EVK - https://docs.sparkfun.com/SparkFun_RTK_EVK/introduction/
 * HC-12 - https://www.elecrow.com/download/HC-12.pdf
@@ -262,12 +261,12 @@ If you make changes to the code, be careful of how functions running independent
 * NVS preferences - https://docs.espressif.com/projects/arduino-esp32/en/latest/tutorials/preferences.html
 
 ## Caveats
-[&uarr; Table of Contents](#table-of-contents) 
+[&uarr;](#table-of-contents) 
 
 * None known.
 
 ## Thoughts
-[&uarr; Table of Contents](#table-of-contents) 
+[&uarr;](#table-of-contents) 
 
 #### 2026-10-06
 * BLE vs TCP - I changed from BLE to TCP/IP for NMEA relay since the BleSerial library is a space pig (see GNSS Master). I don't understand why a block data protocol like Bluetooth is considered defacto when TCP streams are designed for guaranteed and ordered streaming data.
@@ -280,18 +279,18 @@ If you make changes to the code, be careful of how functions running independent
 * Idea: 3D print a case. - I started with this case (https://www.sparkfun.com/hand-held-enclosure-abs-plastic.html) for GhostRover version 1. That was when I was using the OLED display. It was small - that's the good and the bad. Not much room for wires. As a result, I was constantly breaking wires/solder joints when I had to get into it. And intermittent loose connections ... it just didn't work. Then I switched to the Pelican Micro Case 1040. That's worked fairly well as I prototyped. Everything fits with room to spare, including the internal LIPO battery. And I can see the board LEDs through the clear case. And when I need to connect a serial USB to the ESP32-S3, I can pop the case open easily. When I'm done, snap the lid and it's waterproof (kinda). That all said, it's not very stylish - and 3D printing is pretty cool. I think I can come up with a better design. For now, the Pelican works, but I think I can do better - especially now that the laser and second ESP32-S3 have been eliminated.
 
 ## To do
-[&uarr; Table of Contents](#table-of-contents)
+[&uarr;](#table-of-contents)
 
 * GhostRover is an evolving project. As of 2026-10-06, it's ready for testing, verification, and production use.
 * Add SparkFun 9DoF IMU Breakout ICM-20948 (Qwiic) - https://www.sparkfun.com/sparkfun-9dof-imu-breakout-icm-20948-qwiic.html
 
 ## Bug fixes
-[&uarr; Table of Contents](#table-of-contents)
+[&uarr;](#table-of-contents)
 
 If you would like to fork your own version of GhostRover, run with it! This project is intended only for my personal use, but shared publicly in the spirit of Open Source software. Hopefully it can provide you with inspiration for your own variation. As such, bug fixes and feature additions are welcomed but not encouraged. 
 
 ## License
-[&uarr; Table of Contents](#table-of-contents)
+[&uarr;](#table-of-contents)
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
@@ -300,6 +299,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 A copy of the GNU General Public License is [included](LICENSE.txt) in this repository. Please also refer to https://www.gnu.org/licenses/.
 
 ## About me
-[&uarr; Table of Contents](#table-of-contents)
+[&uarr;](#table-of-contents)
 
 You can learn more about the developer at https://dougfoster.me.
