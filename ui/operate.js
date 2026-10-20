@@ -33,6 +33,8 @@
  * @since  3.4.0  [2026-09-19-11:30am] Remove update() and const SEND_PREFS.
  * @since  3.4.0  [2026-09-22-09:30am] GNSS coordinate conversions.
  * @since  3.4.1  [2025-10-26-04:45pm] Cleanup formatting.
+ * @since  3.4.3  [2026-10-16-09:15am] Add detailed numbers & correct EPSG codes.
+ * @since  3.4.3  [2026-10-20-10:00am] Add bubble level.
  * @link   http://dougfoster.me.
  */
 
@@ -54,6 +56,7 @@
  * @since  3.4.0  [2026-09-19-11:30am] Remove update() and const SEND_PREFS.
  * @since  3.4.0  [2026-09-22-09:30am] GNSS coordinate conversions.
  * @since  3.4.1  [2026-09-22-09:30am] Add numCrs.
+ * @since  3.4.3  [2026-10-20-10:00am] Add bubble level.
  */
 
 // --- Section: Fix. ---
@@ -80,6 +83,13 @@ const numPosUtmZone                = document.querySelector('.numbers #pos-utm-z
 const numPosUtmEast                = document.querySelector('.numbers #pos-utm-east');
 const numPosUtmNorth               = document.querySelector('.numbers #pos-utm-north');
 const numCrs                       = document.querySelector('.numbers #crs');
+const numGeoidSep                  = document.querySelector('.numbers #geoid-separation');
+const numLatitudeDms               = document.querySelector('.numbers #latitude-dms');
+const numLatitudeNmea              = document.querySelector('.numbers #latitude-nmea');
+const numLongitudeDms              = document.querySelector('.numbers #longitude-dms');
+const numLongitudeNmea             = document.querySelector('.numbers #longitude-nmea');
+const numLatDir                    = document.querySelector('.numbers #lat-dir');
+const numLonDir                    = document.querySelector('.numbers #lon-dir');
 
 // --- Section: Buttons. ---
 const btnHeight                    = document.querySelector('.buttons #height');
@@ -159,6 +169,7 @@ let wsMessageCountTotal            = 0;             // Total # of WebSocket mess
 let wsWindowStartTime              = 0;
 let wsWindowInterval               = 0;
 let convert                        = 1;             // Conversion for default units preference (which is 'meter');
+let isBubbleRunning = false;                        // Test bubble() function.
 
 /**
  * =========================================================================
@@ -171,6 +182,8 @@ let convert                        = 1;             // Conversion for default un
  * @since 3.1.2  [2026-07-05-05:45pm] Remove clearOperateUi().
  * @since 3.4.0  [2026-09-19-11:30am] Remove update() and const SEND_PREFS.
  * @since 3.4.0  [2026-09-22-09:30am] GNSS coordinate conversions.
+ * @since 3.4.3  [2026-10-16-09:15am] Add detailed numbers & correct EPSG codes.
+ * @since 3.4.3  [2026-10-20-10:00am] Add bubble level.
  * @see   fix()            - Fix - set state.
  * @see   button()         - Buttons - set button states.
  * @see   toggleButtons()  - Buttons - set icon states.
@@ -180,6 +193,8 @@ let convert                        = 1;             // Conversion for default un
  * @see   rad2deg()        - Convert radians to degrees.
  * @see   llhToECEF()      - Geodetic (lat, lon, ellipsoid height) -> ECEF (X, Y, Z), in meters.
  * @see   llToUTM()        - Geodetic (lat, lon) -> UTM (zone, hemisphere, easting, northing).
+ * @see   bubble()         - Drive UI bubble level with values -10 <= x,y <= 10.
+ * @see   testBubble()     - Test bubble() function.
  */
 
 /**
@@ -515,6 +530,54 @@ function llToUTM(latDeg, lonDeg) {
 }
 
 /**
+ * Drive UI bubble level with values -10 <= x,y <= 10.
+ *
+ * @param  int x Position (-10 <= x <= 10).
+ * @param  int y Position (-10 <= y <= 10).
+ * @return void No output is returned.
+ * @since  3.4.3 [2026-10-20-10:15am] New.
+ * @see    testBubble() in operate.js.
+ */
+function bubble(x,y) {
+    // left px: -108 -86 -62 -38 -8 23 46 69 92  
+    document.querySelector('#bubble').style.left = ((10 * x) - 8) + 'px';
+    // top px:  -108 -86 -62 -38 -8 23 46 69 92
+    document.querySelector('#bubble').style.top = ((-10 * y) - 8) + 'px';
+}
+
+/**
+ * Test bubble() function.
+ *
+ * @param  string mode Start/stop function.
+ * @return void No output is returned.
+ * @since  3.4.3 [2026-10-20-10:30am] New.
+ * @see    bubble() in operate.js.
+ */
+async function testBubble(mode = 'start') {
+    if (mode === 'stop') {
+        isBubbleRunning = false;
+        console.log("Bubble loop stopped.");
+        return; 
+    }
+
+    // --- Prevent calling more than once. ---
+    if (isBubbleRunning) return; 
+    isBubbleRunning = true;
+
+    // --- Helper function for pausing. ---
+    const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    // -- Test bubble() with random x,y values. ---
+    while (isBubbleRunning) {
+        let x = Math.floor(Math.random() * 21) - 10;
+        let y = Math.floor(Math.random() * 21) - 10;
+        console.log("(%s,%s)", x, y);
+        bubble(x, y);
+        await sleep(200);   // Wait for 200 ms.
+    }
+}
+
+/**
  * =========================================================================
  *  Event listeners.
  * =========================================================================
@@ -527,6 +590,7 @@ function llToUTM(latDeg, lonDeg) {
  * @since  3.3.5  [2026-09-12-11:15am] Add laser on/off logic to btnLaser.addEventListener().
  * @since  3.4.0  [2026-09-13-02:30pm] Height/position lock/unlock.
  * @since  3.4.0  [2026-09-17-03:00pm] Vertical slider for numbers.
+ * @since  3.4.3  [2026-10-16-09:15am] Add detailed numbers & correct EPSG codes.
  * @see global.js.
  */
 
@@ -557,24 +621,43 @@ numbers.addEventListener('click', async () => {
     numbers.querySelectorAll('.clear').forEach((element, index) => {
         element.classList.toggle('remove');
     });
+    numbers.querySelectorAll('.numbers-more').forEach((element, index) => {
+        element.classList.toggle('hide');
+    });
 });
 
 // --- Buttons. ---
-btnHeight.addEventListener('click', () => {
-    btnHeightLabel.classList.add('shadow');                 // Visual feedback.
-    setTimeout(function() { btnHeightLabel.classList.remove('shadow'); }, 100);
-    toggleButtons('height');
-    lockIcons[1].classList.add('blink-fast');
-    setTimeout(function() { lockIcons[1].classList.remove('blink-fast')}, prfLckAvgInt * 1000);
-});
-btnPosition.addEventListener('click', () => {
+btnPosition.addEventListener('click', () => {               // Position button.
     btnPositionLabel.classList.add('shadow');               // Visual feedback.
     setTimeout(function() { btnPositionLabel.classList.remove('shadow'); }, 100);
     toggleButtons('position');
     lockIcons[0].classList.add('blink-fast');
-    setTimeout(function() { lockIcons[0].classList.remove('blink-fast')}, prfLckAvgInt * 1000);
+    if (numLatitude.classList.contains('num-locked')) {
+        numLatitude.classList.remove('num-locked');
+        numLongitude.classList.remove('num-locked');
+    } else {
+        setTimeout(function() { 
+            lockIcons[0].classList.remove('blink-fast');
+            numLatitude.classList.add('num-locked');
+            numLongitude.classList.add('num-locked');
+        }, prfLckAvgInt * 1000);
+    }
 });
-btnLockUnlock.addEventListener('click', () => {
+btnHeight.addEventListener('click', () => {                 // Height button.
+    btnHeightLabel.classList.add('shadow');                 // Visual feedback.
+    setTimeout(function() { btnHeightLabel.classList.remove('shadow'); }, 100);
+    toggleButtons('height');
+    lockIcons[1].classList.add('blink-fast');
+    if (numHeightOrth.classList.contains('num-locked')) {
+        numHeightOrth.classList.remove('num-locked');
+    } else {
+        setTimeout(function() {
+            lockIcons[1].classList.remove('blink-fast');
+            numHeightOrth.classList.add('num-locked');
+        }, prfLckAvgInt * 1000);
+    }
+});
+btnLockUnlock.addEventListener('click', () => {             // Lock/unlock button.
     btnLockUnlockLabel.classList.add('shadow');             // Visual feedback.
     setTimeout(function() { btnLockUnlockLabel.classList.remove('shadow'); }, 100);
     if(btnLockUnlock.classList.contains('locked')) {
@@ -582,6 +665,9 @@ btnLockUnlock.addEventListener('click', () => {
         button('position', 'Unlock');
         btnLockUnlockLabel.innerText = 'LOCK';              // Udpate lock/unlock button.
         btnLockUnlock.classList.remove('locked');
+        numLatitude.classList.remove('num-locked');
+        numLongitude.classList.remove('num-locked');
+        numHeightOrth.classList.remove('num-locked');
     } else {
         button('height', 'Lock');
         button('position', 'Lock');
@@ -591,6 +677,9 @@ btnLockUnlock.addEventListener('click', () => {
         lockIcons[1].classList.add('blink-fast');
         setTimeout(function() { lockIcons[1].classList.remove('blink-fast');
             lockIcons[0].classList.remove('blink-fast');
+            numLatitude.classList.add('num-locked');
+            numLongitude.classList.add('num-locked');
+            numHeightOrth.classList.add('num-locked');
          }, prfLckAvgInt * 1000);
     }
 });

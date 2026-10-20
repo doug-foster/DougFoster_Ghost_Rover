@@ -25,6 +25,8 @@
  * @since  3.4.0  [2026-09-17-03:00pm] Vertical slider for numbers.
  * @since  3.4.1  [2025-10-26-04:45pm] Cleanup formatting.
  * @since  3.4.2  [2026-10-03-10:00pm] Removed laser feature.
+ * @since  3.4.3  [2026-10-15-04:00pm] Add detailed numbers & correct EPSG codes.
+ * @since  3.4.3  [2026-10-16-09:15am] Add detailed numbers & correct EPSG codes.
  * @link   http://dougfoster.me.
  */
 
@@ -96,6 +98,13 @@
 .blink-fast {
     animation: blink-animation 0.8s infinite;
 }
+.num-locked {
+    background-color: var(--black-2) !important;
+    color: #ffffff;
+}
+header #version-rover {
+    padding-right: 0;
+}
 
 /**
  * =========================================================================
@@ -103,26 +112,18 @@
  * =========================================================================
  */
 .numbers {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    overflow-y: auto;
     overflow-x: hidden;
     scroll-snap-type: y mandatory;
     margin: 10px 0 20px 0;
 }
 .numbers table {
-    flex: 0 0 100%;
-    display: flex;
     scroll-snap-align: start;
     margin: auto;
+    font-size: 16px;
 }
 .numbers td {
     background-color: var(--gray-4);
-    padding: 5px 10px;
-}
-.numbers .num {
-    text-align: right;
+    padding: 5px;
 }
 .numbers .flip {
     background-color: var(--black-2);
@@ -132,13 +133,16 @@
     display: none;
 }
 .numbers.fixed-height {
-    height: 162px;
+    height: 132px;
 }
 .numbers td:first-of-type {
-    width: 138px;
+    min-width: 132px;
 }
 .numbers table#wgs84 td:nth-of-type(2) {
-    width: 125px;
+    width: 187px;
+}
+.numbers table#wgs84 td:nth-of-type(3) {
+    min-width: 73px;
 }
 .numbers table#utm  td:nth-of-type(2),
 .numbers table#ecef td:nth-of-type(2) {
@@ -183,7 +187,7 @@
     transition: border-radius 0.3s ease;
 }
 .buttons .oper-button .shadow {
-    box-shadow: inset 0px 0px 90px 0px rgba(3,3,46,0.9);
+    x-y-shadow: inset 0px 0px 90px 0px rgba(3,3,46,0.9);
 }
 .buttons .icon.show-column {
     flex-basis: 20%;
@@ -401,4 +405,91 @@
 }
 .status table.key td.clear {
    background-color: unset;
+}
+
+/* Try */
+.buttons-level {
+    display: flex;
+}
+.buttons-level .buttons {
+    width: 182px;
+}
+.buttons-level .ring {
+    border-radius: var(--std-border-radius);
+}
+.buttons-level .box {
+    width: 100px;
+    height: 100px;
+    z-index: 1;
+}
+.buttons-level .ring,
+.buttons-level .box {
+    position: absolute;
+    border: 1px solid var(--gray-2);
+}
+.buttons-level #level {
+    position: relative;
+    top: -8px;
+    left: 5px;
+    vertical-align: middle;
+    margin: auto;
+}
+.buttons-level #ring-0 {
+    left: -100px;
+    top: -100px;
+    width: 200px;
+    height: 200px;
+    background-color: var(--gray-1);
+}
+.buttons-level #ring-1 {
+    left: -77px;
+    top: -77px;
+    width: 154px;
+    height: 154px;
+}
+.buttons-level #ring-2 {
+    left: -54px;
+    top: -54px;
+    width: 108px;
+    height: 108px;
+}
+.buttons-level #ring-3 {
+    left: -31px;
+    top: -31px;
+    width: 62px;
+    height: 62px;
+}
+.buttons-level #ring-4 {
+    left: -8px;
+    top: -8px;
+    width: 16px;
+    height: 16px;
+}
+.buttons-level #bubble {
+    top: -8px;       /* -108 -86 -62 -38 -8 23 46 69 92 */
+    left: -8px;        /* -108 -86 -62 -38 -8 23 46 69 92 */
+    top: -110px;
+    left:-108px;
+    width: 16px;
+    height: 16px;
+    z-index: 2;
+    border-radius: 20px;
+    background-color: #ffffff;
+    border-color: #000000;
+}
+.smooth {
+    transition: top 0.4s ease-in-out;
+    transition: left 0.4s ease-in-out;
+}
+#x-y-0 {
+    top: -1px;
+    right: -1px;
+    border-left: 1px;
+    border-bottom: 1px;
+}
+#x-y-1 {
+    bottom: 0;
+    left: 0;
+    border-right: 1px;
+    border-top: 1px;
 }

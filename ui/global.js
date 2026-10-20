@@ -44,6 +44,7 @@
  * @since  3.4.2  [2026-10-03-10:00pm] Removed laser feature.
  * @since  3.4.2  [2026-10-04-05:15pm] Changed LLH, UTM, ECEF to 1 mm precision in webSocketRcvMessage().
  * @since  3.4.2  [2026-10-06-04:45pm] Add logic to flip btnNtripCasterFiller & btnNtripCaster visibility in webSocketRcvMessage().
+ * @since  3.4.3  [2026-10-16-09:15am] Add detailed numbers & correct EPSG codes.
  * @link   http://dougfoster.me.
  */
 
@@ -97,6 +98,7 @@ let wsNumBytesThisMessage      = 0;         // # of bytes in this WebSocket mess
 // --- Header. ---
 const ROVER_NAME              = 'GhostRover';
 const headerH1                = document.querySelector('header h1');
+const headerItemUnits         = document.querySelector('header #header-items #units');
 const versionRoverId          = document.querySelector('#version-rover');
 
 // --- WebSocket. ---
@@ -175,6 +177,7 @@ let heightPole               =    0;    // mm.
  * @since  3.3.5 [2026-09-08-07:45pm] Add MIN_SATELLITE_THRESHHOLD & logic for #start in webSocketRcvMessage().
  * @since  3.4.1 [2025-10-27-06:30pm] Changed toFixed() to toLocaleString() in webSocketRcvMessage(): add commas to UTM & ECF.
  * @since  3.4.2 [2026-10-06-04:45pm] Add logic to flip btnNtripCasterFiller & btnNtripCaster visibility in webSocketRcvMessage().
+ * @since  3.4.3  [2026-10-16-09:15am] Add detailed numbers & correct EPSG codes.
  * @see    webSocketInit()       - WebSocket: init.
  * @see    webSocketOpened()     - WebSocket: opened.
  * @see    webSocketClosed()     - WebSocket: closed.
@@ -182,6 +185,8 @@ let heightPole               =    0;    // mm.
  * @see    webSocketStop()       - WebSocket: stopped.
  * @see    webSocketRcvMessage() - WebSocket: message from server. Decode.
  * @see    toJson()              - WebSocket: Encode values into JSON.
+ * @see    toDMS()               - Convert lat/lon decimal degrees to degrees/minutes/seconds.
+ * @see    toNMEA()              - Convert lat/lon decimal degrees to NMEA format.
  * @see    updateUi()            - in menu.js, update user interface.
  */
 
@@ -367,6 +372,7 @@ async function webSocketStop(event) {
  * @since  3.4.1  [2026-09-28-11:30am] Added caster.crs.
  * @since  3.4.2  [2026-10-04-05:15pm] Changed LLH, UTM, ECEF to 1 mm precision.
  * @since  3.4.2  [2026-10-06-04:45pm] Add logic to flip btnNtripCasterFiller & btnNtripCaster visibility in webSocketRcvMessage().
+ * @since  3.4.3  [2026-10-16-09:15am] Add detailed numbers & correct EPSG codes.
  * @see    filesMessage() in files.js.
  */
 function webSocketRcvMessage(event) {
@@ -519,6 +525,7 @@ function webSocketRcvMessage(event) {
             switch (jsonObj["1"]) {
                 case 'meter':
                     statusUnitDisplayId.innerText = 'Meter';
+                    headerItemUnits.innerText = 'Meter';
                     break;
                 case 'feet':
                     statusUnitDisplayId.innerText = 'Feet';
@@ -592,13 +599,38 @@ function webSocketRcvMessage(event) {
             heightOrth = (Math.round(jsonObj["11"] * 100) / 100 * convert).toFixed(3);      // 1mm precision.
             numHeightOrth.innerHTML = heightOrth;
 
+            // -- Calculate geoid separation. --
+            numGeoidSep.innerHTML = (heightElip - heightOrth).toFixed(3);
+
             // -- {"12":"35.60599395,"} 8 posn = 1.11 mm. --
             latitude = (Math.round(jsonObj["12"] * 100000000) / 100000000).toFixed(8);      // 1mm precision.
-            numLatitude.innerHTML = latitude;
+            numLatitude.innerHTML = latitude + "&deg;" ;
+            if (numLatitude.innerHTML.includes('-')) {
+                numLatDir.innerHTML = 'S';
+            } else {
+                numLatDir.innerHTML = 'N';
+            }
+
+            // -- Convert latitude decimal degrees to degrees/minutes/seconds. --
+            numLatitudeDms.innerHTML = toDMS(latitude, "lat");
+
+            // -- Convert latitude decimal degrees to NMEA format. --
+            numLatitudeNmea.innerHTML = toNMEA(latitude, "lat");
 
             // -- {"13":"-78.79439717"} 8 posn = 1.11 mm. --
             longitude = (Math.round(jsonObj["13"] * 100000000) / 100000000).toFixed(8);      // 1mm precision.
-            numLongitude.innerHTML = longitude;
+            numLongitude.innerHTML = longitude  + "&deg;";
+            if (numLongitude.innerHTML.includes('-')) {
+                numLonDir.innerHTML = 'W';
+            } else {
+                numLonDir.innerHTML = 'E';
+            }
+
+            // -- Convert longitude decimal degrees to degrees/minutes/seconds. --
+            numLongitudeDms.innerHTML = toDMS(longitude, "lon");
+
+            // -- Convert longitude decimal degrees to NMEA format. --
+            numLongitudeNmea.innerHTML = toNMEA(longitude, "lon");
 
             // -- Calculate ECEF values. --
             GnssPosECEF = llhToECEF(latitude, longitude, heightElip);       // 1mm precision.
@@ -857,6 +889,87 @@ function toJson(which) {
             break;
     }
     return jsonString;
+}
+
+/**
+ * Convert lat/lon decimal degrees to degrees/minutes/seconds.
+ *
+ * @param  value Decimal degrees.
+ * @param  type  Lat or lon.
+ * @param  struct {hemisphere, secDecimals} Options.
+ * @return string Decimal degrees converted to a DMS string.
+ * @since  3.4.3 [2026-10-15-07:45pm] New.
+ * @see    webSocketRcvMessage().
+ */
+function toDMS(value, type, { hemisphere = false, secDecimals = 5 } = {}) {
+
+    // --- Error check. ---
+    const isLat = type === "lat";
+    // if (!isLat && type !== "lon") throw new Error('type must be "lat" or "lon"');
+    // const max = isLat ? 90 : 180;
+    // if (!Number.isFinite(value) || Math.abs(value) > max) {
+    //     dummy = 1;
+    //     // throw new RangeError(`${type} must be between -${max} and ${max}`);
+    // }
+
+    // --- Local vars. ---
+    const scale = 10 ** secDecimals;
+    const unitsPerDeg = 3600 * scale;
+    const unitsPerMin = 60 * scale;
+
+    // --- Total angle in integer units of 10^-secDecimals arcseconds. ---
+    const units = Math.round(Math.abs(value) * unitsPerDeg);
+
+    // --- Parse degrees, minutes, seconds. ---
+    const d = Math.floor(units / unitsPerDeg);
+    const rem = units - d * unitsPerDeg;
+    const m = Math.floor(rem / unitsPerMin);
+    const s = (rem - m * unitsPerMin) / scale;
+
+    // --- Convert to DMS string. ---
+    // const dd = String(d).padStart(isLat ? 2 : 3, "0");
+    const dd = String(d);
+    const mm = String(m).padStart(2, "0");
+    const ss = s.toFixed(secDecimals).padStart(3 + secDecimals, "0");
+    const dms = `${dd}° ${mm}' ${ss}"`;
+
+    // --- Hemishpere option passed? ---
+    // if (hemisphere) {
+    //     const h = isLat ? (value < 0 ? "S" : "N") : (value < 0 ? "W" : "E");
+    //     return `${dms} ${h}`;
+    // }
+    return (value < 0 ? "-" : "") + dms;
+}
+
+/**
+ * Convert lat/lon decimal degrees to NMEA format.
+ *
+ * @param  value Decimal degrees.
+ * @param  type  Lat or lon.
+ * @param  struct {secDecimals, minDecimals, asString} Options.
+ * @return string Decimal degrees converted to a NMEA formatted string.
+ * @since  3.4.3 [2026-10-15-08:45pm] New.
+ * @see    webSocketRcvMessage().
+ */
+function toNMEA(value, type, { secDecimals, minDecimals = 7, asString = false } = {}) {
+
+    // --- Local vars. ---
+    // const isLat = type === "lat";
+    const scale = 10 ** minDecimals;
+    const unitsPerDeg = 60 * scale;
+
+    // --- Total angle in integer units of 10^-minDecimals minutes. ---
+    const units = Math.round(Math.abs(value) * unitsPerDeg);
+
+    // --- Parse degrees & minutes. ---
+    const d = Math.floor(units / unitsPerDeg);
+    const minutes = (units - d * unitsPerDeg) / scale;
+
+    // --- Convert to NMEA format. ---
+    // const dd = String(d).padStart((type === "lat") ? 2 : 3, "0");
+    const dd = String(d);
+    const mm = minutes.toFixed(minDecimals).padStart(3 + minDecimals, "0");
+    return dd + mm + "&deg;";
 }
 
 /**

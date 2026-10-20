@@ -1,12 +1,10 @@
 {
 	"folders": [
-		{
-			"path": "."
-		},
-		{
-			"path": "../SparkFun_u-blox_GNSS_v3"
-		}
-	],
+                {
+                        "name": "DougFoster_Ghost_Rover",
+                        "path": "."
+                }
+        ],
         "settings": {
                 "liveServer.settings.multiRootWorkspaceName": "DougFoster_Ghost_Rover",
                 "workbench.colorCustomizations": {

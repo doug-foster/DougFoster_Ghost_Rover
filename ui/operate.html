@@ -30,6 +30,7 @@
  * @since  3.4.1  [2026-09-27-11:45pm] Change id="reference-frame" to id="crs", update CRS titles.
  * @since  3.4.2  [2026-10-03-10:00pm] Removed laser feature.
  * @since  3.4.2  [2026-10-06-04:30pm] Flip-flopped position of "Height" & "Position" buttons to match Numbers order.
+ * @since  3.4.3  [2026-10-16-09:15am] Add detailed numbers & correct EPSG codes.
  * @link   http://dougfoster.me.
 -->
 
@@ -52,7 +53,8 @@
             <a href="menu.html">
                 <h1 class="red">Ghost Rover</h1>
                 <div id="header-items">
-                    <div id="version-rover">x.x.x ...</div>
+                    <div id="units">x</div>
+                    <div id="version">Build <span id="version-rover">x.x.x ...</span></div>
                 </div>
             </a>
         </header>
@@ -84,68 +86,101 @@
                 <section class="numbers fixed-height">
                     <table id="wgs84">
                         <tr>
-                            <td id="crs" class="title" colspan="3">EPSG:4979 (WGS 84 - 3D)</td>
+                            <td id="crs" class="numbers-more title" colspan="3">EPSG:9707 (EPSG:4326 + EPSG:5773)</td>
                         </tr>
                         <tr>
-                            <td>Latitude</td>
+                            <td id="crs" class="numbers-more hide title" colspan="3">EPSG:4326 (WGS 84 2D Geographic)</td>
+                        </tr>
+                        <tr>
+                            <td>Latitude (<span id="lat-dir">N/S</span>)</td>
                             <!-- 8 posn = 1.11 mm. -->
-                            <td id="latitude" class="num">00.00000000</td>
+                            <td align="right"><span id="latitude" class="num">dd.dddddddd</span></td>
                             <td class="num">+/- <span class="hac">00.000</span></td>
                         </tr>
+                        <tr class="numbers-more hide">
+                            <td></td>
+                            <td align="right"><span id="latitude-dms">dd° mm' ss.ssss"</span></td>
+                            <td></td>
+                        </tr>
+                        <tr class="numbers-more hide">
+                            <td></td>
+                            <td align="right"><span id="latitude-nmea">ddmm.mmmmmmm</span></td>
+                            <td></td>
+                        </tr>
                         <tr>
-                            <td>Longitude</td>
+                            <td>Longitude (<span id="lon-dir">E/W</span>)</td>
                             <!-- 8 posn = 1.11 mm. -->
-                            <td id="longitude" class="num">-000.00000000</td>
+                            <td align="right"><span id="longitude">ddd.dddddddd</span></td>
                             <td class="num">+/- <span class="hac">00.000</span></td>
-                        </tr>                           
+                        </tr>
+                        <tr class="numbers-more hide">
+                            <td></td>
+                            <td align="right"><span id="longitude-dms">ddd° mm' ss.ssss"</span></td>
+                            <td></td>
+                        </tr>
+                        <tr class="numbers-more hide">
+                            <td></td>
+                            <td align="right"><span id="longitude-nmea">dddmm.mmmmmmm</span></td>
+                            <td></td>
+                        </tr>
+                        <tr class="numbers-more hide">
+                            <td id="crs" class="title" colspan="3">EPSG:5773 (EGM96 Geoid, H = h - N)</td>
+                        </tr>
                         <tr>
-                            <td>Hgt (ellipsoid)</td>
+                            <td>Ortho <span class="numbers-more">hgt </span>(MSL)<span class="numbers-more hide"> - H<span class="super">*</span></span></td>
                             <!-- 3 posn = 10 mm. -->
-                            <td id="height-ellipsoid" class="num">00000.000</td>
+                            <td align="right"><span id="height-orthometric">00000.000</span></td>
                             <td class="num">+/- <span class="vac">00.000</span></td>
                         </tr>
-                        <tr>
-                            <td>Hgt (ortho MSL)</td>
+                        <tr class="numbers-more hide">
+                            <td>Ellipsoid (HAE)<span class="numbers-more hide"> - h</span></td>
                             <!-- 3 posn = 10 mm. -->
-                            <td id="height-orthometric" class="num">00000.000</td>
-                            <td class="num">+/- <span class="vac">00.000</span></td>
+                            <td align="right"><span id="height-ellipsoid">00000.000</span></td>
+                            <td></td>
                         </tr>
+
+                        <tr class="numbers-more hide">
+                            <td>Geoid Sep<span class="numbers-more hide"> - N<span class="super">*</span></span></td>
+                            <!-- 3 posn = 10 mm. -->
+                            <td align="right"><span id="geoid-separation" class="num">00000.000</span></td>
+                            <td></td>
+                        </tr>                    
                     </table>
-                    <table id="utm">
-                        <tr>
-                            <td class="title" colspan="3">EPSG:32618 (UTM)</td>
-                        </tr>
-                        <tr>
-                            <td>Grid Zone</td>
-                            <td id="pos-utm-zone" class="num" colspan="2">00X</td>
-                        </tr>
-                        <tr>
-                            <td>Easting (X)</td>
-                            <td id="pos-utm-east" class="num" colspan="2">000,000.000</td>
-                        </tr>
-                        <tr>
-                            <td>Northing (Y)</td>
-                            <td id="pos-utm-north" class="num" colspan="2">00,000,000.000</td>
-                        </tr>
-                        <tr>
-                            <td class="clear" colspan="3">&nbsp;</td>
-                        </tr>
-                    </table>
-                    <table id="ecef">
+                    <table class="numbers-more hide" id="ecef">
                          <tr>
                             <td class="title" colspan="3">EPSG:4978 (ECEF)</td>
                         </tr>
                         <tr>
                             <td>X</td>
-                            <td id="pos-ecef-x" class="num" colspan="2">0,000,000.000</td>
+                            <td align="right"><span id="pos-ecef-x" colspan="2">0,000,000.000</span></td>
                         </tr>
                         <tr>
                             <td>Y</td>
-                            <td id="pos-ecef-y" class="num" colspan="2">-0,000,000.000</td>
+                            <td align="right"><span id="pos-ecef-y" colspan="2">-0,000,000.000</span></td>
                         </tr>
                         <tr>
                             <td>Z</td>
-                            <td id="pos-ecef-z" class="num" colspan="2">0,000,000.000</td>
+                            <td align="right"><span id="pos-ecef-z" colspan="2">0,000,000.000</span></td>
+                        </tr>
+                        <tr>
+                            <td class="clear" colspan="3">&nbsp;</td>
+                        </tr>
+                    </table>
+                    <table class="numbers-more hide" id="utm">
+                        <tr>
+                            <td class="title" colspan="3">EPSG:32617 / 32618 (UTM 17N / 18N)</td>
+                        </tr>
+                        <tr>
+                            <td>Grid Zone</td>
+                            <td align="right"><span id="pos-utm-zone" colspan="2">00X</span></td>
+                        </tr>
+                        <tr>
+                            <td>Easting (X)</td>
+                            <td align="right"><span id="pos-utm-east" colspan="2">000,000.000</span></td>
+                        </tr>
+                        <tr>
+                            <td>Northing (Y)</td>
+                            <td align="right"><span id="pos-utm-north" colspan="2">00,000,000.000</span></td>
                         </tr>
                         <tr>
                             <td class="clear" colspan="3">&nbsp;</td>
@@ -154,21 +189,33 @@
                 </section>
 
                 <!-- Buttons. -->
-                <section class="buttons">
-                    <div id="position" class="oper-button">
-                        <span class="icon">
-                            <div class="lock"></div>
-                        </span>
-                        <span class="label">POSITION</span>
+                <section class="buttons-level">
+                    <div class="buttons">
+                        <div id="position" class="oper-button">
+                            <span class="icon">
+                                <div class="lock"></div>
+                            </span>
+                            <span class="label">POSITION</span>
+                        </div>
+                        <div id="height" class="oper-button">
+                            <span class="icon">
+                                <div class="lock"></div>
+                            </span>
+                            <span class="label">HEIGHT</span>
+                        </div>
+                        <div id="lock-unlock" class="oper-button">
+                            <span class="label">LOCK</span>
+                        </div>
                     </div>
-                    <div id="height" class="oper-button">
-                        <span class="icon">
-                            <div class="lock"></div>
-                        </span>
-                        <span class="label">HEIGHT</span>
-                    </div>
-                    <div id="lock-unlock" class="oper-button">
-                        <span class="label">LOCK</span>
+                    <div id="level">
+                        <div id="x-y-0" class="box"></div>
+                        <div id="x-y-1" class="box"></div>
+                        <div id="ring-0" class="ring"></div>
+                        <div id="ring-1" class="ring"></div>
+                        <div id="ring-2" class="ring"></div>
+                        <div id="ring-3" class="ring"></div>
+                        <div id="ring-4" class="ring"></div>
+                        <div id="bubble" class="ring smooth"></div>
                     </div>
                 </section>
 

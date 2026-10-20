@@ -19,6 +19,7 @@
  * @since  3.2.1  [2026-08-01-03:00pm] Add styles.
  * @since  3.3.5  [2026-09-11-09:45pm] Add orange-1.
  * @since  3.4.1  [2025-10-26-04:45pm] Cleanup formatting.
+ * @since  3.4.3  [2026-10-16-09:15am] Add detailed numbers & correct EPSG codes.
  * @link   http://dougfoster.me.
  */
 
@@ -68,6 +69,9 @@ a {
     background-color: var(--gray-4);
     font-family: 'Courier New', Courier, monospace;
 }
+.super {
+  vertical-align: super;
+}
 
 /**
  * =========================================================================
@@ -76,6 +80,7 @@ a {
  */
 header {
     background-color: var(--black-2);
+    position: relative;
 }
 header #header-items {
     display: flex;
@@ -94,7 +99,7 @@ header h1.red {
     color: var(--red-1);
     animation: blink-animation 1s infinite; /* 1s duration, infinite loop */
 }
-header  {
+header {
     color: white;
 }
 @keyframes blink-animation {
@@ -110,6 +115,13 @@ header #header-items * {
     margin-top: 5px;
     padding: 4px 8px;
     color: #aaaaaa;
+}
+header #version-rover {
+    padding-left: 0;
+}
+header #units {
+    position: absolute;
+    left:0;
 }
 
 /**

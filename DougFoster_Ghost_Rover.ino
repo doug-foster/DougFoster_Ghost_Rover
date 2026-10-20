@@ -50,6 +50,7 @@
  * @since  3.4.2 [2026-10-03-10:30pm] Also set RTCMinFlag = false if !tcpClient.connected() in checkTCPServer().
  * @since  3.4.2 [2026-10-05-11:45am] Refactor NTRIP.
  * @since  3.4.2 [2026-10-05-01:45am] Add general function stringToHex().
+ * @since  3.3.4 [2026-10-20-02:15pm] Re-added Wire1 for IMU in startI2c() setup function.
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
  * @link   http://dougfoster.me.
@@ -1785,6 +1786,7 @@ void welfordUpdate(double &mean, double &M2, uint32_t &count, double newValue) {
  * @since 3.0.11 [2026-01-08-10:30am] Browser initiated updates.
  * @since 3.2.3  [2026-08-10-09:45am] Add startTcpServer().
  * @since 3.3.1  [2026-08-17-09:00am] Changed position of startOutputs() in setup().
+ * @since 3.3.4  [2026-10-20-02:15pm] Re-added Wire1 for IMU.
  * @see   startOutputs()         - Start serial & microSD card reader. Status LED is YELLOW then WHITE.
  * @see   buildInfo()            - Display build & processor info.
  * @see   prefUtility(PREF_INIT) - Preference utility (get preferences).
@@ -2059,6 +2061,7 @@ void initPins() {
  * @since  3.0.10 [2026-01-07-10:00am] Local vars.
  * @since  3.3.1  [2026-08-17-02:45pm] Changed from Serial.print() to logPrint().
  * @since  3.3.3  [2026-08-30-05:15pm] Removed Wire1.
+ * @since  3.3.4  [2026-10-20-02:15pm] Re-added Wire1 for IMU.
  * @see    setup().
  * @link   https://github.com/espressif/arduino-esp32/blob/master/libraries/Wire/src/Wire.h.
  * @link   https://docs.arduino.cc/language-reference/en/functions/communication/wire/. 
@@ -2068,22 +2071,25 @@ void startI2C() {
     // --- Local vars. ---
     const uint8_t  I2C0_SDA   =  6;         // Primary I2C bus - data.
     const uint8_t  I2C0_SCL   =  7;         // Primary I2C bus - clock.
+    const uint8_t  I2C1_SDA   = 14;         // Secondary I2C bus - data.
+    const uint8_t  I2C1_SCL   = 10;         // Secondary I2C bus - clock.
     const uint16_t RETRY      = 500;        // Try restarting I2C interfaces.
     const uint32_t WIRE_SPEED = 400000;     // I2C Fast mode (4kHz).
 
     // --- Start interfaces. ---
-    if (Wire.begin()) {
+    if ((Wire.begin()) && (Wire1.begin(I2C1_SDA,I2C1_SCL))) {
         Wire.setClock(WIRE_SPEED);
+        Wire1.setClock(WIRE_SPEED);
         ws2812LedColor = WHITE;
         ws2812LedBlink = false;
         statusLedOn();                      // FreeRTOS task taskLoopStatusLed() has not started yet.
-        logPrint("Wire started @ 4kHz.");
+        logPrint("Wire & Wire1 started @ 4kHz.");
 
     } else {
         ws2812LedColor = RED;
         ws2812LedBlink = true;
         statusLedOn();                      // FreeRTOS task taskLoopStatusLed() has not started yet.
-        logPrint("Wire failed to start. Retrying.");
+        logPrint("Wire & Wire1 failed to start. Retrying.");
         delay(RETRY);
         startI2C();
     };
