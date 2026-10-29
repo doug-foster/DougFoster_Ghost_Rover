@@ -27,6 +27,7 @@
  * @since  3.4.2  [2026-10-03-10:00pm] Removed laser feature.
  * @since  3.4.3  [2026-10-15-04:00pm] Add detailed numbers & correct EPSG codes.
  * @since  3.4.3  [2026-10-16-09:15am] Add detailed numbers & correct EPSG codes.
+ * @since  3.5.0  [2026-10-29-06:00pm] Updated smooth class.
  * @link   http://dougfoster.me.
  */
 
@@ -505,8 +506,7 @@ header #version-rover {
     border-color: #000000;
 }
 .smooth {
-    transition: top 0.4s ease-in-out;
-    transition: left 0.4s ease-in-out;
+    transition: top 0.4s ease-in-out, left 0.4s ease-in-out;
 }
 #x-y-0 {
     top: -1px;

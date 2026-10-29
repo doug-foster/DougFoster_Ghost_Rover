@@ -386,19 +386,20 @@ float   accuracyVertical   = 0;                                 // GNSS - vertic
 SFE_UBLOX_GNSS roverGNSS;                                       // GNSS object (uses I2C-1).
 
 // --- IMU/bubble level. ---
-const uint8_t IMU_AD0_VAL     = 1;                              // 1 = SparkFun default I2C address (0x69).
-const float   MAX_TILT        = 5.0f;                           // Tilt, max measured: 5 degrees.
-const float   TILT_RANGE      = 10.0f;                          // Tilt, range: 10 degrees.
-const float   TILT_EMA_ALPHA  = 0.3f;                           // Tilt, smooth bubble movement rate (lower = smoother but laggier).
-const float   TILT_X_SIGN     = 1.0f;                           // Tilt X orientation, flip to -1.0f to match mounting.
-const float   TILT_Y_SIGN     = 1.0f;                           // Tilt Y orientation, flip to -1.0f to match mounting.
-      float   filtAx          = 0.0f;                           // Exponential moving average filter of IMU X value.
-      float   filtAy          = 0.0f;                           // Exponential moving average filter of IMU Y value. 
-      float   filtAz          = 0.0f;                           // Exponential moving average filter of IMU Z value.
-      float   bubbleDegX      = 0.0f;                           // Tilt (X degrees) for UI bubble level.
-      float   bubbleDegY      = 0.0f;                           // Tilt (Y degrees) for UI bubble level.
-      float   rawTiltXDeg     = 0.0f;                           // Raw tilt (X degrees) - different than imuBubbleXY() output. 
-      float   rawTiltYDeg     = 0.0f;                           // Raw tilt (Y degrees) - different than imuBubbleXY() output.
+const uint8_t IMU_AD0_VAL           = 1;                        // 1 = SparkFun default I2C address (0x69).
+const float   MAX_TILT              = 5.0f;                     // Tilt, max measured: 5 degrees.
+const float   TILT_RANGE            = 10.0f;                    // Tilt, range: 10 degrees.
+const float   TILT_EMA_ALPHA        = 0.3f;                     // Tilt, smooth bubble movement rate (lower = smoother but laggier).
+const float   TILT_X_SIGN           = 1.0f;                     // Tilt X orientation, flip to -1.0f to match mounting.
+const float   TILT_Y_SIGN           = 1.0f;                     // Tilt Y orientation, flip to -1.0f to match mounting.
+const float    BUBBLE_MAX_RADIUS    = 10.2f;                    // Bubble units: 5.1° x 2 units/degree. Keep in sync with operate.js.
+      float   filtAx                = 0.0f;                     // Exponential moving average filter of IMU X value.
+      float   filtAy                = 0.0f;                     // Exponential moving average filter of IMU Y value. 
+      float   filtAz                = 0.0f;                     // Exponential moving average filter of IMU Z value.
+      float   bubbleDegX            = 0.0f;                     // Tilt (X degrees) for UI bubble level.
+      float   bubbleDegY            = 0.0f;                     // Tilt (Y degrees) for UI bubble level.
+      float   rawTiltXDeg           = 0.0f;                     // Raw tilt (X degrees) - different than imuBubbleXY() output. 
+      float   rawTiltYDeg           = 0.0f;                     // Raw tilt (Y degrees) - different than imuBubbleXY() output.
       ICM_20948_I2C imu;
 
 // --- IMU/bubble averaging. ---
@@ -1883,6 +1884,16 @@ bool imuBubbleXY(float &x, float &y) {
     rawTiltYDeg = ty;
     tx -= prfOffsetXDeg;      // Compensate with offset "plumb Z" calibration values.
     ty -= prfOffsetYDeg;
+    x = -1 * TILT_X_SIGN * tx / MAX_TILT * TILT_RANGE;  // Bubble units: 5.1° x 2 units/degree.
+    y = -1 * TILT_Y_SIGN * ty / MAX_TILT * TILT_RANGE;
+    const float radius = sqrtf(x * x + y * y);
+    if (radius > BUBBLE_MAX_RADIUS) {                   // Radial clamp max values (i.e. bubble level UI is a "round", not "square", shape).
+        const float scale = BUBBLE_MAX_RADIUS / radius;
+        x *= scale;
+        y *= scale;
+    }
+
+
     x = -1 * constrain(TILT_X_SIGN * tx / MAX_TILT * TILT_RANGE, -TILT_RANGE, TILT_RANGE);   // +/-5° full scale (range 10 = 2 units/degree).
     y = -1 * constrain(TILT_Y_SIGN * ty / MAX_TILT * TILT_RANGE, -TILT_RANGE, TILT_RANGE);
     if (commandFlag[DEBUG_IMU]) {
@@ -2195,15 +2206,14 @@ void startI2C() {
     const uint32_t WIRE_SPEED = 400000;     // I2C Fast mode (4kHz).
 
     // --- Start interfaces. ---
-    // if ((Wire.begin()) && (Wire1.begin(I2C1_SDA,I2C1_SCL))) {
-     if (Wire.begin()) {
+    if ((Wire.begin()) && (Wire1.begin(I2C1_SDA,I2C1_SCL))) {
         Wire.setClock(WIRE_SPEED);
-        // Wire1.setClock(WIRE_SPEED);
+        logPrint("Wire started @ 4kHz.");
+        Wire1.setClock(WIRE_SPEED);
+        logPrint("Wire1 started @ 4kHz.");
         ws2812LedColor = WHITE;
         ws2812LedBlink = false;
         statusLedOn();                      // FreeRTOS task taskLoopStatusLed() has not started yet.
-        // logPrint("Wire & Wire1 started @ 4kHz.");
-        logPrint("Wire started @ 4kHz.");
     } else {
         ws2812LedColor = RED;
         ws2812LedBlink = true;
@@ -2246,14 +2256,12 @@ void startLiPo() {
  * @link   https://github.com/sparkfun/SparkFun_ICM-20948_ArduinoLibrary/blob/main/examples/Arduino/.
  */
 bool startIMU() {
-    // imu.begin(Wire1, IMU_AD0_VAL);      // Uses second I2C bus: I2C1.
-    imu.begin(Wire);      // Uses second I2C bus: I2C1.
-    Serial.println(ICM_20948_Stat_Ok);
+    imu.begin(Wire1);      // Uses second I2C bus: I2C1.
     if (imu.status != ICM_20948_Stat_Ok) {
-        Serial.println("IMU _NOT_ started");
+        logPrint("IMU _NOT_ started on Wire1.");
         return false;
     }
-    Serial.println("IMU started");
+    logPrint("IMU started on Wire1.");
     imuReadyFlag = true;
     return true;
 }
