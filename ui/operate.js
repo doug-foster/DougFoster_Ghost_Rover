@@ -35,6 +35,7 @@
  * @since  3.4.1  [2025-10-26-04:45pm] Cleanup formatting.
  * @since  3.4.3  [2026-10-16-09:15am] Add detailed numbers & correct EPSG codes.
  * @since  3.4.3  [2026-10-20-10:00am] Add bubble level.
+ * @since  3.5.0  [2026-10-29-06:30pm] Aded radial clamp.
  * @link   http://dougfoster.me.
  */
 
@@ -162,6 +163,7 @@ const WGS84_E2 = WGS84_F * (2 - WGS84_F);   // Eccentricity squared.
 
 // --- General. ---
 // const wsMessageWindowMaxCount      = 10;         // Not used? WebSocket message status tracking window (# messages).
+const BUBBLE_MAX_RADIUS            = 10.2;          // Bubble units. 5.1° x 2 units/degree = 102 px from center. Keep in sync with firmware.
 let prfGnsMsrInt                   = 0;
 let prfGnsNavRat                   = 0;
 let prfLevelOffsetXDeg             = 0;
@@ -538,14 +540,28 @@ function llToUTM(latDeg, lonDeg) {
  * @param  int y Position (-10 <= y <= 10).
  * @return void No output is returned.
  * @since  3.4.3 [2026-10-20-10:15am] New.
+ * @since  3.5.0 [2026-10-29-06:30pm] Aded radial clamp.
  * @see    testBubble() in operate.js.
  */
 function bubble(x, y) {
-    document.querySelector('#bubble').style.left = ((10 * x) - 8) + 'px';
-    document.querySelector('#bubble').style.top = ((-10 * y) - 8) + 'px';
-    if (printBubble) {
-        console.log(`(${bubbleX}: ${bubbleY})`);
+    x = Number(x);                 // bubbleX/Y arrive as strings (toFixed()).
+    y = Number(y);
+    if (!isFinite(x) || !isFinite(y)) {
         return;
+    }
+
+    const radius = Math.hypot(x, y);
+    if (radius > BUBBLE_MAX_RADIUS) {
+        const scale = BUBBLE_MAX_RADIUS / radius;
+        x *= scale;
+        y *= scale;
+    }
+
+    const bubbleEl = document.querySelector('#bubble');
+    bubbleEl.style.left = ((10 * x) - 8) + 'px';
+    bubbleEl.style.top  = ((-10 * y) - 8) + 'px';
+    if (printBubble) {
+        console.log(`(${x.toFixed(2)}: ${y.toFixed(2)})`);
     }
 }
 

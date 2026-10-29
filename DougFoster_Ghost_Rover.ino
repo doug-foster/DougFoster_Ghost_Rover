@@ -1892,10 +1892,6 @@ bool imuBubbleXY(float &x, float &y) {
         x *= scale;
         y *= scale;
     }
-
-
-    x = -1 * constrain(TILT_X_SIGN * tx / MAX_TILT * TILT_RANGE, -TILT_RANGE, TILT_RANGE);   // +/-5° full scale (range 10 = 2 units/degree).
-    y = -1 * constrain(TILT_Y_SIGN * ty / MAX_TILT * TILT_RANGE, -TILT_RANGE, TILT_RANGE);
     if (commandFlag[DEBUG_IMU]) {
         snprintf(outputBuffer, sizeof(outputBuffer), "bubble(X,Y) = (%6.3f,%6.3f)\n", x, y);
         logPrint(outputBuffer);
