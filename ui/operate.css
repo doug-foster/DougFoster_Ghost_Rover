@@ -28,6 +28,7 @@
  * @since  3.4.3  [2026-10-15-04:00pm] Add detailed numbers & correct EPSG codes.
  * @since  3.4.3  [2026-10-16-09:15am] Add detailed numbers & correct EPSG codes.
  * @since  3.5.0  [2026-10-29-06:00pm] Updated smooth class.
+ * @since  3.5.0  [2026-10-29-07:00pm] Bubble level: ring sizes match bubble scale (20 px/degree), labels centered on rings.
  * @link   http://dougfoster.me.
  */
 
@@ -408,7 +409,19 @@ header #version-rover {
    background-color: unset;
 }
 
-/* Try */
+/**
+ * =========================================================================
+ *  Operation: bubble level.
+ * =========================================================================
+ *
+ * Scale: 20 px per degree.
+ *   - Firmware sends 2 bubble units per degree (MAX_TILT 5 deg = TILT_RANGE 10).
+ *   - bubble() in operate.js moves the bubble 10 px per bubble unit.
+ *   - So the ring for N degrees has radius 20 x N px (outer diameter 40 x N px).
+ * Rings (and the bubble) use box-sizing: border-box, so left/top = -(radius) and the
+ * bubble's center at N degrees sits on the ring line.
+ * Origin (0,0) of all rings, the cross hair and the bubble is the top-left of #level.
+ */
 .buttons-level {
     display: flex;
 }
@@ -416,8 +429,8 @@ header #version-rover {
     width: 182px;
 }
 .buttons-level .ring {
-    position: relative;
-    border-radius: 100px;
+    box-sizing: border-box;      /* width/height = outer size (includes 1px border). */
+    border-radius: 50%;
 }
 .buttons-level .box {
     width: 100px;
@@ -431,6 +444,9 @@ header #version-rover {
 }
 .buttons-level .ring .label {
     position: absolute;
+    left: 85.5%;                 /* Label center on the ring at 45 deg (upper right): 50% + 35.5%. */
+    top: 14.5%;                  /* 50% - 35.5%. */
+    transform: translate(-50%, -50%);
     padding: 1px;
     color: var(--gray-2);
     background-color: #ffffff;
@@ -439,70 +455,48 @@ header #version-rover {
 .buttons-level #level {
     position: relative;
     top: -8px;
-    left: 5px;
+    left: 0;                     /* Was 5px. Ring-5 is now 200px wide, so center it in the space right of the buttons. */
     vertical-align: middle;
     margin: auto;
 }
- .buttons-level #ring-5 {
-    left: -91px;
-    top: -91px;
-    width: 180px;
-    height: 180px;
+.buttons-level #ring-5 {         /* 5 deg: radius 100px. */
+    left: -100px;
+    top: -100px;
+    width: 200px;
+    height: 200px;
 }
- .buttons-level #ring-4 {
-    left: -71px;
-    top: -71px;
-    width: 140px;
-    height: 140px;
+.buttons-level #ring-4 {         /* 4 deg: radius 80px. */
+    left: -80px;
+    top: -80px;
+    width: 160px;
+    height: 160px;
 }
-.buttons-level #ring-3 {
-    left: -51px;
-    top: -51px;
-    width: 100px;
-    height: 100px;
+.buttons-level #ring-3 {         /* 3 deg: radius 60px. */
+    left: -60px;
+    top: -60px;
+    width: 120px;
+    height: 120px;
 }
-.buttons-level #ring-2 {
-    left: -31px;
-    top: -31px;
-    width: 60px;
-    height: 60px;
+.buttons-level #ring-2 {         /* 2 deg: radius 40px. */
+    left: -40px;
+    top: -40px;
+    width: 80px;
+    height: 80px;
 }
-.buttons-level #ring-1 {
-    left: -11px;
-    top: -11px;
-    width: 20px;
-    height: 20px;
-}
-.buttons-level #ring-5 .label {
-    left: 153px;
-    top: 20px;
-}
-.buttons-level #ring-4 .label {
-    left: 118px;
-    top: 14px;
-}
-.buttons-level #ring-3 .label {
-    left: 82px;
-    top: 6px;
-}
-.buttons-level #ring-2 .label {
-    left: 48px;
-    top: 1px;
-}
-.buttons-level #ring-1 .label {
-    left: 13px;
-    top: -7px;
+.buttons-level #ring-1 {         /* 1 deg: radius 20px. */
+    left: -20px;
+    top: -20px;
+    width: 40px;
+    height: 40px;
 }
 .buttons-level #bubble {
-    top: -8px;       /* -108 -86 -62 -38 -8 23 46 69 92 */
-    left: -8px;        /* -108 -86 -62 -38 -8 23 46 69 92 */
-    top: -110px;
-    left:-108px;
+    top: -110px;                 /* Initial position until bubble() sets inline left/top. */
+    left: -108px;
     width: 16px;
     height: 16px;
     z-index: 2;
     background-color: var(--gray-1);
-    border-radius: 20px;
+    border-radius: 50%;
     border-color: #000000;
 }
 .smooth {
