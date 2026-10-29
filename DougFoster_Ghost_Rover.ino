@@ -401,6 +401,18 @@ const float   TILT_Y_SIGN     = 1.0f;                           // Tilt Y orient
       float   rawTiltYDeg     = 0.0f;                           // Raw tilt (Y degrees) - different than imuBubbleXY() output.
       ICM_20948_I2C imu;
 
+// --- IMU/bubble averaging. ---
+      bool     imuNewSampleFlag   = false;   // True when imuFilterGravity() consumed a fresh IMU sample.
+      uint32_t imuWelfordCountX   = 0;       // # samples folded into X mean.
+      uint32_t imuWelfordCountY   = 0;       // # samples folded into Y mean.
+      uint32_t imuCalCount        = 0;       // # samples averaged, sent to the UI.
+      float    imuCalAvgXDeg      = 0.0f;    // Published copies for sendDataToBrowser(). 32-bit = atomic
+      float    imuCalAvgYDeg      = 0.0f;    //   on ESP32, so a read can't tear mid-update like a double could.      
+      double   imuWelfordMeanX    = 0;       // Welford running mean - raw X tilt (deg), calibration only.
+      double   imuWelfordM2X      = 0;       // Welford running sum of squared deviations (X).
+      double   imuWelfordMeanY    = 0;       // Welford running mean - raw Y tilt (deg), calibration only.
+      double   imuWelfordM2Y      = 0;       // Welford running sum of squared deviations (Y).
+
 // --- Operation. ---
 enum CommandIndex {                                             //  Readable index for command array.
     TEST_RAD = 0,                                               //  0.
@@ -845,8 +857,8 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             prfGnsMsrInt    = roverPrefs.getUShort("prfGnsMsrInt");
             prfInstrHgt     = roverPrefs.getUShort("prfInstrHgt");
             prfLckAvgInt    = roverPrefs.getUShort("prfLckAvgInt");
-            prfOffsetXDeg   = roverPrefs.getFloat("prfOffsetXDeg", 6.2f);
-            prfOffsetYDeg   = roverPrefs.getFloat("prfOffsetYDeg", 6.2f);     // Newest pref.
+            prfOffsetXDeg   = roverPrefs.getFloat("prfOffsetXDeg");
+            prfOffsetYDeg   = roverPrefs.getFloat("prfOffsetYDeg");     // Newest pref.
             // Note: a new pref has never been saved to NVS. Test if exists before trying to copy.
 
             // - Create NTRIP caster JSON doc from embedded JSON string for active caster. -
@@ -1247,8 +1259,11 @@ void sendDataToBrowser() {
     // --- Config page. ---
     if ((strcmp(whichPage, "config") == 0) && (calibrateImuFlag)) {
         jsonDocToBrowser["imuCalibrateStartResp"] = "";
-        jsonDocToBrowser["54"] = rawTiltXDeg;
-        jsonDocToBrowser["55"] = rawTiltYDeg;
+        if (imuCalCount > 0) {                          // Nothing to report until the first sample is averaged.
+            jsonDocToBrowser["54"] = imuCalAvgXDeg;
+            jsonDocToBrowser["55"] = imuCalAvgYDeg;
+            jsonDocToBrowser["56"] = imuCalCount;       // New: # samples averaged.
+        }
     }
 
     // --- Menu page (NTRIP). ---
@@ -1786,9 +1801,9 @@ void welfordUpdate(double &mean, double &M2, uint32_t &count, double newValue) {
  * @since  3.5.0 [2026-10-22-11:30am] New.
  * @since  3.5.0 [2026-10-28-03:15pm] Switched x & y sources.
  */
-void imuFilterGravity() {
+bool imuFilterGravity() {
     if (!imu.dataReady()) {                   // New sample ready? If not, returns (previously filtered values are used).
-        return;
+        return false;
     }
 
     // --- Get latest acc (gravity) values. ---
@@ -1818,6 +1833,7 @@ void imuFilterGravity() {
         snprintf(outputBuffer, sizeof(outputBuffer), "IMU.acc(X,Y,Z) filtered = (%6.3f,%6.3f,%6.3f)", filtAx, filtAy, filtAz);
         logPrint(outputBuffer);
     }
+    return true;
 }
 
 /**
@@ -1857,7 +1873,7 @@ bool imuBubbleXY(float &x, float &y) {
   }
 
   // --- Use seeded, exponential moving average to smooth IMU gravity values. ---
-  imuFilterGravity();
+  imuNewSampleFlag = imuFilterGravity();
 
   // --- Convert gravity values (after smoothing) into raw tilt degrees. ---
   if (filterSeededFlag) {
@@ -2809,7 +2825,14 @@ void taskEvery100Ms(void * pvParameters) {
 
         // --- Calculate/average IMU offsets. ---
         if (strcmp(whichPage, "config") == 0) {
-            imuBubbleXY(bubbleDegX, bubbleDegY);
+            const bool valid = imuBubbleXY(bubbleDegX, bubbleDegY);     // Also sets rawTiltXDeg/YDeg.
+            if (valid && imuNewSampleFlag && calibrateImuFlag) {
+                welfordUpdate(imuWelfordMeanX, imuWelfordM2X, imuWelfordCountX, rawTiltXDeg);
+                welfordUpdate(imuWelfordMeanY, imuWelfordM2Y, imuWelfordCountY, rawTiltYDeg);
+                imuCalAvgXDeg = (float)imuWelfordMeanX;
+                imuCalAvgYDeg = (float)imuWelfordMeanY;
+                imuCalCount   = imuWelfordCountX;
+            }
             browserUpdatePendingFlag = true;
         }
 
@@ -3348,6 +3371,7 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
  *     53 = NTRIP caster crs                 (struct ntripCasterProfile ntripCaster.crs     - char mount[24]).
  *     54 = Bubble level X offset when level (float    prfOffsetXDeg).
  *     55 = Bubble level Y offset when level (float    prfOffsetYDeg).         // Newest pref.
+ *     56 = IMU calibration sample count (uint32_t imuCalCount).
  *
  *  --- Description of exchange protocol. ---
  *
@@ -3363,6 +3387,8 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
  *       "35":22,
  *       "36":1596,
  *       "52":10,
+ *       "54":-3.533,
+ *       "55":-1.209,
  *       "39":"{\"43\":1,\"44\":\"PointPerfect (SparkPNT)\",\"45\":\"ppntrip.services.u-blox.com\",\"46\":\"NEAR-RTCM\",\"47\":2101,\"48\":1,\"49\":\"abcdefghijkl\",\"50\":\"abcdefghij\,\"51\":1}",
  *       "40":"{\"43\":2,\"44\":\"\",\"45\":\"\",\"46\":\"\",\"47\":2101,\"48\":1,\"49\":\"\",\"50\":\"\",\"51\":1},
  *       "41":"{\"43\":3,\"44\":\"\",\"45\":\"\",\"46\":\"\",\"47\":2101,\"48\":1,\"49\":\"\",\"50\":\"\",\"51\":1}",
@@ -3411,6 +3437,13 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
  *
  *  -- Config page. --
  *     - Hello. -
+ * 
+ *     - Start IMU calibration. -
+ *       browser (sends) --> {"imuCalibrateStart":""}
+ *       browser (receives) <-- {"imuCalibrateStartResp":"","54":-3.792229,"55":-1.034519,"56":364}
+ *
+ *     - Stop IMU calibration. -
+ *       browser (sends) --> {"imuCalibrateStop":""}
  *
  *     - Set all preferences. -
  *       browser (sends)    --> {"page":"config","setPrefs":"",{ALL PREFERENCES}}.
@@ -3695,6 +3728,17 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
     // --- Config page. Calculate/average IMU offsets. ---
     // -------------------------------------------------------------------------
     if (jsonDocFromBrowser["imuCalibrateStart"].is<JsonVariant>()) {
+        vTaskSuspend(taskEvery100MsHandle);     // Safe if already suspended. Guards against a Start without a Stop.
+        imuWelfordMeanX  = 0;
+        imuWelfordM2X    = 0;
+        imuWelfordCountX = 0;
+        imuWelfordMeanY  = 0;
+        imuWelfordM2Y    = 0;
+        imuWelfordCountY = 0;
+        imuCalAvgXDeg    = 0;
+        imuCalAvgYDeg    = 0;
+        imuCalCount      = 0;
+        filterSeededFlag = false;               // Re-seed the EMA from the first new sample (see note below).
         calibrateImuFlag = true;
         if (commandFlag[DEBUG_IMU]) {
             logPrint("imuCalibrateStart");
@@ -3705,7 +3749,7 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
     if (jsonDocFromBrowser["imuCalibrateStop"].is<JsonVariant>()) {
         calibrateImuFlag = false;
         if (commandFlag[DEBUG_IMU]) {
-            logPrint("imuCalibrateStart");
+            logPrint("imuCalibrateStop");
         }
         vTaskSuspend(taskEvery100MsHandle);
     }

@@ -354,6 +354,7 @@ async function webSocketStop(event) {
  *     53 = NTRIP caster crs                 (struct ntripCasterProfile ntripCaster.crs     - char mount[24]).
  *     54 = Bubble level X offset when level (float    prfLevelOffsetXDeg).
  *     55 = Bubble level Y offset when level (float    prfLevelOffsetYDeg).         // Newest pref.
+ *     56 = IMU calibration sample count     (uint32_t imuCalCount).
  *
  * @return void  No output is returned.
  * @since  3.0.7 [2025-11-15-02:00pm].
@@ -445,14 +446,15 @@ function webSocketRcvMessage(event) {
     // --- Config page. ---
     if ('config' == PAGE) {
         if (imuCalibrating) {
-            prfLevelOffsetXDeg           = jsonObj["54"];
-            prfLevelOffsetYDeg           = jsonObj["55"];
-            imucalibrationCount++;            
-            imuXoffset.value             = prfLevelOffsetXDeg.toFixed(3);
-            imuYoffset.value             = prfLevelOffsetYDeg.toFixed(3);
-            imuCalibrateNote.textContent = imucalibrationCount + ' IMU readings averaged.';
+            if (undefined !== jsonObj["54"]) {
+                prfLevelOffsetXDeg           = jsonObj["54"];
+                prfLevelOffsetYDeg           = jsonObj["55"];
+                imuXoffset.value             = prfLevelOffsetXDeg.toFixed(3);
+                imuYoffset.value             = prfLevelOffsetYDeg.toFixed(3);
+                imuCalibrateNote.textContent = jsonObj["56"] + ' IMU readings averaged.';
+            }
         } else {
-            if (Object.keys(jsonObj).length > 1) {
+            if ((Object.keys(jsonObj).length > 1) && (undefined === jsonObj["imuCalibrateStartResp"])) {
                 document.querySelector('input[name="switch-unit"][value="'    + jsonObj["1"] + '"]').checked = true;
                 document.querySelector('input[name="switch-rtcm-in"][value="' + jsonObj["2"] + '"]').checked = true;
                 if(prfRtcIn == 'ntrip') {

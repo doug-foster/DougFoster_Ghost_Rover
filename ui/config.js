@@ -104,7 +104,6 @@ const PREF_RESET            = '{"page":"config","resetPrefs":""}';
 let   ntripCasterAttributes = [];
 let   prfNtripCasterAct     = 0;
 let   imuCalibrating        = false;
-let   imucalibrationCount   = 0;
         
 /**
  * =========================================================================
@@ -357,7 +356,6 @@ imuCalibrateBtn.addEventListener('click', () => {
             imuCalibrating = false;
             imuCalibrateBtn.textContent = 'Start';
             command = 'Stop';
-            imucalibrationCount = 0;
         } else {
             imuCalibrateBtn.classList.add('calibrating');
             imuCalibrating = true;
