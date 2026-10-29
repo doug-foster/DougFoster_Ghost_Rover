@@ -50,7 +50,8 @@
  * @since  3.4.2 [2026-10-03-10:30pm] Also set RTCMinFlag = false if !tcpClient.connected() in checkTCPServer().
  * @since  3.4.2 [2026-10-05-11:45am] Refactor NTRIP.
  * @since  3.4.2 [2026-10-05-01:45am] Add general function stringToHex().
- * @since  3.3.4 [2026-10-20-02:15pm] Re-added Wire1 for IMU in startI2c() setup function.
+ * @since  3.5.0 [2026-10-20-02:15pm] Re-added Wire1 for IMU in startI2c() setup function.
+ * @since  3.5.0 [2026-10-20-09:00pm] Add IMU functionality - prfOffsetXDeg, prfOffsetYDeg, ... .
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
  * @link   http://dougfoster.me.
@@ -191,7 +192,7 @@
  *        - FENCE: (blue) can be configured for geofencing.
  */
 
- /**
+/**
  * -------------------------------------------------------------------------
  *  Instrument height calculations.
  * -------------------------------------------------------------------------
@@ -228,7 +229,7 @@
  * Instrument height (always in mm) = HEIGHT_ROVER(128) + pole/tripod height.
  */
 
- /**
+/**
  * -------------------------------------------------------------------------
  *  WebSocket docs. 
  * -------------------------------------------------------------------------
@@ -253,6 +254,9 @@
  * @since 3.2.2   [2026-08-09-01:45pm] Updated library <AsyncTCP.h>                from 3.4.10  to 3.5.0.
  * @since 3.2.2   [2026-08-09-01:45pm] Updated library <ESPAsyncWebServer.h>       from 3.11.1  to 3.12.0.
  * @since 3.3.1   [2026-08-16-05:30pm] Changed SD card reader library from <SD.h> to <SD_MMC.h>.
+ * @since 3.4.3   [2026-10-20-04:30pm] Updated library <SparkFun_u-blox_GNSS_v3.h> from 3.1.14  to 3.1.15.
+ * @since 3.4.3   [2026-10-20-04:30pm] Updated library <ESPAsyncWebServer.h>       from 3.12.0  to 3.12.1.
+ * @since 3.4.3   [2026-10-20-04:30pm] Added library <ICM_20948.h>                                 1.3.2.
  * @link  Arduino https://docs.arduino.cc/libraries/.
  * @link  ESP32   https://docs.espressif.com/projects/arduino-esp32/en/latest/libraries.html.
  */
@@ -274,10 +278,11 @@
 
 // --- Additional. ---                  
 #include <AsyncTCP.h>                                      // https://github.com/ESP32Async/AsyncTCP (3.5.0).
-#include <ESPAsyncWebServer.h>                             // https://github.com/ESP32Async/ESPAsyncWebServer (3.12.0).
+#include <ESPAsyncWebServer.h>                             // https://github.com/ESP32Async/ESPAsyncWebServer (3.12.1).
 #include <ArduinoJson.h>                                   // https://github.com/bblanchon/ArduinoJson (7.4.3).
 #include <SparkFun_MAX1704x_Fuel_Gauge_Arduino_Library.h>  // https://github.com/sparkfun/SparkFun_MAX1704x_Fuel_Gauge_Arduino_Library (1.0.4).
-#include <SparkFun_u-blox_GNSS_v3.h>                       // https://github.com/sparkfun/SparkFun_u-blox_GNSS_v3 (3.1.14).            
+#include <SparkFun_u-blox_GNSS_v3.h>                       // https://github.com/sparkfun/SparkFun_u-blox_GNSS_v3 (3.1.15).            
+#include <ICM_20948.h>                                     // https://github.com/sparkfun/SparkFun_ICM-20948_ArduinoLibrary (1.3.2).
 
 /**
  * =========================================================================
@@ -305,6 +310,8 @@
  * @since 3.4.1  [2026-09-27-10:00pm] Added ntripCaster.crs.
  * @since 3.4.1  [2026-09-28-12:30pm] ntripCasterProfile.crs from char[24] to char[48].
  * @since 3.4.1  [2026-09-29-05:00pm] Add taskEvery5000MsHandle(), EVERY_5000MS_INTERVAL.
+ * @since 3.4.3  [2026-10-20-09:00pm] Add prfOffsetXDeg & prfOffsetYDeg.
+ * @since 3.5.0  [2026-10-25-11:00am] Move buildOperDataInterval calculation from global var to startTasks().
  */
 
 // --- Increase default ESP32 stack size from 8KB to 16KB.
@@ -378,6 +385,20 @@ float   accuracyHorizontal = 0;                                 // GNSS - horizo
 float   accuracyVertical   = 0;                                 // GNSS - vertical accuracy.
 SFE_UBLOX_GNSS roverGNSS;                                       // GNSS object (uses I2C-1).
 
+// --- IMU/bubble level. ---
+const uint8_t IMU_AD0_VAL     = 1;                              // 1 = SparkFun default I2C address (0x69).
+const float   MAX_TILT        = 5.0f;                           // Tilt, max measured: 5 degrees.
+const float   TILT_RANGE      = 10.0f;                          // Tilt, range: 10 degrees.
+const float   TILT_EMA_ALPHA  = 0.3f;                           // Tilt, smooth bubble movement rate (lower = smoother but laggier).
+const float   TILT_X_SIGN     = 1.0f;                           // Tilt X orientation, flip to -1.0f to match mounting.
+const float   TILT_Y_SIGN     = 1.0f;                           // Tilt Y orientation, flip to -1.0f to match mounting.
+      float   filtAx          = 0.0f;                           // Exponential moving average filter of IMU X value.
+      float   filtAy          = 0.0f;                           // Exponential moving average filter of IMU Y value. 
+      float   filtAz          = 0.0f;                           // Exponential moving average filter of IMU Z value.
+      float   bubbleDegX      = 0.0f;                           // Tilt (X degrees) for UI bubble level.
+      float   bubbleDegY      = 0.0f;                           // Tilt (Y degrees) for UI bubble level.
+      ICM_20948_I2C imu;
+
 // --- Operation. ---
 enum CommandIndex {                                             //  Readable index for command array.
     TEST_RAD = 0,                                               //  0.
@@ -402,7 +423,8 @@ enum CommandIndex {                                             //  Readable ind
     DEBUG_NMEA_SENT,                                            // 19.
     DEBUG_LOOP_STACK,                                           // 20.
     DEBUG_FILE_SYSTEM,                                          // 21.
-    NUM_COMMANDS                                                // 22 = automatic array length.
+    DEBUG_IMU,                                                  // 22.
+    NUM_COMMANDS                                                // 23 = automatic array length.
 };     
 const char* COMMAND[NUM_COMMANDS] = {                           // Command strings; match CommandIndex.
     "test-rad",                                                 // TEST_RAD.
@@ -427,13 +449,14 @@ const char* COMMAND[NUM_COMMANDS] = {                           // Command strin
     "debug-nmea-sent",                                          // DEBUG_NMEA_SENT.
     "debug-loop-stack",                                         // DEBUG_LOOP_STACK.
     "debug-file-system",                                        // DEBUG_FILE_SYSTEM.
+    "debug-imu",                                                // DEBUG_IMU.
 };     
 const bool    RW_MODE                    = false;               // Open preference name space as read/write.
 const bool    RO_MODE                    = true;                // Open preference name space as read only.
 const char    LOG_FILE[]                 = "/log.txt";          // Log file.
 const uint8_t MAJOR_VERSION              = 3;                   // Current major build version (@see buildInfo()).
-const uint8_t MINOR_VERSION              = 4;                   // Current minor build version (@see buildInfo()).
-const uint8_t PATCH_VERSION              = 2;                   // Current patch build version (@see buildInfo()).
+const uint8_t MINOR_VERSION              = 5;                   // Current minor build version (@see buildInfo()).
+const uint8_t PATCH_VERSION              = 0;                   // Current patch build version (@see buildInfo()).
 const uint8_t MIN_SATELLITE_THRESHHOLD   = 2;                   // Minimum SIV for reliable coordinate information.      
       char     operMode[2]               = {'\0'};              // Operation mode (r=rover, b=base).
       char     debugTemp[250]            = {'\0'};              // Various debug scenarios.
@@ -482,10 +505,13 @@ bool heightLockAveragingFlag        = false;                    // Averaging win
 bool positionLockAveragingFlag      = false;                    // Averaging window in progress for position lock.
 bool commandFlag[NUM_COMMANDS]      = {false};                  // Debug command flags.
 bool okToPushLastGgaFlag            = false;                    // Push lastGGA NMEA sentence to NTRIP caster _after_ link is established.
-bool ntripHandshakeComplete         = false;                    // NTRIP caster handshake in processMessagesIn() is complete. taskRtcmRelay() can read RTCM.
+bool ntripHandshakeCompleteFlag     = false;                    // NTRIP caster handshake in processMessagesIn() is complete. taskRtcmRelay() can read RTCM.
+bool imuReadyFlag                   = false;                    // IMU/I2C interface started.
+bool filterSeededFlag               = false;                    // IMU first pass, seed filter with raw readings.
+bool calibrateImuFlag               = false;                    // UI is requesting IMU calibration.
 
 // --- Preferences. ---
-const char        DEF_NTRIP_CAST_ATTR_1[] = "{\"43\":1,\"44\":\"PointPerfect (SparkPNT)\",\"45\":\"ppntrip.services.u-blox.com\",\"46\":\"NEAR-RTCM\",\"47\":2101,\"48\":1,\"49\":\"tbd\",\"50\":\"tbd\",\"51\":1,\"53\":\"\"}";    // Newest pref.
+const char        DEF_NTRIP_CAST_ATTR_1[] = "{\"43\":1,\"44\":\"PointPerfect (SparkPNT)\",\"45\":\"ppntrip.services.u-blox.com\",\"46\":\"NEAR-RTCM\",\"47\":2101,\"48\":1,\"49\":\"tbd\",\"50\":\"tbd\",\"51\":1,\"53\":\"\"}";
 const char        DEF_NTRIP_CAST_ATTR_2[] = "{\"43\":2,\"44\":\"\",\"45\":\"\",\"46\":\"\",\"47\":2101,\"48\":1,\"49\":\"\",\"50\":\"\",\"51\":1,\"53\":\"\"}";
 const char        DEF_NTRIP_CAST_ATTR_3[] = "{\"43\":3,\"44\":\"\",\"45\":\"\",\"46\":\"\",\"47\":2101,\"48\":1,\"49\":\"\",\"50\":\"\",\"51\":1,\"53\":\"\"}";
 const uint16_t    NTRIP_CAST_ATTR_LEN     = 512;                // Length of character array for NTRIP caster attibute profile.
@@ -499,6 +525,8 @@ const uint16_t    NTRIP_CAST_ATTR_LEN     = 512;                // Length of cha
       uint16_t    prfGnsMsrInt;                                 // ZED: MEASURE every Y (e.g. 100) ms.
       uint16_t    prfInstrHgt;                                  // Instrument height (includes rover height + pole height).
       uint16_t    prfLckAvgInt;                                 // GNSS lock averaging interval.
+      float       prfOffsetXDeg;                                // Bubble level x offset when level.
+      float       prfOffsetYDeg;                                // Bubble level y offset when level.      // Newest pref.
       Preferences roverPrefs;                                   // Rover's NVS preferences namespace.
       enum        prefAction {                                  // Readable index for preference actions.
           PREF_INIT,                                            // 0.
@@ -516,7 +544,7 @@ struct ntripCasterProfile {                                     // NTRIP caster 
     char     mount[24];
     char     user[48];
     char     pass[48];
-    char     crs[48];                                           // Newest pref.
+    char     crs[48];
     uint8_t  id;
     uint8_t  version;
     uint16_t port;
@@ -540,6 +568,7 @@ extern TaskHandle_t  loopTaskHandle;                            // Handle for Fr
        TaskHandle_t  taskLoopStatusLedHandle;                   // Handle for GhostRover FreeRTOS task: Loop status LED.
        TaskHandle_t  taskRtcmRelayHandle;                       // Handle for GhostRover FreeRTOS task: RTCM relay, Serial1 -> Serial2.
        TaskHandle_t  taskBuildOperDataHandle;                   // Handle for GhostRover FreeRTOS task: buildOperData.
+       TaskHandle_t  taskEvery100MsHandle;                      // Handle for GhostRover FreeRTOS task: Do these every 1/10 second.
        TaskHandle_t  taskEvery1000MsHandle;                     // Handle for GhostRover FreeRTOS task: Do these every 1 second.
        TaskHandle_t  taskEvery5000MsHandle;                     // Handle for GhostRover FreeRTOS task: Do these every 5 seconds.
        TaskHandle_t  taskEvery10000MsHandle;                    // Handle for GhostRover FreeRTOS task: Do these every 10 seconds.
@@ -547,26 +576,13 @@ extern TaskHandle_t  loopTaskHandle;                            // Handle for Fr
 
 // --- FreeRTOS tasks. ---
 const TickType_t LED_BLINK_INTERVAL     = 40/portTICK_PERIOD_MS;                             // LED "blink" time (ms) =  0.04 seconds.
+const TickType_t EVERY_100MS_INTERVAL   = 100/portTICK_PERIOD_MS;                            // Do these every 1/10 second.
 const TickType_t EVERY_1000MS_INTERVAL  = 1000/portTICK_PERIOD_MS;                           // Do these every 1 second.
 const TickType_t EVERY_5000MS_INTERVAL  = 5000/portTICK_PERIOD_MS;                           // Do these every 5 seconds.
 const TickType_t EVERY_10000MS_INTERVAL = 10000/portTICK_PERIOD_MS;                          // Do these every 10 seconds.
-      TickType_t buildOperDataInterval  = (prfGnsNavRat * prfGnsMsrInt)/portTICK_PERIOD_MS;  // Time (ms) [pref based] between operate page updates.
+      TickType_t buildOperDataInterval  = pdMS_TO_TICKS(200);                                // Time (ms) [pref based] between operate page updates.
 
 // --- Lock/average state. ---
-// === New lock code - begin. ===
-    //   int64_t  heightLockAveragingStart   = 0;
-    //   int64_t  positionLockAveragingStart = 0;
-    //   double   heightLockSumOrtho         = 0;
-    //   double   heightLockSumGeoidSep      = 0;
-    //   uint32_t heightLockSampleCount      = 0;
-    //   double   positionLockSumLat         = 0;
-    //   double   positionLockSumLon         = 0;
-    //   uint32_t positionLockSampleCount    = 0;
-    //   double   lockedLat                  = 0;
-    //   double   lockedLon                  = 0;
-    //   float    lockedHeightOrtho          = 0;
-    //   float    lockedGeoidSep             = 0;       // heightEllipsoid - heightOrthometric, frozen at lock time.
-
 const uint16_t LOCK_MAX_SAMPLES           = 200;        // Circular buffer cap for MAD - bounds memory regardless of prfLckAvgInt.
 const double   MAD_SCALE                  = 1.4826;     // Scales MAD to be comparable to std dev for normally-distributed data.
 const double   MAD_REJECT_K               = 3.0;        // Reject samples beyond k * scaled MAD from the window's median.
@@ -598,10 +614,11 @@ const double   MAD_REJECT_K               = 3.0;        // Reject samples beyond
       double   heightGeoidSepSamples[LOCK_MAX_SAMPLES]; // Shares index/count with heightOrthoSamples (sampled together).
       double   madScratchA[LOCK_MAX_SAMPLES];           // Reused sort scratch - single-threaded call site only.
       double   madScratchB[LOCK_MAX_SAMPLES];           // Reused scratch for sorted absolute deviations - single-threaded call site only.
-// === New lock code - end. ===
 
 // --- Declaration. ---
 // --- Test. ---
+
+
 
 /**
  * =========================================================================
@@ -634,9 +651,12 @@ const double   MAD_REJECT_K               = 3.0;        // Reject samples beyond
  * @see   madIsOutlier()          = Lock averaging: MAD-based outlier test.
  * @see   bufferAddPair()         - Lock averaging: Append a sample pair into two parallel circular buffers sharing one index.
  * @see   welfordUpdate()         - Lock averaging: Welford's online algorithm.
+ * @see   imuFilterGravity()      - Use seeded, exponential moving average to smooth IMU gravity values.
+ * @see   calcRawTiltDeg()        - Calculate raw XY tilt (convert gravity into angles) in degrees.
+ * @see   imuBubbleXY()           - Get & smooth IMU gravity values, calculate XY tilt values for bubble UI.
  */
 
-  /**
+/**
  * -------------------------------------------------------------------------
  *  Display time since boot.
  * -------------------------------------------------------------------------
@@ -660,7 +680,7 @@ void uptime(char *dest, size_t max_len, bool fractional = true) {
     }
 }
 
- /**
+/**
  * -------------------------------------------------------------------------
  *  Print text to USB if Serial available. Add text to LOG_FILE.
  * -------------------------------------------------------------------------
@@ -777,8 +797,10 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
     const uint8_t   DEF_GNS_NAV_RAT         = 2;                // Default ZED rate (times/interval): OUTPUT a new solution.                        - Matching global var: uint8_t  prfGnsNavRat.
     const uint16_t  DEF_GNS_MSR_INT         = 100;              // Default ZED interval (ms): CREATE a new solution.                                - Matching global var: uint16_t prfGnsMsrInt.
     const uint16_t  DEF_INSTR_HGT           = 128;              // Default instrument height (mm - includes rover height [128] + pole height [0]).  - Matching global var: uint16_t prfInstrHgt.
-    const uint16_t  DEF_LCK_AVG_INT         = 3;                // Default GNSS lock averaging interval.  // Newest pref. 2.
-    const uint16_t  NUM_PREFS               = 13;               // Number of preferences being used.
+    const uint16_t  DEF_LCK_AVG_INT         = 3;                // Default GNSS lock averaging interval.
+    const uint16_t  NUM_PREFS               = 14;               // Number of preferences being used.
+    const float     DEF_PRF_LVL_OFF_X       = 0;                // Bubble level X offset when level.                                                - Matching global var: float    prfOffsetXDeg.
+    const float     DEF_PRF_LVL_OFF_Y       = 0;                // Bubble level Y offset when level.                                                - Matching global var: float    prfOffsetYDeg.    // Newest pref.
           size_t    remaining               = 0;                // Number of bytes remaining that can be written to char array. 
           bool      hasKey                  = false;
           DeserializationError ntripError;
@@ -820,7 +842,10 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             prfGnsNavRat    = roverPrefs.getUShort("prfGnsNavRat");           
             prfGnsMsrInt    = roverPrefs.getUShort("prfGnsMsrInt");
             prfInstrHgt     = roverPrefs.getUShort("prfInstrHgt");
-            prfLckAvgInt    = roverPrefs.getUShort("prfLckAvgInt");     // Newest pref. 2.
+            prfLckAvgInt    = roverPrefs.getUShort("prfLckAvgInt");
+            prfOffsetXDeg   = roverPrefs.getFloat("prfOffsetXDeg", 6.2f);
+            prfOffsetYDeg   = roverPrefs.getFloat("prfOffsetYDeg", 6.2f);     // Newest pref.
+            // Note: a new pref has never been saved to NVS. Test if exists before trying to copy.
 
             // - Create NTRIP caster JSON doc from embedded JSON string for active caster. -
             // Embedded JSON string allows attributes for an NTRIP caster to be stored as a single preference. 
@@ -833,15 +858,12 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             }
 
             // - Set global vars from JSON values. -
-            strlcpy(ntripCaster.name,  JsonDocNtrip["44"],  sizeof(ntripCaster.name));
-            strlcpy(ntripCaster.url,   JsonDocNtrip["45"],   sizeof(ntripCaster.url));
+            strlcpy(ntripCaster.name,  JsonDocNtrip["44"], sizeof(ntripCaster.name));
+            strlcpy(ntripCaster.url,   JsonDocNtrip["45"], sizeof(ntripCaster.url));
             strlcpy(ntripCaster.mount, JsonDocNtrip["46"], sizeof(ntripCaster.mount));
-            strlcpy(ntripCaster.user,  JsonDocNtrip["49"],  sizeof(ntripCaster.user));
-            strlcpy(ntripCaster.pass,  JsonDocNtrip["50"],  sizeof(ntripCaster.pass));
-            // A newly added pref has never been saved to NVS. Test if it exists before trying to copy.  [2026-09-27]
-            if (JsonDocNtrip["53"].is<JsonVariant>()) {
-                strlcpy(ntripCaster.crs, JsonDocNtrip["53"], sizeof(ntripCaster.crs));      // Newest pref.
-            }
+            strlcpy(ntripCaster.user,  JsonDocNtrip["49"], sizeof(ntripCaster.user));
+            strlcpy(ntripCaster.pass,  JsonDocNtrip["50"], sizeof(ntripCaster.pass));
+            strlcpy(ntripCaster.crs,   JsonDocNtrip["53"], sizeof(ntripCaster.crs));
             ntripCaster.id      = JsonDocNtrip["43"];
             ntripCaster.port    = JsonDocNtrip["47"];
             ntripCaster.version = JsonDocNtrip["48"];
@@ -860,18 +882,20 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             roverPrefs.begin("config", RW_MODE);
 
             // - Set NVS preferences from global vars. -
-            roverPrefs.putString("prfUnt",          prfUnt);              // Store as "prfUnt"              (sent/rcvd as "1").
-            roverPrefs.putString("prfRtcmInSource", prfRtcmInSource);     // Store as "prfRtcmInSource"     (sent/rcvd as "2").
-            roverPrefs.putString("prfHotSsi",       prfHotSsi);           // Store as "prfHotSsi"           (sent/rcvd as "6").
-            roverPrefs.putString("prfHotPas",       prfHotPas);           // Store as "prfHotPas"           (sent/rcvd as "7").
-            roverPrefs.putString("prfNtripCaster1", prfNtripCastAttr[0]); // Store as "prfNtripCastAttr[0]" (sent/rcvd as "39").
-            roverPrefs.putString("prfNtripCaster2", prfNtripCastAttr[1]); // Store as "prfNtripCastAttr[1]" (sent/rcvd as "40").
-            roverPrefs.putString("prfNtripCaster3", prfNtripCastAttr[2]); // Store as "prfNtripCastAttr[2]" (sent/rcvd as "41").
-            roverPrefs.putUShort("prfNtripCastAct", prfNtripCastAct);     // Store as "prfNtripCastAct"     (sent/rcvd as "42").
-            roverPrefs.putUShort("prfGnsNavRat",    prfGnsNavRat);        // Store as "prfGnsNavRat"        (sent/rcvd as "5").
-            roverPrefs.putUShort("prfGnsMsrInt",    prfGnsMsrInt);        // Store as "prfGnsMsrInt"        (sent/rcvd as "4").
-            roverPrefs.putUShort("prfInstrHgt",     prfInstrHgt);         // Store as "prfInstrHgt"         (sent/rcvd as "36" with value in mm, e.g. "165").
-            roverPrefs.putUShort("prfLckAvgInt",    prfLckAvgInt);        // Store as "prfLckAvgInt"        (sent/rcvd as "52").    // Newest pref. 2.
+            roverPrefs.putString("prfUnt",            prfUnt);              // Store as "prfUnt"              (sent/rcvd as "1").
+            roverPrefs.putString("prfRtcmInSource",   prfRtcmInSource);     // Store as "prfRtcmInSource"     (sent/rcvd as "2").
+            roverPrefs.putString("prfHotSsi",         prfHotSsi);           // Store as "prfHotSsi"           (sent/rcvd as "6").
+            roverPrefs.putString("prfHotPas",         prfHotPas);           // Store as "prfHotPas"           (sent/rcvd as "7").
+            roverPrefs.putString("prfNtripCaster1",   prfNtripCastAttr[0]); // Store as "prfNtripCastAttr[0]" (sent/rcvd as "39").
+            roverPrefs.putString("prfNtripCaster2",   prfNtripCastAttr[1]); // Store as "prfNtripCastAttr[1]" (sent/rcvd as "40").
+            roverPrefs.putString("prfNtripCaster3",   prfNtripCastAttr[2]); // Store as "prfNtripCastAttr[2]" (sent/rcvd as "41").
+            roverPrefs.putUShort("prfNtripCastAct",   prfNtripCastAct);     // Store as "prfNtripCastAct"     (sent/rcvd as "42").
+            roverPrefs.putUShort("prfGnsNavRat",      prfGnsNavRat);        // Store as "prfGnsNavRat"        (sent/rcvd as "5").
+            roverPrefs.putUShort("prfGnsMsrInt",      prfGnsMsrInt);        // Store as "prfGnsMsrInt"        (sent/rcvd as "4").
+            roverPrefs.putUShort("prfInstrHgt",       prfInstrHgt);         // Store as "prfInstrHgt"         (sent/rcvd as "36" with value in mm, e.g. "165").
+            roverPrefs.putUShort("prfLckAvgInt",      prfLckAvgInt);        // Store as "prfLckAvgInt"        (sent/rcvd as "52").
+            roverPrefs.putFloat("prfOffsetXDeg",      prfOffsetXDeg);       // Store as "prfOffsetXDeg"       (sent/rcvd as "54").
+            roverPrefs.putFloat("prfOffsetYDeg",      prfOffsetYDeg);       // Store as "prfOffsetYDeg"       (sent/rcvd as "55").    // Newest pref.
 
             // -- Close name space. --
             roverPrefs.end();
@@ -895,7 +919,9 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             prfGnsNavRat               = DEF_GNS_NAV_RAT;
             prfGnsMsrInt               = DEF_GNS_MSR_INT;
             prfInstrHgt                = DEF_INSTR_HGT;
-            prfLckAvgInt               = DEF_LCK_AVG_INT;   // Newest pref. 2.
+            prfLckAvgInt               = DEF_LCK_AVG_INT;
+            prfOffsetXDeg              = DEF_PRF_LVL_OFF_X;
+            prfOffsetYDeg              = DEF_PRF_LVL_OFF_Y;         // Newest pref.
 
             // -- Save to NVS. --
             logPrint("Preference globals reset to defaults.");
@@ -918,21 +944,25 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             // -- Print values. --
             logPrint("                       Default    NVS    Global     ");
             logPrint("                       -------    ---    ------     ");
-            snprintf(outputBuffer, sizeof(outputBuffer), "prfUnt                 \"%s\"   \"%s\"   \"%s\"", DEF_UNT,            roverPrefs.getString("prfUnt"),          prfUnt);
+            snprintf(outputBuffer, sizeof(outputBuffer), "prfUnt                 \"%s\"   \"%s\"   \"%s\"", DEF_UNT,            roverPrefs.getString("prfUnt"),                  prfUnt);
             logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "prfRtcmInSource        \"%s\"   \"%s\"   \"%s\"", DEF_RTC_IN,         roverPrefs.getString("prfRtcmInSource"), prfRtcmInSource);
+            snprintf(outputBuffer, sizeof(outputBuffer), "prfRtcmInSource        \"%s\"   \"%s\"   \"%s\"", DEF_RTC_IN,         roverPrefs.getString("prfRtcmInSource"),         prfRtcmInSource);
             logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "prfHotSsi              \"%s\"   \"%s\"   \"%s\"", DEF_HOT_SSI,        roverPrefs.getString("prfHotSsi"),       prfHotSsi);
+            snprintf(outputBuffer, sizeof(outputBuffer), "prfHotSsi              \"%s\"   \"%s\"   \"%s\"", DEF_HOT_SSI,        roverPrefs.getString("prfHotSsi"),               prfHotSsi);
             logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "prfHotPas              \"%s\"   \"%s\"   \"%s\"", DEF_HOT_PASS,       roverPrefs.getString("prfHotPas"),       prfHotPas);
+            snprintf(outputBuffer, sizeof(outputBuffer), "prfHotPas              \"%s\"   \"%s\"   \"%s\"", DEF_HOT_PASS,       roverPrefs.getString("prfHotPas"),               prfHotPas);
             logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "prfGnsNavRat           %u   %u   %u",             DEF_GNS_NAV_RAT,    roverPrefs.getUShort("prfGnsNavRat"),    prfGnsNavRat);
+            snprintf(outputBuffer, sizeof(outputBuffer), "prfGnsNavRat           %u   %u   %u",             DEF_GNS_NAV_RAT,    roverPrefs.getUShort("prfGnsNavRat"),            prfGnsNavRat);
             logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "prfGnsMsrInt           %u   %u   %u",             DEF_GNS_MSR_INT,    roverPrefs.getUShort("prfGnsMsrInt"),    prfGnsMsrInt);
+            snprintf(outputBuffer, sizeof(outputBuffer), "prfGnsMsrInt           %u   %u   %u",             DEF_GNS_MSR_INT,    roverPrefs.getUShort("prfGnsMsrInt"),            prfGnsMsrInt);
             logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "prfLckAvgInt           %u   %u   %u",             DEF_LCK_AVG_INT,    roverPrefs.getUShort("prfLckAvgInt"),    prfLckAvgInt);
+            snprintf(outputBuffer, sizeof(outputBuffer), "prfLckAvgInt           %u   %u   %u",             DEF_LCK_AVG_INT,    roverPrefs.getUShort("prfLckAvgInt"),            prfLckAvgInt);
             logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "prfNtripCastAct        %u   %u   %u",             DEF_NTRIP_CAST_ACT, roverPrefs.getUShort("prfNtripCastAct"), prfNtripCastAct);
+            snprintf(outputBuffer, sizeof(outputBuffer), "prfNtripCastAct        %u   %u   %u",             DEF_NTRIP_CAST_ACT, roverPrefs.getUShort("prfNtripCastAct"),         prfNtripCastAct);
+            logPrint(outputBuffer);
+            snprintf(outputBuffer, sizeof(outputBuffer), "prfOffsetXDeg          %6.3f   %6.3f   %6.3f",    DEF_PRF_LVL_OFF_X,  roverPrefs.getFloat("prfOffsetXDeg", 6.3f), prfOffsetXDeg);
+            logPrint(outputBuffer);
+            snprintf(outputBuffer, sizeof(outputBuffer), "prfOffsetYDeg          %6.3f   %6.3f   %6.3f",    DEF_PRF_LVL_OFF_Y,  roverPrefs.getFloat("prfOffsetYDeg", 6.3f), prfOffsetYDeg);
             logPrint(outputBuffer);
             logPrint(" ");
             logPrint("Default:");
@@ -972,7 +1002,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             logPrint(outputBuffer);
             snprintf(outputBuffer, sizeof(outputBuffer), "ntripCaster.pass       \"%s\"", ntripCaster.pass);
             logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "ntripCaster.crs       \"%s\"", ntripCaster.crs);      // Newest pref.
+            snprintf(outputBuffer, sizeof(outputBuffer), "ntripCaster.crs       \"%s\"", ntripCaster.crs);
             logPrint(outputBuffer);
             snprintf(outputBuffer, sizeof(outputBuffer), "ntripCaster.id         %d", ntripCaster.id);
             logPrint(outputBuffer);
@@ -1039,17 +1069,18 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
  * @since  3.3.1  [2026-08-17-09:15pm] Changed from Serial.print() to logPrint().
  * @since  3.4.0  [2026-09-13-04:00pm] Height/position lock/unlock.
  * @since  3.4.1  [2026-09-29-05:00pm] Moved lipo queries to FreeRTOS task taskEvery5000Ms().
- * 
+ * @since  3.5.0  [2026-10-29-11:15am] Moved imuBubbleXY() from taskBuildOperData() to buildOperData().
+ * @since  3.5.0  [2026-10-29-11:30am] Return if not "operate" page.
  * @see    Global vars: WebSockets, setup().
  */
  void buildOperData() {
 
     // --- GNSS ready? ---
-    if (!roverGNSS.getPVT()) {
+    if (!roverGNSS.getPVT() || (strcmp(whichPage, "operate") != 0)) {
         return;
     }
 
-    // -- Satellites in view. --
+    // --- Satellites in view. ---
     numSatInView = roverGNSS.getSIV();
 
     if (numSatInView > MIN_SATELLITE_THRESHHOLD) {                          // Enough satellites?
@@ -1104,50 +1135,6 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
         // -- Horizontal & vertical accuracy. --
         accuracyHorizontal = roverGNSS.getHorizontalAccuracy() / 10000.0;
         accuracyVertical   = roverGNSS.getVerticalAccuracy()   / 10000.0;
-
-// === New lock code - begin. ===
-        // // -- Height lock averaging. --
-        // if (heightLockAveragingFlag) {
-        //     heightLockSumOrtho    += heightOrthometric;
-        //     heightLockSumGeoidSep += (heightEllipsoid - heightOrthometric);
-        //     heightLockSampleCount++;
-        //     if ((esp_timer_get_time() - heightLockAveragingStart) >= prfLckAvgInt * 1000000) {
-        //         lockedHeightOrtho       = heightLockSumOrtho / heightLockSampleCount;
-        //         lockedGeoidSep          = heightLockSumGeoidSep / heightLockSampleCount;
-        //         heightLockAveragingFlag = false;
-        //         heightLockFlag          = true;
-        //         snprintf(outputBuffer, sizeof(outputBuffer), "Height locked @ %.4f m (%u samples in %u secs).", lockedHeightOrtho, heightLockSampleCount, prfLckAvgInt);
-        //         if (commandFlag[DEBUG_BTNS]) {                      // Debug.    
-        //             logPrint(outputBuffer);
-        //         }
-        //     }
-        // }
-        // if (heightLockFlag) {
-        //     heightOrthometric = lockedHeightOrtho;
-        //     heightEllipsoid   = lockedHeightOrtho + lockedGeoidSep;
-        // }
-
-        // // -- Position lock averaging. --
-        // if (positionLockAveragingFlag) {
-        //     positionLockSumLat += lat;
-        //     positionLockSumLon += lon;
-        //     positionLockSampleCount++;
-        //     if ((esp_timer_get_time() - positionLockAveragingStart) >= prfLckAvgInt * 1000000) {
-        //         lockedLat                 = positionLockSumLat / positionLockSampleCount;
-        //         lockedLon                 = positionLockSumLon / positionLockSampleCount;
-        //         positionLockAveragingFlag = false;
-        //         positionLockFlag          = true;
-        //         snprintf(outputBuffer, sizeof(outputBuffer), "Position locked @ Lat %.9f, Lon %.9f (%u samples in %u secs).", lockedLat, lockedLon, positionLockSampleCount, prfLckAvgInt);
-        //         if (commandFlag[DEBUG_BTNS]) {                      // Debug.
-        //             logPrint(outputBuffer);
-        //         }
-        //     }
-        // }
-
-        // if (positionLockFlag) {
-        //     lat = lockedLat;
-        //     lon = lockedLon;
-        // }
 
         // -- Height lock averaging. --
         if (heightLockAveragingFlag) {
@@ -1219,8 +1206,10 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             lat = lockedLat;
             lon = lockedLon;
         }
-// === New lock code - end. ===
     }
+
+    // --- Get & smooth IMU gravity values, calculate XY tilt values for bubble UI. ---
+    imuBubbleXY(bubbleDegX, bubbleDegY);    
 }
 
 /**
@@ -1236,6 +1225,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
  * @since  3.2.2 [2026-08-09-05:30pm] Only print for DEBUG_WS_EVENTS.
  * @since  3.3.0 [2026-08-15-12:00pm] Moved restarts to checkFlags().
  * @since  3.3.5 [2026-09-08-10:30pm] Added check for ntripClient.connected().
+ * @since  3.5.0 [2026-10-29-11:45am] Added config page send.
  * @see    checkFlags().
  * @see    buildOperData().
  * @see    processMessagesIn(), also for description of exchange protocol.
@@ -1250,6 +1240,13 @@ void sendDataToBrowser() {
     if (strcmp(whichPage, "nmea") == 0) {
         jsonDocToBrowser["NMEA"] = lastNmea;
         // browserUpdatePendingFlag = true;
+    }
+
+    // --- Config page. ---
+    if ((strcmp(whichPage, "config") == 0) && (calibrateImuFlag)) {
+        jsonDocToBrowser["imuCalibrateStartResp"] = "";
+        jsonDocToBrowser["54"] = bubbleDegX;
+        jsonDocToBrowser["55"] = bubbleDegY;
     }
 
     // --- Menu page (NTRIP). ---
@@ -1324,6 +1321,8 @@ void sendDataToBrowser() {
                 snprintf(operBuffer, sizeof(operBuffer), "Position locked.");
                 jsonDocToBrowser["positionLockResp"] = operBuffer;
             }
+            jsonDocToBrowser["54"] = bubbleDegX;
+            jsonDocToBrowser["55"] = bubbleDegY;
         }
     }
 
@@ -1688,7 +1687,6 @@ void stringToHex(const char *src, char *dst, size_t dst_len) {
     }
 }
 
-// === New lock code - begin. ===
 /**
  * -------------------------------------------------------------------------
  *  qsort() comparator for doubles.  //ToDo: doc blocks.
@@ -1776,7 +1774,106 @@ void welfordUpdate(double &mean, double &M2, uint32_t &count, double newValue) {
     double delta2 = newValue - mean;
     M2 += delta * delta2;
 }
-// === New lock code - end. ===
+
+/**
+ * -------------------------------------------------------------------------
+ *  Use seeded, exponential moving average to smooth IMU gravity values.
+ * -------------------------------------------------------------------------
+ *
+ * @return void   No output is returned.
+ * @since  3.5.0 [2026-10-22-11:30am] New.
+ * @since  3.5.0 [2026-10-28-03:15pm] Switched x & y sources.
+ */
+void imuFilterGravity() {
+    if (!imu.dataReady()) {                   // New sample ready? If not, returns (previously filtered values are used).
+        return;
+    }
+
+    // --- Get latest acc (gravity) values. ---
+    imu.getAGMT();                            
+    const float ay = imu.accX() / 1000.0f;    // Returns milli-g, divide by 1000 to get g.
+    const float ax = imu.accY() / 1000.0f;
+    const float az = imu.accZ() / 1000.0f;
+
+    // --- First pass, seed filter with raw readings. --
+    // At boot, prevents UI bubble from swooping in from the UI center (EMA would start from 0).
+    if (!filterSeededFlag) {
+        filtAy = ay;
+        filtAx = ax;
+        filtAz = az;
+        filterSeededFlag = true;
+    } else {
+
+        // --- Subsequent passes, each axis uses an exponential moving average: filt += alpha * (new - filt). ---
+        // ax, ay, and az are filtered separately to average out vibration and small bumps before trig calculations.
+        // UI bubble will move a fraction (alpha = 0.3) of the way toward each new sample.
+        // Higher alpha is more responsive and noisier, lower is smoother but laggier.
+        filtAx += TILT_EMA_ALPHA * (ax - filtAx);  
+        filtAy += TILT_EMA_ALPHA * (ay - filtAy);
+        filtAz += TILT_EMA_ALPHA * (az - filtAz);
+    }
+    if (commandFlag[DEBUG_IMU]) {
+        snprintf(outputBuffer, sizeof(outputBuffer), "IMU.acc(X,Y,Z) filtered = (%6.3f,%6.3f,%6.3f)", filtAx, filtAy, filtAz);
+        logPrint(outputBuffer);
+    }
+}
+
+/**
+ * -------------------------------------------------------------------------
+ *  Calculate raw XY tilt (convert gravity into angles) in degrees (assume Z axis is perdendicular to GR).
+ * -------------------------------------------------------------------------
+ *
+ * @param  float  &tiltXDeg X tilt in degrees.
+ * @param  float  &tiltYDeg Y tilt in degrees
+ * @return void   No output is returned.
+ * @since  3.3.4 [2026-10-22-11:30am] New.
+ */
+void calcRawTiltDeg(float &tiltXDeg, float &tiltYDeg) {
+    const float rad2deg = 57.2957795f;
+    tiltXDeg = atan2f(filtAx, sqrtf(filtAy * filtAy + filtAz * filtAz)) * rad2deg;
+    tiltYDeg = atan2f(filtAy, sqrtf(filtAx * filtAx + filtAz * filtAz)) * rad2deg;
+    if (commandFlag[DEBUG_IMU]) {
+        snprintf(outputBuffer, sizeof(outputBuffer), "tiltDeg(X,Y) = (%6.3f,%6.3f)", tiltXDeg, tiltYDeg);
+        logPrint(outputBuffer);
+    }
+}
+
+/**
+ * -------------------------------------------------------------------------
+ *  Get & smooth IMU gravity values, calculate XY tilt values for bubble UI.
+ * -------------------------------------------------------------------------
+ *
+ * @param  float  &x IMU X value.
+ * @param  float  &y IMU Y value.
+ * @return bool   True if new values, false if not.
+ * @since  3.5.0 [2026-08-31-03:30pm] New.
+ * @since  3.5.0 [2026-10-28-03:15pm] Changed x & y to negative values.
+ */
+bool imuBubbleXY(float &x, float &y) {
+  if (!imuReadyFlag) {
+    return false;       // IMU is not ready.
+  }
+
+  // --- Use seeded, exponential moving average to smooth IMU gravity values. ---
+  imuFilterGravity();
+
+  // --- Convert gravity values (after smoothing) into raw tilt degrees. ---
+  if (filterSeededFlag) {
+    float tx, ty;
+    calcRawTiltDeg(tx, ty);     // Calculate raw XY tilt (convert gravity into angles) in degrees.
+    tx -= prfOffsetXDeg;      // Compensate with offset "plumb Z" calibration values.
+    ty -= prfOffsetYDeg;
+    x = -1 * constrain(TILT_X_SIGN * tx / MAX_TILT * TILT_RANGE, -TILT_RANGE, TILT_RANGE);   // +/-5° full scale (range 10 = 2 units/degree).
+    y = -1 * constrain(TILT_Y_SIGN * ty / MAX_TILT * TILT_RANGE, -TILT_RANGE, TILT_RANGE);
+    if (commandFlag[DEBUG_IMU]) {
+        snprintf(outputBuffer, sizeof(outputBuffer), "bubble(X,Y) = (%6.3f,%6.3f)\n", x, y);
+        logPrint(outputBuffer);
+    }
+    return true;
+  } else {
+    return false;
+  }
+}
 
 /**
  * =========================================================================
@@ -1794,6 +1891,7 @@ void welfordUpdate(double &mean, double &M2, uint32_t &count, double newValue) {
  * @see   initPins()             - Initialize pins & pin values.
  * @see   startI2C()             - Start I2C wire interfaces.
  * @see   startLiPo()            - Start LiPo I2C interface.
+ * @see   startIMU()             - Start IMU.
  * @see   startWiFiServer()      - Start WiFi server.
  * @see   startTcpServer()       - Start TCP server for GNSS Master (NMEA out / RTCM in bridge).
  * @see   startHttpServer()      - Start HTTP server.
@@ -2077,14 +2175,15 @@ void startI2C() {
     const uint32_t WIRE_SPEED = 400000;     // I2C Fast mode (4kHz).
 
     // --- Start interfaces. ---
-    if ((Wire.begin()) && (Wire1.begin(I2C1_SDA,I2C1_SCL))) {
+    // if ((Wire.begin()) && (Wire1.begin(I2C1_SDA,I2C1_SCL))) {
+     if (Wire.begin()) {
         Wire.setClock(WIRE_SPEED);
-        Wire1.setClock(WIRE_SPEED);
+        // Wire1.setClock(WIRE_SPEED);
         ws2812LedColor = WHITE;
         ws2812LedBlink = false;
         statusLedOn();                      // FreeRTOS task taskLoopStatusLed() has not started yet.
-        logPrint("Wire & Wire1 started @ 4kHz.");
-
+        // logPrint("Wire & Wire1 started @ 4kHz.");
+        logPrint("Wire started @ 4kHz.");
     } else {
         ws2812LedColor = RED;
         ws2812LedBlink = true;
@@ -2114,6 +2213,29 @@ void startLiPo() {
         lipo.quickStart();          // Restart for a more accurate initial SOC guess.
         logPrint("LiPo started.");
     }
+}
+
+/**
+ * -------------------------------------------------------------------------
+ *  Start IMU.
+ * -------------------------------------------------------------------------
+ *
+ * @return bool  True if started, false if not.
+ * @since  3.4.3  [2026-10-20-05:30pm] New.
+ * @see    setup().
+ * @link   https://github.com/sparkfun/SparkFun_ICM-20948_ArduinoLibrary/blob/main/examples/Arduino/.
+ */
+bool startIMU() {
+    // imu.begin(Wire1, IMU_AD0_VAL);      // Uses second I2C bus: I2C1.
+    imu.begin(Wire);      // Uses second I2C bus: I2C1.
+    Serial.println(ICM_20948_Stat_Ok);
+    if (imu.status != ICM_20948_Stat_Ok) {
+        Serial.println("IMU _NOT_ started");
+        return false;
+    }
+    Serial.println("IMU started");
+    imuReadyFlag = true;
+    return true;
 }
 
 /**
@@ -2377,6 +2499,7 @@ void startAndConfigGNSS() {
     // roverGNSS.saveConfigSelective(VAL_CFG_SUBSEC_IOPORT);        // Save port settings to flash and BBR.
     // roverGNSS.enableDebugging();                                 // Debug - all messages over Serial (default).
 }
+
 /**
  * -------------------------------------------------------------------------
  *  Start GhostRover FreeRTOS queues.
@@ -2414,6 +2537,8 @@ void startQueues() {
  * @since  3.3.2  [2026-08-30-03:30pm] Add taskBuildOperData().
  * @since  3.3.3  [2026-08-30-05:00pm] Add taskEvery1000Ms().
  * @since  3.4.1  [2026-09-29-05:00pm] Add taskEvery5000Ms().
+ * @since  3.5.0  [2026-10-25-11:00am] Move buildOperDataInterval calculation from global var to startTasks().
+ * @since  3.5.0  [2026-10-29-10:30am] Add taskEvery100Ms().
  * @see    Global vars: FreeRTOS handles.
  * @see    setup().
  * @link   https://www.freertos.org/Documentation/02-Kernel/04-API-references/01-Task-creation/01-xTaskCreate.
@@ -2437,8 +2562,17 @@ void startTasks() {
     }
 
     // --- Build operate data. ---
+    buildOperDataInterval = pdMS_TO_TICKS(prfGnsNavRat * prfGnsMsrInt);
+    if (buildOperDataInterval < 1) {
+        buildOperDataInterval = 1;   // Never let it be 0.
+    }
     xTaskCreate(taskBuildOperData, "Call buildOperData", 4096, NULL, 2, &taskBuildOperDataHandle);
     logPrint("FreeRTOS task \"Build operate data\" started.");
+
+    // --- One tenth second interval. ---
+    xTaskCreate(taskEvery100Ms, "Do these every 1/10 second.", 4096, NULL, 2, &taskEvery100MsHandle);  // ToDo: change to 2048?
+    vTaskSuspend(taskEvery100MsHandle);
+    logPrint("FreeRTOS task \"Do these every 1/10 second\" started & paused.");
 
     // --- One second interval. ---
     xTaskCreate(taskEvery1000Ms, "Do these every 1 second.", 4096, NULL, 2, &taskEvery1000MsHandle);
@@ -2604,7 +2738,7 @@ void taskRtcmRelay(void *pvParameters) {
 
         // -- RTCM in from internal NTRIP client. --
         if (strncmp(prfRtcmInSource, "ntrip", sizeof(prfRtcmInSource)) == 0) {
-            if ((ntripClient.connected() && ntripHandshakeComplete)) {
+            if ((ntripClient.connected() && ntripHandshakeCompleteFlag)) {
                 while (ntripClient.available() > 0) {
                     inputChar = ntripClient.read();
                     relayRtcmByte(inputChar, rtcmSentence, byteCount, bytesLeftInFrame, msg_type);
@@ -2639,6 +2773,7 @@ void taskRtcmRelay(void *pvParameters) {
  * @param  void * pvParameters Pointer to FreeRTOS task parameters.
  * @return void   No output is returned (infinite loop).
  * @since  3.3.2 [2026-08-30-03:30pm] New.
+ * @since  3.5.0 [2026-10-29-11:15am] Moved imuBubbleXY() from taskBuildOperData() to buildOperData().
  * @see    startTasks().
  * @see    Global vars: FreeRTOS tasks.
  * @see    buildOperData().
@@ -2649,6 +2784,32 @@ void taskBuildOperData(void * pvParameters) {
         buildOperData();
         browserUpdatePendingFlag = true;
         vTaskDelay(buildOperDataInterval);
+    }
+}
+
+/**
+ * -------------------------------------------------------------------------
+ *  GhostRover FreeRTOS task - Do these every 1/10 second.
+ * -------------------------------------------------------------------------
+ *
+ * @param  void * pvParameters Pointer to FreeRTOS task parameters.
+ * @return void   No output is returned (infinite loop).
+ * @since  3.5.0 [2026-10-29-10:30am] New.
+ * @see    startTasks().
+ * @see    Global vars: FreeRTOS tasks.
+ * @see    debug().
+ * @see    any place where a DEBUG_xxx flag check may reside.
+ */
+void taskEvery100Ms(void * pvParameters) {
+    while(true) {
+
+        // --- Calculate/average IMU offsets. ---
+        if (strcmp(whichPage, "config") == 0) {
+            imuBubbleXY(bubbleDegX, bubbleDegY);
+            browserUpdatePendingFlag = true;
+        }
+
+        vTaskDelay(EVERY_100MS_INTERVAL);
     }
 }
 
@@ -2673,7 +2834,7 @@ void taskEvery1000Ms(void * pvParameters) {
             debug();
         }
 
-        // --- Display RTCM sentence count if on NTRIP page.
+        // --- Display RTCM sentence count if on NTRIP page. ---
         if ((strcmp(whichPage, "menu") == 0) && (ntripClient.connected())) {
             ntripSendRtcmSentenceCountFlag = true;
             browserUpdatePendingFlag       = true;            
@@ -3127,60 +3288,62 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
  *      2) Numeric JSON keys are used to reduce JSON string length.
  * 
  * --- JSON key index. ---
- *     0  = Build info                      (buildString).
- *     1  = Units                           (char     prfUnt[6]).
- *     2  = RTCM in source                  (char     prfRtcmInSource[6]).
+ *     0  = Build info                       (buildString).
+ *     1  = Units                            (char     prfUnt[6]).
+ *     2  = RTCM in source                   (char     prfRtcmInSource[6]).
  *     3  = Not used.
- *     4  = GNSS measure interval           (uint16_t prfGnsMsrInt).
- *     5  = GNSS navigation rate            (uint8_t  prfGnsNavRat).
- *     6  = WiFi hot spot SSID              (char     prfHotSsi[20]).
- *     7  = WiFi hot spot password          (char     prfHotPas[30]).
- *     8  = GNSS fix                        (uint8_t fixType).
- *     9  = GNSS satellites in view         (uint8_t numSatInView).
- *     10 = GNSS ellipsoid height           (float    heightEllipsoid    -> operBuffer[24]).
- *     11 = GNSS orthometric height         (float    heightOrthometric  -> operBuffer[24]).
- *     12 = GNSS latitude                   (double   lat                -> operBuffer[24]).
- *     13 = GNSS longitude                  (double   lon                -> operBuffer[24]).
- *     14 = GNSS horizontal accuracy        (float    accuracyHorizontal -> operBuffer[24]).
- *     15 = GNSS vertical accuracy          (float    accuracyVertical   -> operBuffer[24]).
- *     16 = RTCM in status - up/down        (bool     RTCMinFlag).
- *     17 = NMEA out status - up/down       (bool     NMEAoutFlag).
- *     18 = Battery State Of Charge (SOC)   (float    batterySoc         -> operBuffer[24]).
- *     19 = Battery change rate             (float    batteryChangeRate  -> operBuffer[24]).
- *     20 = Up time                         (char     uptime[20]).
+ *     4  = GNSS measure interval            (uint16_t prfGnsMsrInt).
+ *     5  = GNSS navigation rate             (uint8_t  prfGnsNavRat).
+ *     6  = WiFi hot spot SSID               (char     prfHotSsi[20]).
+ *     7  = WiFi hot spot password           (char     prfHotPas[30]).
+ *     8  = GNSS fix                         (uint8_t fixType).
+ *     9  = GNSS satellites in view          (uint8_t numSatInView).
+ *     10 = GNSS ellipsoid height            (float    heightEllipsoid    -> operBuffer[24]).
+ *     11 = GNSS orthometric height          (float    heightOrthometric  -> operBuffer[24]).
+ *     12 = GNSS latitude                    (double   lat                -> operBuffer[24]).
+ *     13 = GNSS longitude                   (double   lon                -> operBuffer[24]).
+ *     14 = GNSS horizontal accuracy         (float    accuracyHorizontal -> operBuffer[24]).
+ *     15 = GNSS vertical accuracy           (float    accuracyVertical   -> operBuffer[24]).
+ *     16 = RTCM in status - up/down         (bool     RTCMinFlag).
+ *     17 = NMEA out status - up/down        (bool     NMEAoutFlag).
+ *     18 = Battery State Of Charge (SOC)    (float    batterySoc         -> operBuffer[24]).
+ *     19 = Battery change rate              (float    batteryChangeRate  -> operBuffer[24]).
+ *     20 = Up time                          (char     uptime[20]).
  *     21 = Not used.
  *     22 = Not used.
- *     23 = NMEA GGA out sentence count     (size_t   nmeaCountGGA).
- *     24 = NMEA RMC out sentence count     (size_t   nmeaCountRMC).
- *     25 = NMEA GSA out sentence count     (size_t   nmeaCountGSA).
- *     26 = NMEA GSV out sentence count     (size_t   nmeaCountGSV).
- *     27 = NMEA GST out sentence count     (size_t   nmeaCountGST).
- *     28 = NMEA TXT out sentence count     (size_t   nmeaCountTXT).
- *     29 = NMEA other out sentence count   (size_t   nmeaCountOther).
- *     30 = NMEA total out sentence count   (size_t   nmeaCountAll).
- *     31 = NMEA out rate                   (int64_t  nmeaRate).
- *     32 = Operational mode                (char     operMode[2]).
- *     33 = WiFi local network IP address   (char     localIp[16]).
- *     34 = WiFi hot spot address           (char     lhotspotIp[16]).
- *     35 = WebSocket client/session id     (uint8_t  clientId).
- *     36 = Instrument height               (uint16_t prfInstrHgt).
- *     37 = RTCM sentence count             (size_t   rtcmSentenceCount).
- *     38 = RTCM rate                       (float    rtcmKbps).
- *     39 = NTRIP caster #1 attributes      (char     prfNtripCastAttr[0][512]).
- *     40 = NTRIP caster #2 attributes      (char     prfNtripCastAttr[1][512]).
- *     41 = NTRIP caster #3 attributes      (char     prfNtripCastAttr[2][512]).
- *     42 = NTRIP caster active [1/2/3]     (uint8_t  prfNtripCastAct).
- *     43 = NTRIP caster id                 (struct ntripCasterProfile ntripCaster.id      - uint8_t).
- *     44 = NTRIP caster name               (struct ntripCasterProfile ntripCaster.name    - char name[48]).
- *     45 = NTRIP caster url                (struct ntripCasterProfile ntripCaster.url     - char url[48]).
- *     46 = NTRIP caster mount point        (struct ntripCasterProfile ntripCaster.mount   - char mount[24]).
- *     47 = NTRIP caster port               (struct ntripCasterProfile ntripCaster.port    - uint16_t).
- *     48 = NTRIP caster version            (struct ntripCasterProfile ntripCaster.version - uint8_t).
- *     49 = NTRIP caster user               (struct ntripCasterProfile ntripCaster.user    - char user[48]).
- *     50 = NTRIP caster password           (struct ntripCasterProfile ntripCaster.pass    - char user[48]).
- *     51 = NTRIP caster sendGga            (struct ntripCasterProfile ntripCaster.sendGga - bool ).
- *     52 = GNSS lock averaging interval    (uint16_t prfLckAvgInt).
- *     53 = NTRIP caster crs                (struct ntripCasterProfile ntripCaster.crs     - char mount[24]).        // Newest pref.
+ *     23 = NMEA GGA out sentence count      (size_t   nmeaCountGGA).
+ *     24 = NMEA RMC out sentence count      (size_t   nmeaCountRMC).
+ *     25 = NMEA GSA out sentence count      (size_t   nmeaCountGSA).
+ *     26 = NMEA GSV out sentence count      (size_t   nmeaCountGSV).
+ *     27 = NMEA GST out sentence count      (size_t   nmeaCountGST).
+ *     28 = NMEA TXT out sentence count      (size_t   nmeaCountTXT).
+ *     29 = NMEA other out sentence count    (size_t   nmeaCountOther).
+ *     30 = NMEA total out sentence count    (size_t   nmeaCountAll).
+ *     31 = NMEA out rate                    (int64_t  nmeaRate).
+ *     32 = Operational mode                 (char     operMode[2]).
+ *     33 = WiFi local network IP address    (char     localIp[16]).
+ *     34 = WiFi hot spot address            (char     lhotspotIp[16]).
+ *     35 = WebSocket client/session id      (uint8_t  clientId).
+ *     36 = Instrument height                (uint16_t prfInstrHgt).
+ *     37 = RTCM sentence count              (size_t   rtcmSentenceCount).
+ *     38 = RTCM rate                        (float    rtcmKbps).
+ *     39 = NTRIP caster #1 attributes       (char     prfNtripCastAttr[0][512]).
+ *     40 = NTRIP caster #2 attributes       (char     prfNtripCastAttr[1][512]).
+ *     41 = NTRIP caster #3 attributes       (char     prfNtripCastAttr[2][512]).
+ *     42 = NTRIP caster active [1/2/3]      (uint8_t  prfNtripCastAct).
+ *     43 = NTRIP caster id                  (struct ntripCasterProfile ntripCaster.id      - uint8_t).
+ *     44 = NTRIP caster name                (struct ntripCasterProfile ntripCaster.name    - char name[48]).
+ *     45 = NTRIP caster url                 (struct ntripCasterProfile ntripCaster.url     - char url[48]).
+ *     46 = NTRIP caster mount point         (struct ntripCasterProfile ntripCaster.mount   - char mount[24]).
+ *     47 = NTRIP caster port                (struct ntripCasterProfile ntripCaster.port    - uint16_t).
+ *     48 = NTRIP caster version             (struct ntripCasterProfile ntripCaster.version - uint8_t).
+ *     49 = NTRIP caster user                (struct ntripCasterProfile ntripCaster.user    - char user[48]).
+ *     50 = NTRIP caster password            (struct ntripCasterProfile ntripCaster.pass    - char user[48]).
+ *     51 = NTRIP caster sendGga             (struct ntripCasterProfile ntripCaster.sendGga - bool ).
+ *     52 = GNSS lock averaging interval     (uint16_t prfLckAvgInt).
+ *     53 = NTRIP caster crs                 (struct ntripCasterProfile ntripCaster.crs     - char mount[24]).
+ *     54 = Bubble level X offset when level (float    prfOffsetXDeg).
+ *     55 = Bubble level Y offset when level (float    prfOffsetYDeg).         // Newest pref.
  *
  *  --- Description of exchange protocol. ---
  *
@@ -3459,7 +3622,9 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
         jsonDocToBrowser["7"]  = prfHotPas;
         jsonDocToBrowser["35"] = clientId;
         jsonDocToBrowser["36"] = prfInstrHgt;
-        jsonDocToBrowser["52"] = prfLckAvgInt;      // Newest pref. 2.
+        jsonDocToBrowser["52"] = prfLckAvgInt;
+        jsonDocToBrowser["54"] = prfOffsetXDeg;
+        jsonDocToBrowser["55"] = prfOffsetYDeg;        // Newest pref.
         jsonDocToBrowser["39"] = prfNtripCastAttr[0];
         jsonDocToBrowser["40"] = prfNtripCastAttr[1];
         jsonDocToBrowser["41"] = prfNtripCastAttr[2];
@@ -3480,12 +3645,14 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
         strlcpy(prfRtcmInSource, jsonDocFromBrowser["2"],  sizeof(prfRtcmInSource));
         strlcpy(prfHotSsi,       jsonDocFromBrowser["6"],  sizeof(prfHotSsi));
         strlcpy(prfHotPas,       jsonDocFromBrowser["7"],  sizeof(prfHotPas));
-        prfNtripCastAct = jsonDocFromBrowser["42"];   
-        prfGnsNavRat    = jsonDocFromBrowser["5"];
-        prfGnsMsrInt    = jsonDocFromBrowser["4"];
-        prfInstrHgt     = jsonDocFromBrowser["36"];
-        prfLckAvgInt    = jsonDocFromBrowser["52"];     // Newest pref. 2.
-
+        prfNtripCastAct       = jsonDocFromBrowser["42"];   
+        prfGnsNavRat          = jsonDocFromBrowser["5"];
+        prfGnsMsrInt          = jsonDocFromBrowser["4"];
+        buildOperDataInterval = pdMS_TO_TICKS(prfGnsNavRat * prfGnsMsrInt);     // @see startTasks().
+        prfInstrHgt           = jsonDocFromBrowser["36"];
+        prfLckAvgInt          = jsonDocFromBrowser["52"];
+        prfOffsetXDeg         = jsonDocFromBrowser["54"];
+        prfOffsetYDeg         = jsonDocFromBrowser["55"];     // Newest pref.
         // -- Set new preferences from global vars. --
         prefUtility(PREF_SET);
 
@@ -3519,6 +3686,26 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
         strcpy(outputBuffer, "Preference updated.");
         jsonDocToBrowser["setNtripCasterPrefResp"] = outputBuffer;
     }
+
+    // -------------------------------------------------------------------------
+    // --- Config page. Calculate/average IMU offsets. ---
+    // -------------------------------------------------------------------------
+    if (jsonDocFromBrowser["imuCalibrateStart"].is<JsonVariant>()) {
+        calibrateImuFlag = true;
+        if (commandFlag[DEBUG_IMU]) {
+            logPrint("imuCalibrateStart");
+        }
+        vTaskResume(taskEvery100MsHandle);
+    }
+
+    if (jsonDocFromBrowser["imuCalibrateStop"].is<JsonVariant>()) {
+        calibrateImuFlag = false;
+        if (commandFlag[DEBUG_IMU]) {
+            logPrint("imuCalibrateStart");
+        }
+        vTaskSuspend(taskEvery100MsHandle);
+    }
+
 
     // -------------------------------------------------------------------------
     // --- Files page. List files. ---
@@ -3587,10 +3774,6 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
     // --- Operate page. Height lock/unlock button. ---
     // -------------------------------------------------------------------------
     if (jsonDocFromBrowser["heightLock"].is<JsonVariant>()) {
-// === New lock code - begin. ===
-        // heightLockSumOrtho       = 0;
-        // heightLockSumGeoidSep    = 0;
-        // heightLockSampleCount    = 0;
         heightSampleBufIdx         = 0;
         heightSampleBufCount       = 0;
         heightWelfordMeanOrtho     = 0;
@@ -3599,11 +3782,9 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
         heightWelfordMeanGeoidSep  = 0;
         heightWelfordM2GeoidSep    = 0;
         heightWelfordCountGeoidSep = 0;
-// === New lock code - end. ===
-
-        heightLockAveragingStart = esp_timer_get_time();
-        heightLockAveragingFlag  = true;
-        heightLockFlag           = false;                   // Not locked yet - averaging first.
+        heightLockAveragingStart   = esp_timer_get_time();
+        heightLockAveragingFlag    = true;
+        heightLockFlag             = false;                   // Not locked yet - averaging first.
 
         // -- Set response. --
         strcpy(outputBuffer, "Height lock started - averaging.");
@@ -3628,11 +3809,6 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
     // --- Operate page. Position lock/unlock button. ---
     // -------------------------------------------------------------------------
     if (jsonDocFromBrowser["positionLock"].is<JsonVariant>()) {
-
-// === New lock code - begin. ===
-        // positionLockSumLat         = 0;
-        // positionLockSumLon         = 0;
-        // positionLockSampleCount    = 0;
         positionSampleBufIdx       = 0;
         positionSampleBufCount     = 0;
         positionWelfordMeanLat     = 0;
@@ -3641,7 +3817,6 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
         positionWelfordMeanLon     = 0;
         positionWelfordM2Lon       = 0;
         positionWelfordCountLon    = 0;
-// === New lock code - end. ===
         positionLockAveragingStart = esp_timer_get_time();
         positionLockAveragingFlag  = true;
         positionLockFlag           = false;
@@ -3798,7 +3973,7 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
               int64_t  startTime;
 
         // -- Open socket connection. --
-        ntripHandshakeComplete = false;
+        ntripHandshakeCompleteFlag = false;
         ntripClient.connect(ntripCaster.url, ntripCaster.port);  // Globals from prefUtility().
 
         // -- Set response. Send to browser. --
@@ -3900,10 +4075,10 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
         if (connectionSuccess) {
             if (ntripCaster.sendGga == true) {
                 snprintf(outputBuffer, sizeof(outputBuffer), "SUCCESS. Sending last $GGA.");
-                ntripClient.print(lastGGA);                                     // Send lastGGA now.
-                okToPushLastGgaFlag    = true;                                  // Flag for taskEvery10000Ms to send lastGGA automatically.
-                ntripHandshakeComplete = true;                                  // Flag to allow taskRtcmRelay() to start reading RCTM data.
-                rtcmSentenceCount      = 0;
+                ntripClient.print(lastGGA);             // Send lastGGA now.
+                okToPushLastGgaFlag        = true;      // Flag for taskEvery10000Ms to send lastGGA automatically.
+                ntripHandshakeCompleteFlag = true;      // Flag to allow taskRtcmRelay() to start reading RCTM data.
+                rtcmSentenceCount          = 0;
             }
         } else {
             snprintf(outputBuffer, sizeof(outputBuffer), "Authorization FAILED.\n");
@@ -4174,12 +4349,13 @@ void debug() {
         logPrint(outputBuffer);
     }
 
-if (commandFlag[DEBUG_LOOP_STACK]) {
-    UBaseType_t remaining = uxTaskGetStackHighWaterMark(loopTaskHandle);
-    snprintf(outputBuffer, sizeof(outputBuffer), "Stack headroom - %u bytes remain of %u total bytes.",
-        remaining * sizeof(StackType_t), getArduinoLoopTaskStackSize());
-    logPrint(outputBuffer);
-}
+        // --- Loop stack. ---
+    if (commandFlag[DEBUG_LOOP_STACK]) {
+        UBaseType_t remaining = uxTaskGetStackHighWaterMark(loopTaskHandle);
+        snprintf(outputBuffer, sizeof(outputBuffer), "Stack headroom - %u bytes remain of %u total bytes.",
+            remaining * sizeof(StackType_t), getArduinoLoopTaskStackSize());
+        logPrint(outputBuffer);
+    }
 
     // --- Test radio. ---
     if (commandFlag[TEST_RAD]) {
@@ -4322,6 +4498,7 @@ if (commandFlag[DEBUG_LOOP_STACK]) {
  * @since 3.2.3  [2026-08-10-09:45am] Add startTcpServer().
  * @since 3.3.0  [2026-08-17-09:00am] Changed position of startOutputs() in setup().
  * @since 3.3.3  [2026-09-07-11:30am] Added xTaskGetCurrentTaskHandle().
+ * @since 3.3.4  [2026-10-20-05:30pm] Added startIMU().
  * @see   Global vars.
  * @see   uxTaskGetStackHighWaterMark(loopTaskHandle).
  */
@@ -4333,6 +4510,7 @@ void setup() {
     initPins();             // Initialize pin modes & pin values.
     startI2C();             // Start I2C wire interfaces.
     startLiPo();            // Start LiPo I2C interface.
+    startIMU();             // Start IMU.
     startWiFiServer();      // Start WiFi server.
     startTcpServer();       // Start TCP server for GNSS Master (NMEA out / RTCM in bridge).
     startHttpServer();      // Start HTTP server.

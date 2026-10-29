@@ -31,6 +31,7 @@
  * @since  3.4.0  [2026-09-20-04:15pm] Add prfLckAvgInt.
  * @since  3.4.1  [2025-10-26-04:45pm] Cleanup formatting.
  * @since  3.4.1  [2026-09-27-10:00pm] Added caster.crs.
+ * @since  3.5.0  [2026-10-28-04:30pm] Added IMU calibration.
  * @link   http://dougfoster.me.
  */
 
@@ -50,6 +51,7 @@
  * @since 3.4.0   [2026-09-19-11:30am] Remove update() and const SEND_PREFS.
  * @since 3.4.0   [2026-09-20-04:15pm] Add prfLckAvgInt.
  * @since 3.4.1   [2026-09-27-06:45pm] Add ntripCrs.
+ * @since 3.5.0   [2026-10-28-04:15pm] Added IMU calibration.
  */
 
 const gnssMeasureInterval   = document.querySelector('#config #gnss-measure-interval');
@@ -89,13 +91,20 @@ const ntripPassword         = document.querySelector('#config #ntrip-password');
 const ntripSendGGA          = document.querySelector('#config #ntrip-send-gga input');
 const ntripCrs              = document.querySelector('#config #ntrip-crs');         // Newest pref.
 const ntripCasterdup        = document.querySelector('#config #ntrip-caster-dup');
-const switchRtcmInButtons   = document.querySelector('#rtcm-in-buttons');
-const ntripCasterActive     = document.querySelector('#ntrip-caster-active');
-const chooseCaster          = document.querySelectorAll('.choose-caster');
-const gnsLckAvgIntrvl       = document.querySelector('#lock-avg-interval');
+const switchRtcmInButtons   = document.querySelector('#config #rtcm-in-buttons');
+const ntripCasterActive     = document.querySelector('#config #ntrip-caster-active');
+const chooseCaster          = document.querySelectorAll('#config .choose-caster');
+const gnsLckAvgIntrvl       = document.querySelector('#config #lock-avg-interval');
+const imuCalibrateBtn       = document.querySelector('#config #imu-calibrate-btn');
+const imuCalibrateNote      = document.querySelector('#config #imu-calibrate-note');
+const imuXoffset            = document.querySelector('#config #imu-x-offset');
+const imuYoffset            = document.querySelector('#config #imu-y-offset');
+const header                = document.querySelector('header');
 const PREF_RESET            = '{"page":"config","resetPrefs":""}';
 let   ntripCasterAttributes = [];
 let   prfNtripCasterAct     = 0;
+let   imuCalibrating        = false;
+let   imucalibrationCount   = 0;
         
 /**
  * =========================================================================
@@ -226,7 +235,9 @@ function ntripAttributes(action) {
     if ('save' == action) {
         ntripCasterAttributes[parseInt(ntripCaster.value)] = toJson('ntripAttributes');
         websocket.send(ntripCasterAttributes[parseInt(ntripCaster.value)]);
-        console.log('browser --> ' + ntripCasterAttributes[parseInt(ntripCaster.value)]);
+        if (jsConsoleMessages.checked) {
+            console.log('browser --> ' + ntripCasterAttributes[parseInt(ntripCaster.value)]);
+        }
         messageField.textContent = 'Caster ' + ntripCaster.value + ' preference saved.';
     } else if ('load' == action) {
 
@@ -287,7 +298,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
     } else {
         jsConsoleMessages.checked = false;
     }
-
 });
 
 /**
@@ -337,14 +347,39 @@ ntripCasterActive.addEventListener('change', (event) => {
  * @since  3.0.12 [2026-02-07-11:00am] Add clearMessageField().
  * @since  3.1.2  [2026-07-14-09:30am] Add updateCasterBtn listener.
  * @since  3.4.0  [2026-09-20-09:30am] Replaced clearMessageField().
+ * @since  3.5.0  [2026-10-28-04:15pm] Added IMU calibration.
  */
+imuCalibrateBtn.addEventListener('click', () => {
+    let command = '';
+    if ((websocket) && (1 == websocket.readyState)) {
+        if (imuCalibrateBtn.classList.contains('calibrating')) {
+            imuCalibrateBtn.classList.remove('calibrating');
+            imuCalibrating = false;
+            imuCalibrateBtn.textContent = 'Start';
+            command = 'Stop';
+            imucalibrationCount = 0;
+        } else {
+            imuCalibrateBtn.classList.add('calibrating');
+            imuCalibrating = true;
+            imuCalibrateBtn.textContent = 'Stop';
+            command = 'Start';
+        }
+        websocket.send( toJson('imuCalibrate' + command) );          // Send message to rover.
+        if (jsConsoleMessages.checked) {
+            console.log('browser --> ' + toJson('imuCalibrate' + command));
+        }
+    }
+});
+
 updateConfigBtn.addEventListener('click', () => {
     updateConfigBtn.classList.add('shadow');    // Visual feedback.
     setTimeout(function() { updateConfigBtn.classList.remove('shadow'); }, 100);
     if ((websocket) && (1 == websocket.readyState)) {
         websocket.send( toJson('uiToPrefs') );          // Send "setPrefs" message to rover.
     }
-    console.log('browser --> ' + toJson('uiToPrefs'));
+    if (jsConsoleMessages.checked) {
+        console.log('browser --> ' + toJson('uiToPrefs'));
+    }
     messageField.classList.remove('hide');
     messageField.textContent = 'Preferences saved.';
     setTimeout(function() { 
@@ -362,7 +397,9 @@ resetConfigBtn.addEventListener('click', () => {
         messageField.classList.remove('hide');
         if (confirmed) {
             websocket.send(PREF_RESET);  // Send "resetPrefs" message to rover.
-            console.log('browser --> ' + PREF_RESET);
+            if (jsConsoleMessages.checked) {
+                console.log('browser --> ' + PREF_RESET);
+            }
             messageField.textContent = 'Preferences reset.';
         } else {
             messageField.textContent = 'Reset cancelled.';
@@ -389,7 +426,17 @@ updateCasterBtn.addEventListener('click', () => {
  * @return void   No output is returned.
  * @since  3.0.12 [2026-02-08-08:45pm] New.
  * @since  3.1.2  [2026-07-21-02:30pm] Add switchNtripCasterActive &  ntripCaster listeners.
+ * @since  3.5.0  [2026-10-29-01:30pm] Added eventlistener to header.
  */
+
+header.addEventListener('click', () => {
+    let message = '{"imuCalibrateStop":""}';    // Safety check in case IMU calibrate was running but not stopped.
+    websocket.send(message);
+    if (jsConsoleMessages.checked) {
+      console.log('browser --> ' + message);  
+    }
+});
+
 jsConsoleMessages.addEventListener('change', () => {
     if (jsConsoleMessages.checked) {
         sessionStorage.setItem("displayJsConsoleMessages", 'on');

@@ -70,9 +70,9 @@ const fixNumSivDisplay             = document.querySelector('.fix #sivDisplay');
 
 // --- Section: Numbers. ---
 const numHeightElip                = document.querySelector('.numbers #height-ellipsoid');
-const numHeightOrth                = document.querySelector('.numbers #height-orthometric');
-const numLatitude                  = document.querySelector('.numbers #latitude');
-const numLongitude                 = document.querySelector('.numbers #longitude');
+const numHeightOrth                = document.querySelector('.numbers td#ortho-field');
+const numLatitude                  = document.querySelector('.numbers td#lat-field');
+const numLongitude                 = document.querySelector('.numbers td#lon-field');
 const numbers                      = document.querySelector('.numbers');
 const numVAC                       = document.querySelectorAll('.numbers .vac');
 const numHAC                       = document.querySelectorAll('.numbers .hac');
@@ -164,6 +164,8 @@ const WGS84_E2 = WGS84_F * (2 - WGS84_F);   // Eccentricity squared.
 // const wsMessageWindowMaxCount      = 10;         // Not used? WebSocket message status tracking window (# messages).
 let prfGnsMsrInt                   = 0;
 let prfGnsNavRat                   = 0;
+let prfLevelOffsetXDeg             = 0;
+let prfLevelOffsetYDeg             = 0;
 let startTime;
 let wsMessageCountTotal            = 0;             // Total # of WebSocket messages received. 
 let wsWindowStartTime              = 0;
@@ -538,11 +540,13 @@ function llToUTM(latDeg, lonDeg) {
  * @since  3.4.3 [2026-10-20-10:15am] New.
  * @see    testBubble() in operate.js.
  */
-function bubble(x,y) {
-    // left px: -108 -86 -62 -38 -8 23 46 69 92  
+function bubble(x, y) {
     document.querySelector('#bubble').style.left = ((10 * x) - 8) + 'px';
-    // top px:  -108 -86 -62 -38 -8 23 46 69 92
     document.querySelector('#bubble').style.top = ((-10 * y) - 8) + 'px';
+    if (printBubble) {
+        console.log(`(${bubbleX}: ${bubbleY})`);
+        return;
+    }
 }
 
 /**

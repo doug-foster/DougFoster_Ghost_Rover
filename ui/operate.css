@@ -415,7 +415,8 @@ header #version-rover {
     width: 182px;
 }
 .buttons-level .ring {
-    border-radius: var(--std-border-radius);
+    position: relative;
+    border-radius: 100px;
 }
 .buttons-level .box {
     width: 100px;
@@ -427,6 +428,13 @@ header #version-rover {
     position: absolute;
     border: 1px solid var(--gray-2);
 }
+.buttons-level .ring .label {
+    position: absolute;
+    padding: 1px;
+    color: var(--gray-2);
+    background-color: #ffffff;
+    font-size: 14px;
+}
 .buttons-level #level {
     position: relative;
     top: -8px;
@@ -434,36 +442,55 @@ header #version-rover {
     vertical-align: middle;
     margin: auto;
 }
-.buttons-level #ring-0 {
-    left: -100px;
-    top: -100px;
-    width: 200px;
-    height: 200px;
-    background-color: var(--gray-1);
+ .buttons-level #ring-5 {
+    left: -91px;
+    top: -91px;
+    width: 180px;
+    height: 180px;
 }
-.buttons-level #ring-1 {
-    left: -77px;
-    top: -77px;
-    width: 154px;
-    height: 154px;
-}
-.buttons-level #ring-2 {
-    left: -54px;
-    top: -54px;
-    width: 108px;
-    height: 108px;
+ .buttons-level #ring-4 {
+    left: -71px;
+    top: -71px;
+    width: 140px;
+    height: 140px;
 }
 .buttons-level #ring-3 {
+    left: -51px;
+    top: -51px;
+    width: 100px;
+    height: 100px;
+}
+.buttons-level #ring-2 {
     left: -31px;
     top: -31px;
-    width: 62px;
-    height: 62px;
+    width: 60px;
+    height: 60px;
 }
-.buttons-level #ring-4 {
-    left: -8px;
-    top: -8px;
-    width: 16px;
-    height: 16px;
+.buttons-level #ring-1 {
+    left: -11px;
+    top: -11px;
+    width: 20px;
+    height: 20px;
+}
+.buttons-level #ring-5 .label {
+    left: 153px;
+    top: 20px;
+}
+.buttons-level #ring-4 .label {
+    left: 118px;
+    top: 14px;
+}
+.buttons-level #ring-3 .label {
+    left: 82px;
+    top: 6px;
+}
+.buttons-level #ring-2 .label {
+    left: 48px;
+    top: 1px;
+}
+.buttons-level #ring-1 .label {
+    left: 13px;
+    top: -7px;
 }
 .buttons-level #bubble {
     top: -8px;       /* -108 -86 -62 -38 -8 23 46 69 92 */
@@ -473,8 +500,8 @@ header #version-rover {
     width: 16px;
     height: 16px;
     z-index: 2;
+    background-color: var(--gray-1);
     border-radius: 20px;
-    background-color: #ffffff;
     border-color: #000000;
 }
 .smooth {

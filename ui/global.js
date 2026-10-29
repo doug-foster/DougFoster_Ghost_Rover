@@ -88,6 +88,11 @@ const wsEndpoint = 'ws://' + ws_target + '/ghostRover';
 // --- Battery. ---
 let batterySoc;
 
+// --- IMU. ---
+let bubbleX;
+let bubbley;
+let printBubble = false;
+
 // --- General. ---
 const RECONNECT_INTERVAL       = 2000;      // Server reconnect interval.
 const MIN_SATELLITE_THRESHHOLD = 2          // Mirror const in Ghost_Rover.ino.
@@ -293,60 +298,62 @@ async function webSocketStop(event) {
  * -------------------------------------------------------------------------
  * 
  * --- JSON key index. ---
- *     0  = Build info                      (buildString).
- *     1  = Units                           (char     prfUnt[6]).
- *     2  = RTCM in source                  (char     prfRtcIn[6]).
+ *     0  = Build info                       (buildString).
+ *     1  = Units                            (char     prfUnt[6]).
+ *     2  = RTCM in source                   (char     prfRtcIn[6]).
  *     3  = Not used.
- *     4  = GNSS measure interval           (uint16_t prfGnsMsrInt).
- *     5  = GNSS navigation rate            (uint8_t  prfGnsNavRat).
- *     6  = WiFi hot spot SSID              (char     prfHotSsi[20]).
- *     7  = WiFi hot spot password          (char     prfHotPas[30]).
- *     8  = GNSS fix                        (u_int8_t fixType).
- *     9  = GNSS satellites in view         (u_int8_t numSatInView).
- *     10 = GNSS ellipsoid height           (float    heightEllipsoid    -> operBuffer[24]).
- *     11 = GNSS orthometric height         (float    heightOrthometric  -> operBuffer[24]).
- *     12 = GNSS latitude                   (double   lat                -> operBuffer[24]).
- *     13 = GNSS longitude                  (double   lon                -> operBuffer[24]).
- *     14 = GNSS horizontal accuracy        (float    accuracyHorizontal -> operBuffer[24]).
- *     15 = GNSS vertical accuracy          (float    accuracyVertical   -> operBuffer[24]).
- *     16 = RTCM in status - up/down        (bool     RTCMin).
- *     17 = NMEA out status - up/down       (bool     NMEAout).
- *     18 = Battery State Of Charge (SOC)   (float    batterySoc         -> operBuffer[24]).
- *     19 = Battery change rate             (float    batteryChangeRate  -> operBuffer[24]).
- *     20 = Up time                         (char     uptime[20]).
+ *     4  = GNSS measure interval            (uint16_t prfGnsMsrInt).
+ *     5  = GNSS navigation rate             (uint8_t  prfGnsNavRat).
+ *     6  = WiFi hot spot SSID               (char     prfHotSsi[20]).
+ *     7  = WiFi hot spot password           (char     prfHotPas[30]).
+ *     8  = GNSS fix                         (u_int8_t fixType).
+ *     9  = GNSS satellites in view          (u_int8_t numSatInView).
+ *     10 = GNSS ellipsoid height            (float    heightEllipsoid    -> operBuffer[24]).
+ *     11 = GNSS orthometric height          (float    heightOrthometric  -> operBuffer[24]).
+ *     12 = GNSS latitude                    (double   lat                -> operBuffer[24]).
+ *     13 = GNSS longitude                   (double   lon                -> operBuffer[24]).
+ *     14 = GNSS horizontal accuracy         (float    accuracyHorizontal -> operBuffer[24]).
+ *     15 = GNSS vertical accuracy           (float    accuracyVertical   -> operBuffer[24]).
+ *     16 = RTCM in status - up/down         (bool     RTCMin).
+ *     17 = NMEA out status - up/down        (bool     NMEAout).
+ *     18 = Battery State Of Charge (SOC)    (float    batterySoc         -> operBuffer[24]).
+ *     19 = Battery change rate              (float    batteryChangeRate  -> operBuffer[24]).
+ *     20 = Up time                          (char     uptime[20]).
  *     21 = Not used.
  *     22 = Not used.
- *     23 = NMEA GGA out sentence count     (size_t   nmeaCountGGA).
- *     24 = NMEA RMC out sentence count     (size_t   nmeaCountRMC).
- *     25 = NMEA GSA out sentence count     (size_t   nmeaCountGSA).
- *     26 = NMEA GSV out sentence count     (size_t   nmeaCountGSV).
- *     27 = NMEA GST out sentence count     (size_t   nmeaCountGST).
- *     28 = NMEA TXT out sentence count     (size_t   nmeaCountTXT).
- *     29 = NMEA other out sentence count   (size_t   nmeaCountOther).
- *     30 = NMEA total out sentence count   (size_t   nmeaCountAll).
- *     31 = NMEA out rate                   (int64_t  nmeaRate).
- *     32 = Operational mode                (char     operMode[2]).
- *     33 = WiFi local network IP address   (char     localIp[16]).
- *     34 = WiFi hot spot address           (char     hotspotIp[16]).
- *     35 = WebSocket client/session id     (uint8_t  clientId).
- *     36 = Instrument height               (uint16_t prfInstrHgt).
- *     37 = RTCM sentence count             (size_t   rtcmSentenceCount).
- *     38 = RTCM rate                       (float    rtcmKbps).
- *     39 = NTRIP caster #1 attributes      (char     prfNtripCastAttr[0][512]).
- *     40 = NTRIP caster #2 attributes      (char     prfNtripCastAttr[1][512]).
- *     41 = NTRIP caster #3 attributes      (char     prfNtripCastAttr[2][512]).
- *     42 = NTRIP caster active [1/2/3]     (char     prfNtripCastAct[2]).
- *     43 = NTRIP caster id                 (struct ntripCasterProfile ntripCaster.id      - uint8_t).
- *     44 = NTRIP caster name               (struct ntripCasterProfile ntripCaster.name    - char name[48]).
- *     45 = NTRIP caster url                (struct ntripCasterProfile ntripCaster.url     - char url[48]).
- *     46 = NTRIP caster mount point        (struct ntripCasterProfile ntripCaster.mount   - char mount[24]).
- *     47 = NTRIP caster port               (struct ntripCasterProfile ntripCaster.port    - uint16_t).
- *     48 = NTRIP caster version            (struct ntripCasterProfile ntripCaster.version - uint8_t).
- *     49 = NTRIP caster user               (struct ntripCasterProfile ntripCaster.user    - char user[48]).
- *     50 = NTRIP caster password           (struct ntripCasterProfile ntripCaster.pass    - char user[48]).
- *     51 = NTRIP caster sendGga            (struct ntripCasterProfile ntripCaster.sendGga - bool ).
- *     52 = GNSS lock averaging interval    (uint16_t prfLckAvgInt).
- *     53 = NTRIP caster crs                (struct ntripCasterProfile ntripCaster.crs     - char mount[24]).        // Newest pref.
+ *     23 = NMEA GGA out sentence count      (size_t   nmeaCountGGA).
+ *     24 = NMEA RMC out sentence count      (size_t   nmeaCountRMC).
+ *     25 = NMEA GSA out sentence count      (size_t   nmeaCountGSA).
+ *     26 = NMEA GSV out sentence count      (size_t   nmeaCountGSV).
+ *     27 = NMEA GST out sentence count      (size_t   nmeaCountGST).
+ *     28 = NMEA TXT out sentence count      (size_t   nmeaCountTXT).
+ *     29 = NMEA other out sentence count    (size_t   nmeaCountOther).
+ *     30 = NMEA total out sentence count    (size_t   nmeaCountAll).
+ *     31 = NMEA out rate                    (int64_t  nmeaRate).
+ *     32 = Operational mode                 (char     operMode[2]).
+ *     33 = WiFi local network IP address    (char     localIp[16]).
+ *     34 = WiFi hot spot address            (char     hotspotIp[16]).
+ *     35 = WebSocket client/session id      (uint8_t  clientId).
+ *     36 = Instrument height                (uint16_t prfInstrHgt).
+ *     37 = RTCM sentence count              (size_t   rtcmSentenceCount).
+ *     38 = RTCM rate                        (float    rtcmKbps).
+ *     39 = NTRIP caster #1 attributes       (char     prfNtripCastAttr[0][512]).
+ *     40 = NTRIP caster #2 attributes       (char     prfNtripCastAttr[1][512]).
+ *     41 = NTRIP caster #3 attributes       (char     prfNtripCastAttr[2][512]).
+ *     42 = NTRIP caster active [1/2/3]      (char     prfNtripCastAct[2]).
+ *     43 = NTRIP caster id                  (struct ntripCasterProfile ntripCaster.id      - uint8_t).
+ *     44 = NTRIP caster name                (struct ntripCasterProfile ntripCaster.name    - char name[48]).
+ *     45 = NTRIP caster url                 (struct ntripCasterProfile ntripCaster.url     - char url[48]).
+ *     46 = NTRIP caster mount point         (struct ntripCasterProfile ntripCaster.mount   - char mount[24]).
+ *     47 = NTRIP caster port                (struct ntripCasterProfile ntripCaster.port    - uint16_t).
+ *     48 = NTRIP caster version             (struct ntripCasterProfile ntripCaster.version - uint8_t).
+ *     49 = NTRIP caster user                (struct ntripCasterProfile ntripCaster.user    - char user[48]).
+ *     50 = NTRIP caster password            (struct ntripCasterProfile ntripCaster.pass    - char user[48]).
+ *     51 = NTRIP caster sendGga             (struct ntripCasterProfile ntripCaster.sendGga - bool ).
+ *     52 = GNSS lock averaging interval     (uint16_t prfLckAvgInt).
+ *     53 = NTRIP caster crs                 (struct ntripCasterProfile ntripCaster.crs     - char mount[24]).
+ *     54 = Bubble level X offset when level (float    prfLevelOffsetXDeg).
+ *     55 = Bubble level Y offset when level (float    prfLevelOffsetYDeg).         // Newest pref.
  *
  * @return void  No output is returned.
  * @since  3.0.7 [2025-11-15-02:00pm].
@@ -373,6 +380,7 @@ async function webSocketStop(event) {
  * @since  3.4.2  [2026-10-04-05:15pm] Changed LLH, UTM, ECEF to 1 mm precision.
  * @since  3.4.2  [2026-10-06-04:45pm] Add logic to flip btnNtripCasterFiller & btnNtripCaster visibility in webSocketRcvMessage().
  * @since  3.4.3  [2026-10-16-09:15am] Add detailed numbers & correct EPSG codes.
+ * @since  3.5.0  [2026-10-22-06:15pm] Operate page, add bubble.
  * @see    filesMessage() in files.js.
  */
 function webSocketRcvMessage(event) {
@@ -408,6 +416,8 @@ function webSocketRcvMessage(event) {
         hotspotIp                   = jsonObj["34"];
         prfInstrHght                = jsonObj["36"];
         prfLckAvgInt                = jsonObj["52"];
+        prfLevelOffsetXDeg          = jsonObj["54"];
+        prfLevelOffsetYDeg          = jsonObj["55"];
         ntripCasterAttributes[1]    = jsonObj["39"];
         ntripCasterAttributes[2]    = jsonObj["40"];
         ntripCasterAttributes[3]    = jsonObj["41"];
@@ -433,24 +443,37 @@ function webSocketRcvMessage(event) {
     }
 
     // --- Config page. ---
-    if (('config' == PAGE) && (Object.keys(jsonObj).length > 1)) {
-        document.querySelector('input[name="switch-unit"][value="'    + jsonObj["1"] + '"]').checked = true;
-        document.querySelector('input[name="switch-rtcm-in"][value="' + jsonObj["2"] + '"]').checked = true;
-        if(prfRtcIn == 'ntrip') {
-            chooseCaster.forEach(item => {
-                item.classList.remove('hide');      // Hide/show "choose caster" row.
-            });
+    if ('config' == PAGE) {
+        if (imuCalibrating) {
+            prfLevelOffsetXDeg           = jsonObj["54"];
+            prfLevelOffsetYDeg           = jsonObj["55"];
+            imucalibrationCount++;            
+            imuXoffset.value             = prfLevelOffsetXDeg.toFixed(3);
+            imuYoffset.value             = prfLevelOffsetYDeg.toFixed(3);
+            imuCalibrateNote.textContent = imucalibrationCount + ' IMU readings averaged.';
+        } else {
+            if (Object.keys(jsonObj).length > 1) {
+                document.querySelector('input[name="switch-unit"][value="'    + jsonObj["1"] + '"]').checked = true;
+                document.querySelector('input[name="switch-rtcm-in"][value="' + jsonObj["2"] + '"]').checked = true;
+                if(prfRtcIn == 'ntrip') {
+                    chooseCaster.forEach(item => {
+                        item.classList.remove('hide');      // Hide/show "choose caster" row.
+                    });
+                }
+                gnssMeasureInterval.value  = prfGnsMsrInt;
+                gnssNavRate.value          =  prfGnsNavRat;
+                outputInterval.textContent = gnssMeasureInterval.value * gnssNavRate.value ;
+                hotspotSsid.value          = jsonObj["6"];
+                hotspotPassword.value      = jsonObj["7"];
+                setHeights('init');
+                document.querySelector('input[name="switch-ntrip-caster-active"][value="' + prfNtripCasterAct +'"]').checked = true;
+                ntripCaster.value = prfNtripCasterAct;
+                ntripAttributes('load');                    // Load UI fields.
+                gnsLckAvgIntrvl.value = jsonObj["52"];
+                imuXoffset.value      = jsonObj["54"];
+                imuYoffset.value      = jsonObj["55"];      // Newest pref.
+            }
         }
-        gnssMeasureInterval.value  = prfGnsMsrInt;
-        gnssNavRate.value          =  prfGnsNavRat;
-        outputInterval.textContent = gnssMeasureInterval.value * gnssNavRate.value ;
-        hotspotSsid.value          = jsonObj["6"];
-        hotspotPassword.value      = jsonObj["7"];
-        setHeights('init');
-        document.querySelector('input[name="switch-ntrip-caster-active"][value="' + prfNtripCasterAct +'"]').checked = true;
-        ntripCaster.value = prfNtripCasterAct;
-        ntripAttributes('load');                    // Load UI fields.
-        gnsLckAvgIntrvl.value = jsonObj["52"];      // Newest pref. 2.
     }
 
     // --- Files page. ---
@@ -752,6 +775,13 @@ function webSocketRcvMessage(event) {
             // case 'height':                  // {"height":"locked"}.
             // case 'position':                // {"position":"locked"}.
             //     button(key, value);
+
+            // -- {"54":0}. --
+            bubbleX = jsonObj["54"].toFixed(2);
+
+            // -- {"55":0}. --
+            bubbleY = jsonObj["55"].toFixed(2);
+            bubble(bubbleX, bubbleY);
         }
     }
 
@@ -842,6 +872,7 @@ function webSocketRcvMessage(event) {
  * @since  3.3.1 [2026-08-27-04:45pm] ["JsonDocNtrip["43,47,48, 51"] from str to int.
  * @since  3.4.0  [2026-09-20-04:15pm] Add prfLckAvgInt.
  * @since  3.4.1  [2026-09-27-10:00pm] Added "53" : ntripCrs.value.
+ * @since  3.5.0  [2026-10-28-04:15pm] Added IMU calibration.
  * @see    webSocketRcvMessage() in global.js.
  * @see    ntripAttributes() in config.js.
  * @see    updateConfigBtn.addEventListener() in config.js.
@@ -850,6 +881,16 @@ function webSocketRcvMessage(event) {
 function toJson(which) {
     let jsonString;
     switch (which) {
+        case 'imuCalibrateStart':
+            jsonString = JSON.stringify( {
+                "imuCalibrateStart" : "",
+            } )
+            break;
+        case 'imuCalibrateStop':
+            jsonString = JSON.stringify( {
+                "imuCalibrateStop" : "",
+            } )
+            break;
         case 'uiToPrefs':
             const switchUnits             = document.querySelector('input[name="switch-unit"]:checked')?.value;
             const switchRtcmIn            = document.querySelector('input[name="switch-rtcm-in"]:checked')?.value;
@@ -867,7 +908,9 @@ function toJson(which) {
                       "40" : ntripCasterAttributes[2],                            // ntripCasterAttributes[2].
                       "41" : ntripCasterAttributes[3],                            // ntripCasterAttributes[3].
                       "42" : switchNtripCasterActive,                             // prfNtripCasterAct.
-                      "52" : gnsLckAvgIntrvl.value                                // prfLckAvgInt.
+                      "52" : gnsLckAvgIntrvl.value,                               // prfLckAvgInt.
+                      "54" : imuXoffset.value,                                    // prfLevelOffsetXDeg.
+                      "55" : imuYoffset.value                                    // prfLevelOffsetYDeg.
             } )
             break;
         case 'ntripAttributes':

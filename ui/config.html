@@ -29,6 +29,7 @@
  * @since  3.4.0  [2026-09-20-09:00am] Added lock-avg-interval.
  * @since  3.4.1  [2025-10-26-04:45pm] Cleanup formatting.
  * @since  3.4.1  [2026-09-27-10:00pm] Added ntrip-crs.
+ * @since  3.5.0  [2026-10-28-04:15pm] Added IMU calibration.
  * @link   http://dougfoster.me.
 -->
 
@@ -97,6 +98,19 @@
                         <span id="lock-avg-interval-label">GNSS averaging interval (secs)</span>
                     </div>
                     <div id="message-system-options" class="note hide">&nbsp;</div>
+                </div>
+
+                <!--- Calibrate IMU. --->
+                <div class="config-section config-grid-fields field-group" id="calibrate-imu">
+                    <div class="group-label full-row section-heading">Calibrate IMU</div>
+                    <div>X offset (degrees)</div>
+                    <input id="imu-x-offset" type="text"/>
+                    <div>Y offset (degrees)</div>
+                    <input id="imu-y-offset" type="text"/>
+                    <div id="imu-calibrate-btn" class="std-button">
+                        <span class="label">Start</span>
+                    </div>
+                    <div id="imu-calibrate-note" class="note plain"></div>
                 </div>
 
                 <!--- Instrument height. --->
