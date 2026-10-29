@@ -397,6 +397,8 @@ const float   TILT_Y_SIGN     = 1.0f;                           // Tilt Y orient
       float   filtAz          = 0.0f;                           // Exponential moving average filter of IMU Z value.
       float   bubbleDegX      = 0.0f;                           // Tilt (X degrees) for UI bubble level.
       float   bubbleDegY      = 0.0f;                           // Tilt (Y degrees) for UI bubble level.
+      float   rawTiltXDeg     = 0.0f;                           // Raw tilt (X degrees) - different than imuBubbleXY() output. 
+      float   rawTiltYDeg     = 0.0f;                           // Raw tilt (Y degrees) - different than imuBubbleXY() output.
       ICM_20948_I2C imu;
 
 // --- Operation. ---
@@ -1245,8 +1247,8 @@ void sendDataToBrowser() {
     // --- Config page. ---
     if ((strcmp(whichPage, "config") == 0) && (calibrateImuFlag)) {
         jsonDocToBrowser["imuCalibrateStartResp"] = "";
-        jsonDocToBrowser["54"] = bubbleDegX;
-        jsonDocToBrowser["55"] = bubbleDegY;
+        jsonDocToBrowser["54"] = rawTiltXDeg;
+        jsonDocToBrowser["55"] = rawTiltYDeg;
     }
 
     // --- Menu page (NTRIP). ---
@@ -1833,7 +1835,7 @@ void calcRawTiltDeg(float &tiltXDeg, float &tiltYDeg) {
     tiltXDeg = atan2f(filtAx, sqrtf(filtAy * filtAy + filtAz * filtAz)) * rad2deg;
     tiltYDeg = atan2f(filtAy, sqrtf(filtAx * filtAx + filtAz * filtAz)) * rad2deg;
     if (commandFlag[DEBUG_IMU]) {
-        snprintf(outputBuffer, sizeof(outputBuffer), "tiltDeg(X,Y) = (%6.3f,%6.3f)", tiltXDeg, tiltYDeg);
+        snprintf(outputBuffer, sizeof(outputBuffer), "rawTiltDeg(X,Y) = (%6.3f,%6.3f)", tiltXDeg, tiltYDeg);
         logPrint(outputBuffer);
     }
 }
@@ -1861,6 +1863,8 @@ bool imuBubbleXY(float &x, float &y) {
   if (filterSeededFlag) {
     float tx, ty;
     calcRawTiltDeg(tx, ty);     // Calculate raw XY tilt (convert gravity into angles) in degrees.
+    rawTiltXDeg = tx;
+    rawTiltYDeg = ty;
     tx -= prfOffsetXDeg;      // Compensate with offset "plumb Z" calibration values.
     ty -= prfOffsetYDeg;
     x = -1 * constrain(TILT_X_SIGN * tx / MAX_TILT * TILT_RANGE, -TILT_RANGE, TILT_RANGE);   // +/-5° full scale (range 10 = 2 units/degree).

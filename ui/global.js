@@ -90,7 +90,7 @@ let batterySoc;
 
 // --- IMU. ---
 let bubbleX;
-let bubbley;
+let Y;
 let printBubble = false;
 
 // --- General. ---
@@ -777,10 +777,15 @@ function webSocketRcvMessage(event) {
             //     button(key, value);
 
             // -- {"54":0}. --
-            bubbleX = jsonObj["54"].toFixed(2);
+            if (jsonObj["54"]) {
+                bubbleX = jsonObj["54"].toFixed(3);
+            }
+            
 
             // -- {"55":0}. --
-            bubbleY = jsonObj["55"].toFixed(2);
+            if (jsonObj["55"]) {
+                bubbleY = jsonObj["55"].toFixed(3);
+            }
             bubble(bubbleX, bubbleY);
         }
     }
