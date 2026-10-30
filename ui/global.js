@@ -981,7 +981,7 @@ function toDMS(value, type, { hemisphere = false, secDecimals = 5 } = {}) {
     const dd = String(d);
     const mm = String(m).padStart(2, "0");
     const ss = s.toFixed(secDecimals).padStart(3 + secDecimals, "0");
-    const dms = `${dd}° ${mm}' ${ss}"`;
+    const dms = `${dd}&deg; ${mm}' ${ss}"`;
 
     // --- Hemishpere option passed? ---
     // if (hemisphere) {
