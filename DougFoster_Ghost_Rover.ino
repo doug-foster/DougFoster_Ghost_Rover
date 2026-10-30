@@ -1224,7 +1224,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
     }
 
     // --- Get & smooth IMU gravity values, calculate XY tilt values for bubble UI. ---
-    imuBubbleXY(bubbleDegX, bubbleDegY);    
+    // imuBubbleXY(bubbleDegX, bubbleDegY);    ToDo: delete.
 }
 
 /**
@@ -1873,7 +1873,7 @@ bool imuBubbleXY(float &x, float &y) {
     return false;       // IMU is not ready.
   }
 
-  // --- Use seeded, exponential moving average to smooth IMU gravity values. ---
+  // --- Use seeded, Exponential Moving Average (EMA) to smooth IMU gravity values. ---
   imuNewSampleFlag = imuFilterGravity();
 
   // --- Convert gravity values (after smoothing) into raw tilt degrees. ---
@@ -2186,7 +2186,6 @@ void initPins() {
  * @since  3.0.10 [2026-01-07-10:00am] Local vars.
  * @since  3.3.1  [2026-08-17-02:45pm] Changed from Serial.print() to logPrint().
  * @since  3.3.3  [2026-08-30-05:15pm] Removed Wire1.
- * @since  3.3.4  [2026-10-20-02:15pm] Re-added Wire1 for IMU.
  * @see    setup().
  * @link   https://github.com/espressif/arduino-esp32/blob/master/libraries/Wire/src/Wire.h.
  * @link   https://docs.arduino.cc/language-reference/en/functions/communication/wire/. 
@@ -2196,17 +2195,13 @@ void startI2C() {
     // --- Local vars. ---
     const uint8_t  I2C0_SDA   =  6;         // Primary I2C bus - data.
     const uint8_t  I2C0_SCL   =  7;         // Primary I2C bus - clock.
-    const uint8_t  I2C1_SDA   = 14;         // Secondary I2C bus - data.
-    const uint8_t  I2C1_SCL   = 10;         // Secondary I2C bus - clock.
     const uint16_t RETRY      = 500;        // Try restarting I2C interfaces.
     const uint32_t WIRE_SPEED = 400000;     // I2C Fast mode (4kHz).
 
     // --- Start interfaces. ---
-    if ((Wire.begin()) && (Wire1.begin(I2C1_SDA,I2C1_SCL))) {
+    if (Wire.begin()) {
         Wire.setClock(WIRE_SPEED);
         logPrint("Wire started @ 4kHz.");
-        Wire1.setClock(WIRE_SPEED);
-        logPrint("Wire1 started @ 4kHz.");
         ws2812LedColor = WHITE;
         ws2812LedBlink = false;
         statusLedOn();                      // FreeRTOS task taskLoopStatusLed() has not started yet.
@@ -2214,7 +2209,7 @@ void startI2C() {
         ws2812LedColor = RED;
         ws2812LedBlink = true;
         statusLedOn();                      // FreeRTOS task taskLoopStatusLed() has not started yet.
-        logPrint("Wire & Wire1 failed to start. Retrying.");
+        logPrint("Wire failed to start. Retrying.");
         delay(RETRY);
         startI2C();
     };
@@ -2252,12 +2247,12 @@ void startLiPo() {
  * @link   https://github.com/sparkfun/SparkFun_ICM-20948_ArduinoLibrary/blob/main/examples/Arduino/.
  */
 bool startIMU() {
-    imu.begin(Wire1);      // Uses second I2C bus: I2C1.
+    imu.begin(Wire);      // Uses second I2C bus: I2C1.
     if (imu.status != ICM_20948_Stat_Ok) {
         logPrint("IMU _NOT_ started on Wire1.");
         return false;
     }
-    logPrint("IMU started on Wire1.");
+    logPrint("IMU started on Wire.");
     imuReadyFlag = true;
     return true;
 }
@@ -2594,9 +2589,8 @@ void startTasks() {
     logPrint("FreeRTOS task \"Build operate data\" started.");
 
     // --- One tenth second interval. ---
-    xTaskCreate(taskEvery100Ms, "Do these every 1/10 second.", 4096, NULL, 2, &taskEvery100MsHandle);  // ToDo: change to 2048?
-    vTaskSuspend(taskEvery100MsHandle);
-    logPrint("FreeRTOS task \"Do these every 1/10 second\" started & paused.");
+    xTaskCreate(taskEvery100Ms, "Do these every 1/10 second.", 2048, NULL, 2, &taskEvery100MsHandle);
+    logPrint("FreeRTOS task \"Do these every 1/10 second\" started.");
 
     // --- One second interval. ---
     xTaskCreate(taskEvery1000Ms, "Do these every 1 second.", 4096, NULL, 2, &taskEvery1000MsHandle);
@@ -2827,19 +2821,18 @@ void taskBuildOperData(void * pvParameters) {
 void taskEvery100Ms(void * pvParameters) {
     while(true) {
 
-        // --- Calculate/average IMU offsets. ---
-        if (strcmp(whichPage, "config") == 0) {
+            // --- Get IMU reading. ---
             const bool valid = imuBubbleXY(bubbleDegX, bubbleDegY);     // Also sets rawTiltXDeg/YDeg.
-            if (valid && imuNewSampleFlag && calibrateImuFlag) {
+
+            // --- Calculate/average IMU offsets. ---
+            if (valid && imuNewSampleFlag && calibrateImuFlag)  {
                 welfordUpdate(imuWelfordMeanX, imuWelfordM2X, imuWelfordCountX, rawTiltXDeg);
                 welfordUpdate(imuWelfordMeanY, imuWelfordM2Y, imuWelfordCountY, rawTiltYDeg);
                 imuCalAvgXDeg = (float)imuWelfordMeanX;
                 imuCalAvgYDeg = (float)imuWelfordMeanY;
                 imuCalCount   = imuWelfordCountX;
+                browserUpdatePendingFlag = true;
             }
-            browserUpdatePendingFlag = true;
-        }
-
         vTaskDelay(EVERY_100MS_INTERVAL);
     }
 }
@@ -3732,7 +3725,6 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
     // --- Config page. Calculate/average IMU offsets. ---
     // -------------------------------------------------------------------------
     if (jsonDocFromBrowser["imuCalibrateStart"].is<JsonVariant>()) {
-        vTaskSuspend(taskEvery100MsHandle);     // Safe if already suspended. Guards against a Start without a Stop.
         imuWelfordMeanX  = 0;
         imuWelfordM2X    = 0;
         imuWelfordCountX = 0;
@@ -3747,7 +3739,6 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
         if (commandFlag[DEBUG_IMU]) {
             logPrint("imuCalibrateStart");
         }
-        vTaskResume(taskEvery100MsHandle);
     }
 
     if (jsonDocFromBrowser["imuCalibrateStop"].is<JsonVariant>()) {
@@ -3755,7 +3746,6 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
         if (commandFlag[DEBUG_IMU]) {
             logPrint("imuCalibrateStop");
         }
-        vTaskSuspend(taskEvery100MsHandle);
     }
 
 
