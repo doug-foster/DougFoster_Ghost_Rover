@@ -50,8 +50,8 @@
  * @since  3.4.2 [2026-10-03-10:30pm] Also set RTCMinFlag = false if !tcpClient.connected() in checkTCPServer().
  * @since  3.4.2 [2026-10-05-11:45am] Refactor NTRIP.
  * @since  3.4.2 [2026-10-05-01:45am] Add general function stringToHex().
- * @since  3.5.0 [2026-10-20-02:15pm] Re-added Wire1 for IMU in startI2c() setup function.
  * @since  3.5.0 [2026-10-20-09:00pm] Add IMU functionality - prfOffsetXDeg, prfOffsetYDeg, ... .
+ * @since  3.5.1 [2026-10-31-10:00am] Cleanup.
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
  * @link   http://dougfoster.me.
@@ -324,7 +324,6 @@ const uint8_t HC12_SET    = 7;                                  // HC-12 SET {bl
 const uint8_t LED_BRIGHT     = 50;                              // 0-255. taskLoopStatusLed()
       bool    ws2812LedBlink = false;
       enum    ws2812_LED_COLOR {                                // WS2812 RGB STAT LED.
-          OFF,
           RED,
           YELLOW,
           GREEN,
@@ -386,13 +385,12 @@ float   accuracyVertical   = 0;                                 // GNSS - vertic
 SFE_UBLOX_GNSS roverGNSS;                                       // GNSS object (uses I2C-1).
 
 // --- IMU/bubble level. ---
-const uint8_t IMU_AD0_VAL           = 1;                        // 1 = SparkFun default I2C address (0x69).
 const float   MAX_TILT              = 5.0f;                     // Tilt, max measured: 5 degrees.
-const float   TILT_RANGE            = 10.0f;                    // Tilt, range: 10 degrees.
+const float   TILT_RANGE            = 10.0f;                    // Tilt, range: 10 units @ 2 degrees per unit.
 const float   TILT_EMA_ALPHA        = 0.3f;                     // Tilt, smooth bubble movement rate (lower = smoother but laggier).
 const float   TILT_X_SIGN           = 1.0f;                     // Tilt X orientation, flip to -1.0f to match mounting.
 const float   TILT_Y_SIGN           = 1.0f;                     // Tilt Y orientation, flip to -1.0f to match mounting.
-const float    BUBBLE_MAX_RADIUS    = 10.2f;                    // Bubble units: 5.1° x 2 units/degree. Keep in sync with operate.js.
+const float   BUBBLE_MAX_RADIUS     = 10.2f;                    // Bubble units: 5.1° x 2 units/degree. Keep in sync with operate.js.
       float   filtAx                = 0.0f;                     // Exponential moving average filter of IMU X value.
       float   filtAy                = 0.0f;                     // Exponential moving average filter of IMU Y value. 
       float   filtAz                = 0.0f;                     // Exponential moving average filter of IMU Z value.
@@ -432,14 +430,13 @@ enum CommandIndex {                                             //  Readable ind
     DEBUG_NMEA_COUNTS,                                          // 13.
     DEBUG_PREFS,                                                // 14.
     DEBUG_NTRIP,                                                // 15.
-    DEBUG_TIMERS,                                               // 16.
-    DEBUG_WS_TRAFFIC,                                           // 17.
-    DEBUG_HEAP,                                                 // 18.
-    DEBUG_NMEA_SENT,                                            // 19.
-    DEBUG_LOOP_STACK,                                           // 20.
-    DEBUG_FILE_SYSTEM,                                          // 21.
-    DEBUG_IMU,                                                  // 22.
-    NUM_COMMANDS                                                // 23 = automatic array length.
+    DEBUG_WS_TRAFFIC,                                           // 16.
+    DEBUG_HEAP,                                                 // 17.
+    DEBUG_NMEA_SENT,                                            // 18.
+    DEBUG_LOOP_STACK,                                           // 19.
+    DEBUG_FILE_SYSTEM,                                          // 20.
+    DEBUG_IMU,                                                  // 21.
+    NUM_COMMANDS                                                // 22 = automatic array length.
 };     
 const char* COMMAND[NUM_COMMANDS] = {                           // Command strings; match CommandIndex.
     "test-rad",                                                 // TEST_RAD.
@@ -458,7 +455,6 @@ const char* COMMAND[NUM_COMMANDS] = {                           // Command strin
     "debug-nmea-counts",                                        // DEBUG_NMEA_COUNTS.
     "debug-prefs",                                              // DEBUG_PREFS.
     "debug-ntrip",                                              // DEBUG_NTRIP.
-    "debug-timers",                                             // DEBUG_TIMERS.
     "debug-ws-traffic",                                         // DEBUG_WS_TRAFFIC.
     "debug-heap",                                               // DEBUG_HEAP.
     "debug-nmea-sent",                                          // DEBUG_NMEA_SENT.
@@ -471,10 +467,10 @@ const bool    RO_MODE                    = true;                // Open preferen
 const char    LOG_FILE[]                 = "/log.txt";          // Log file.
 const uint8_t MAJOR_VERSION              = 3;                   // Current major build version (@see buildInfo()).
 const uint8_t MINOR_VERSION              = 5;                   // Current minor build version (@see buildInfo()).
-const uint8_t PATCH_VERSION              = 0;                   // Current patch build version (@see buildInfo()).
+const uint8_t PATCH_VERSION              = 1;                   // Current patch build version (@see buildInfo()).
 const uint8_t MIN_SATELLITE_THRESHHOLD   = 2;                   // Minimum SIV for reliable coordinate information.      
       char     operMode[2]               = {'\0'};              // Operation mode (r=rover, b=base).
-      char     debugTemp[250]            = {'\0'};              // Various debug scenarios.
+//    char     debugTemp[250]            = {'\0'};              // Various debug scenarios. Activate when needed.
       char     whichPage[10]             = {'\0'};              // Current browser page served by startHttpServer().
       char     buildString[50]           = {'\0'};              // Build string (build version on date at time). e.g. 3.0.12 - Feb 19 2026 @ 12:23:13
       char     serialState[4];                                  // Serial state: '-', 'u', or 'd'.
@@ -489,14 +485,12 @@ const uint8_t MIN_SATELLITE_THRESHHOLD   = 2;                   // Minimum SIV f
       char     startOutputsResults[1024] = {'\0'};              // Buffered output from startOutputs().
       char     buildInfoResults[200]     = {'\0'};              // Buffered output from buildInfo().
       char     outputBuffer[1024]        = {'\0'};              // Buffer for output data.
-      char     outputBufferHex[2048]     = {'\0'};              // Hex buffer for output data (each char needs 4 hex digits + 1 for null-terminator).
       char     timeSinceBoot[20]         = {'\0'};              // Time since boot: 01h 03m 12s.
       size_t   wsSendCount               = 0;                   // # of WebSocket messages sent.
       size_t   rtcmSentenceCount         = 0;                   // # of RTCM sentences in.
       uint8_t  numSatInView              = 0;                   // GNSS - # OF satellites in view.
       uint8_t  fixType                   = 0;                   // GNSS - type of fix (single, RTK-float, RTK-fix).
 //    uint16_t loopTaskStackSize         = 16384;               // Override Arduino-ESP32 weak default (8192). @see processMessagesIn().
-      int64_t  bootTime;                                        // Boot time.
       float    rtcmKbps                  = 0;                   // RTCM kbps (average).
       float    batterySoc                = 0;                   // Battery State Of Charge (SOC).
       float    batteryChangeRate         = 0;                   // Battery charge - rate of change.
@@ -683,7 +677,7 @@ const double   MAD_REJECT_K               = 3.0;        // Reject samples beyond
  * @since  3.3.3 [2026-08-31-03:30pm] New.
  */
 void uptime(char *dest, size_t max_len, bool fractional = true) {
-    int64_t us            = esp_timer_get_time() - bootTime;
+    int64_t us            = esp_timer_get_time();
     int32_t total_seconds = us / 1000000;
     int32_t hours         = total_seconds / 3600;
     int32_t minutes       = (total_seconds / 60) % 60;
@@ -817,7 +811,6 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
     const float     DEF_PRF_LVL_OFF_X       = 0;                // Bubble level X offset when level.                                                - Matching global var: float    prfOffsetXDeg.
     const float     DEF_PRF_LVL_OFF_Y       = 0;                // Bubble level Y offset when level.                                                - Matching global var: float    prfOffsetYDeg.    // Newest pref.
           size_t    remaining               = 0;                // Number of bytes remaining that can be written to char array. 
-          bool      hasKey                  = false;
           DeserializationError ntripError;
     memset(prfNtripCastAttr[3], '\0', NTRIP_CAST_ATTR_LEN);     // Scratch buffer - not used.
 
@@ -1222,9 +1215,6 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             lon = lockedLon;
         }
     }
-
-    // --- Get & smooth IMU gravity values, calculate XY tilt values for bubble UI. ---
-    // imuBubbleXY(bubbleDegX, bubbleDegY);    ToDo: delete.
 }
 
 /**
@@ -2174,7 +2164,7 @@ void initPins() {
  *   GPIO 17 - SDA for I2C1 {PTH} (also default for Serial2 TX).
  *   GPIO 18 - SCL for I2C1 {PTH} (also default for Serial2 RX).
  * 
- * Wire1 is available:
+ * If Wire1 is used:
  *   const uint8_t  I2C1_SDA   = 14;    // Secondary I2C bus - data.
  *   const uint8_t  I2C1_SCL   = 10;    // Secondary I2C bus - clock.
  *   if ((Wire.begin()) && (Wire1.begin(I2C1_SDA,I2C1_SCL))) {
@@ -2193,8 +2183,6 @@ void initPins() {
 void startI2C() {
 
     // --- Local vars. ---
-    const uint8_t  I2C0_SDA   =  6;         // Primary I2C bus - data.
-    const uint8_t  I2C0_SCL   =  7;         // Primary I2C bus - clock.
     const uint16_t RETRY      = 500;        // Try restarting I2C interfaces.
     const uint32_t WIRE_SPEED = 400000;     // I2C Fast mode (4kHz).
 
@@ -2247,9 +2235,9 @@ void startLiPo() {
  * @link   https://github.com/sparkfun/SparkFun_ICM-20948_ArduinoLibrary/blob/main/examples/Arduino/.
  */
 bool startIMU() {
-    imu.begin(Wire);      // Uses second I2C bus: I2C1.
+    imu.begin(Wire);
     if (imu.status != ICM_20948_Stat_Ok) {
-        logPrint("IMU _NOT_ started on Wire1.");
+        logPrint("IMU _NOT_ started on Wire.");
         return false;
     }
     logPrint("IMU started on Wire.");
@@ -2589,7 +2577,7 @@ void startTasks() {
     logPrint("FreeRTOS task \"Build operate data\" started.");
 
     // --- One tenth second interval. ---
-    xTaskCreate(taskEvery100Ms, "Do these every 1/10 second.", 2048, NULL, 2, &taskEvery100MsHandle);
+    xTaskCreate(taskEvery100Ms, "Do these every 1/10 second.", 4096, NULL, 2, &taskEvery100MsHandle);
     logPrint("FreeRTOS task \"Do these every 1/10 second\" started.");
 
     // --- One second interval. ---
