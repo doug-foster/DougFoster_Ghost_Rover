@@ -8,6 +8,7 @@
  * @author D. Foster <doug@dougfoster.me>.
  * @since  3.4.0 [2026-09-19-11:00am] New.
  * @since  3.4.1 [2025-10-26-04:45pm] Cleanup formatting.
+ * @since  3.5.1 [2025-10-31-10:30am] Cleanup vars.
  * @link   http://dougfoster.me.
  */
 
@@ -20,7 +21,6 @@
  */
 
 // --- General. ---
-const SEND_PREFS   = '{"page":"debug","sendPrefs":""}';
 const fileList     = document.querySelector('#file-list');
 const debugChoices = document.querySelectorAll('#debug-choices .choice');
 const btnUnDebug   = document.querySelector('#buttons #unDebug');

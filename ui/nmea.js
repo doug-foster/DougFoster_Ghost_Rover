@@ -18,6 +18,7 @@
  * @since  3.2.1  [2026-07-26-02:30pm] Update timestamp format.
  * @since  3.4.0  [2026-09-19-11:30am] Remove update() and const SEND_PREFS.
  * @since  3.4.1  [2025-10-26-04:45pm] Cleanup formatting.
+ * @since  3.5.1  [2025-10-31-10:30am] Cleanup vars.
  * @link   http://dougfoster.me.
  */
 
@@ -35,7 +36,6 @@
  */
 
 const nmeaDisplayArea        = document.querySelector('#nmeaOutput #nmeaDisplay');
-const nmeaMessageLine        = document.querySelector('#nmeaOutput #nmeaMessage')
 const nmeaSentencesToDisplay = 80;
 let   nmeaSentenceCount      = 0;
 let   deltaMs                = 0;

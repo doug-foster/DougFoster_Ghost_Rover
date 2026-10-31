@@ -45,6 +45,7 @@
  * @since  3.4.2  [2026-10-04-05:15pm] Changed LLH, UTM, ECEF to 1 mm precision in webSocketRcvMessage().
  * @since  3.4.2  [2026-10-06-04:45pm] Add logic to flip btnNtripCasterFiller & btnNtripCaster visibility in webSocketRcvMessage().
  * @since  3.4.3  [2026-10-16-09:15am] Add detailed numbers & correct EPSG codes.
+ * @since  3.5.1  [2025-10-31-10:30am] Cleanup vars.
  * @link   http://dougfoster.me.
  */
 
@@ -952,15 +953,6 @@ function toJson(which) {
  * @see    webSocketRcvMessage().
  */
 function toDMS(value, type, { hemisphere = false, secDecimals = 5 } = {}) {
-
-    // --- Error check. ---
-    const isLat = type === "lat";
-    // if (!isLat && type !== "lon") throw new Error('type must be "lat" or "lon"');
-    // const max = isLat ? 90 : 180;
-    // if (!Number.isFinite(value) || Math.abs(value) > max) {
-    //     dummy = 1;
-    //     // throw new RangeError(`${type} must be between -${max} and ${max}`);
-    // }
 
     // --- Local vars. ---
     const scale = 10 ** secDecimals;

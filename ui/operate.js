@@ -36,6 +36,7 @@
  * @since  3.4.3  [2026-10-16-09:15am] Add detailed numbers & correct EPSG codes.
  * @since  3.4.3  [2026-10-20-10:00am] Add bubble level.
  * @since  3.5.0  [2026-10-29-06:30pm] Aded radial clamp.
+ * @since  3.5.1  [2025-10-31-10:30am] Cleanup vars.
  * @link   http://dougfoster.me.
  */
 
@@ -101,13 +102,11 @@ const btnPositionIcon              = document.querySelector('.buttons #position 
 const btnPositionLabel             = document.querySelector('.buttons #position .label');
 const btnLockUnlock                = document.querySelector('.buttons #lock-unlock');
 const btnLockUnlockLabel           = document.querySelector('.buttons #lock-unlock .label');
-const btns                         = document.querySelectorAll('.btn');
 const lockIcons                    = document.querySelectorAll('.icon .lock');
 
 // --- Section: Comm. ---
 const commRtcm                     = document.querySelector('.info #rtcm');
 const commBt                       = document.querySelector('.info #bt');
-const rtcmSource                   = document.querySelector('.info #rtcm-source');
 
 // --- Section: Battery. ---
 const batteryStatus                = document.querySelector('.info #battery-status');
@@ -117,7 +116,6 @@ const batteryBars                  = document.querySelectorAll('.info #battery .
 const statusUnitDisplayId          = document.querySelector('#unit-display');
 const stuffStatus                  = document.querySelector('.status #status-stuff');
 const btnStatus                    = document.querySelector('.status #status');
-const tblStatus                    = document.querySelector('.status table');
 const statusUptimeOperateId        = document.querySelector('.status #uptime-operate');
 const statusUptimeRoverId          = document.querySelector('.status #uptime-rover');
 const statusSolutionIntervalId     = document.querySelector('.status #solution-interval');
@@ -150,11 +148,6 @@ let heightElip = 0;
 let heightOrth = 0;
 let latitude   = 0;
 let longitude  = 0;
-let GnssPos    = {
-    lat:  0,
-    lon:  0,
-    hgtE: 0,
-};
 
 // --- GNSS coordinate conversions. ---
 const WGS84_A  = 6378137.0;                 // Semi-major axis (m).
@@ -174,6 +167,8 @@ let wsWindowStartTime              = 0;
 let wsWindowInterval               = 0;
 let convert                        = 1;             // Conversion for default units preference (which is 'meter');
 let isBubbleRunning = false;                        // Test bubble() function.
+let GnssPosECEF;
+let GnssPosUTM;
 
 /**
  * =========================================================================
@@ -452,7 +447,7 @@ function rad2deg(r) {
  * @param  Number latDeg Lattitude in degrees.
  * @param  Number lonDeg Longitude in degrees.
  * @param  Number heightM Ellipsoidal height in meters.
- * @return Number x, y, z ECEF X,Y, & Z positions. (GnssPos.x, GnssPos.y, Gnss.z)
+ * @return Number x, y, z ECEF X,Y, & Z positions.
  * @since  3.3.4  [2026-09-21-03:00pm] New.
  * @see    webSocketRcvMessage() in global.js.
  */

@@ -32,6 +32,7 @@
  * @since  3.4.1  [2025-10-26-04:45pm] Cleanup formatting.
  * @since  3.4.1  [2026-09-27-10:00pm] Added caster.crs.
  * @since  3.5.0  [2026-10-28-04:30pm] Added IMU calibration.
+ * @since  3.5.1  [2025-10-31-10:30am] Cleanup vars.
  * @link   http://dougfoster.me.
  */
 
@@ -64,7 +65,6 @@ const resetConfigBtn        = document.querySelector('#config #reset-config-btn'
 const updateCasterBtn       = document.querySelector('#config #ntrip-update-attributes');
 const rtcmInBtns            = document.querySelector('#config #rtcm-in-buttons');
 const systemOptionsMessages = document.querySelector('#config #message-system-options');
-const formConfig            = document.querySelector('form#config');
 const jsConsoleMessages     = document.querySelector('#js-console-messages input');
 const ghostRoverHeight      = document.querySelector('#config #ghostrover-height');
 const poleSelect            = document.querySelector('#config #pole-select');
@@ -76,7 +76,6 @@ const poleSelectXYZ2        = document.querySelector('#config #pole-select #xyzP
 const poleSelectXYZ3        = document.querySelector('#config #pole-select #xyzPole-3');
 const poleHeightPreset      = document.querySelector('#config #pole-height-preset');
 const poleHeight            = document.querySelector('#config #pole-height');
-const instrumentHeight      = document.querySelector('#config #instrument-height');
 const instrumentHeightMm    = document.querySelector('#config #instrument-height-mm');
 const instrumentHeightIn    = document.querySelector('#config #instrument-height-in');
 const heightUnitsVal        = document.querySelector('#config #height-units');
