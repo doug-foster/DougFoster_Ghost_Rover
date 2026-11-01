@@ -1,0 +1,166 @@
+diff --git a/DougFoster_Ghost_Rover.ino b/DougFoster_Ghost_Rover.ino
+index 3610500..f161d3e 100644
+--- a/DougFoster_Ghost_Rover.ino
++++ b/DougFoster_Ghost_Rover.ino
+@@ -52,6 +52,7 @@
+  * @since  3.4.2 [2026-10-05-01:45am] Add general function stringToHex().
+  * @since  3.5.0 [2026-10-20-09:00pm] Add IMU functionality - prfOffsetXDeg, prfOffsetYDeg, ... .
+  * @since  3.5.1 [2026-10-31-10:00am] Cleanup.
++ * @since  3.5.2 [2026-10-31-05:15pm] Add DEBUG_IMU I2C health report (IMU ok/noData/busErr, buildOperData() timing). Diagnostics only - no change to operation.
+  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover.
+  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
+  * @link   http://dougfoster.me.
+@@ -312,6 +313,7 @@
+  * @since 3.4.1  [2026-09-29-05:00pm] Add taskEvery5000MsHandle(), EVERY_5000MS_INTERVAL.
+  * @since 3.4.3  [2026-10-20-09:00pm] Add prfOffsetXDeg & prfOffsetYDeg.
+  * @since 3.5.0  [2026-10-25-11:00am] Move buildOperDataInterval calculation from global var to startTasks().
++ * @since 3.5.2  [2026-10-31-05:15pm] Add imuStat* & gnssBuild* I2C health counters.
+  */
+ 
+ // --- Increase default ESP32 stack size from 8KB to 16KB.
+@@ -412,6 +414,16 @@ const float   BUBBLE_MAX_RADIUS     = 10.2f;                    // Bubble units:
+       double   imuWelfordMeanY    = 0;       // Welford running mean - raw Y tilt (deg), calibration only.
+       double   imuWelfordM2Y      = 0;       // Welford running sum of squared deviations (Y).
+ 
++// --- I2C health counters (DEBUG_IMU reports & zeroes them once per second). ---
++// Written by one FreeRTOS task, read & zeroed by another, no lock: 32-bit = atomic on ESP32, a report may be off by one count. Fine for diagnostics.
++      uint32_t imuStatOk          = 0;       // IMU: dataReady() true, new sample read.
++      uint32_t imuStatNoData      = 0;       // IMU: dataReady() false & status "no data" - chip answered, no new sample yet (normal).
++      uint32_t imuStatBusErr      = 0;       // IMU: dataReady() false & any other status - I2C or library error (NOT normal).
++      int      imuStatLastErr     = 0;       // IMU: last ICM_20948_Status_e that was a bus error.
++      uint32_t gnssBuildCount     = 0;       // GNSS: buildOperData() calls.
++      uint32_t gnssBuildSumUs     = 0;       // GNSS: total time spent in buildOperData() (microseconds).
++      uint32_t gnssBuildMaxUs     = 0;       // GNSS: longest single buildOperData() call (microseconds).
++
+ // --- Operation. ---
+ enum CommandIndex {                                             //  Readable index for command array.
+     TEST_RAD = 0,                                               //  0.
+@@ -467,7 +479,7 @@ const bool    RO_MODE                    = true;                // Open preferen
+ const char    LOG_FILE[]                 = "/log.txt";          // Log file.
+ const uint8_t MAJOR_VERSION              = 3;                   // Current major build version (@see buildInfo()).
+ const uint8_t MINOR_VERSION              = 5;                   // Current minor build version (@see buildInfo()).
+-const uint8_t PATCH_VERSION              = 1;                   // Current patch build version (@see buildInfo()).
++const uint8_t PATCH_VERSION              = 2;                   // Current patch build version (@see buildInfo()).
+ const uint8_t MIN_SATELLITE_THRESHHOLD   = 2;                   // Minimum SIV for reliable coordinate information.      
+       char     operMode[2]               = {'\0'};              // Operation mode (r=rover, b=base).
+ //    char     debugTemp[250]            = {'\0'};              // Various debug scenarios. Activate when needed.
+@@ -1783,6 +1795,48 @@ void welfordUpdate(double &mean, double &M2, uint32_t &count, double newValue) {
+     M2 += delta * delta2;
+ }
+ 
++/**
++ * -------------------------------------------------------------------------
++ *  DEBUG_IMU: once per second, report I2C health.
++ * -------------------------------------------------------------------------
++ *
++ * Diagnostics only - does not change operation. The IMU, ZED GNSS & LiPo gauge share one I2C bus (Wire) across FreeRTOS tasks.
++ *   ok     = IMU samples read.
++ *   noData = IMU answered "no new sample yet" (normal).
++ *   busErr = IMU I2C or library error (NOT normal: wiring, noise, or another task using the bus at the same moment).
++ *   build  = buildOperData() call count, average & longest duration (GNSS I2C polling + processNMEA() callbacks, which also write TCP & SD).
++ * Called from imuBubbleXY().
++ *
++ * @return void  No output is returned.
++ * @since  3.5.2 [2026-10-31-05:15pm] New.
++ * @see    imuFilterGravity(), imuBubbleXY(), taskBuildOperData().
++ */
++void imuDebugReport() {
++    static uint32_t lastReportMs = 0;
++    if (!commandFlag[DEBUG_IMU] || ((millis() - lastReportMs) < 1000)) {
++        return;
++    }
++    lastReportMs = millis();
++    if (!imuReadyFlag) {
++        logPrint("IMU not ready: startIMU() failed at boot (see boot log). No IMU samples are read.");
++        return;
++    }
++    char line[160];
++    const uint32_t builds = gnssBuildCount;
++    snprintf(line, sizeof(line), "I2C health/s: IMU ok=%lu noData=%lu busErr=%lu | buildOperData x%lu avg=%.1f max=%.1f ms",
++        (unsigned long)imuStatOk, (unsigned long)imuStatNoData, (unsigned long)imuStatBusErr,
++        (unsigned long)builds,
++        (builds > 0) ? ((double)gnssBuildSumUs / builds / 1000.0) : 0.0,
++        (double)gnssBuildMaxUs / 1000.0);
++    logPrint(line);
++    if (imuStatBusErr > 0) {
++        snprintf(line, sizeof(line), "I2C health/s: last IMU error = %s", imu.statusString((ICM_20948_Status_e)imuStatLastErr));
++        logPrint(line);
++    }
++    imuStatOk = 0; imuStatNoData = 0; imuStatBusErr = 0;
++    gnssBuildCount = 0; gnssBuildSumUs = 0; gnssBuildMaxUs = 0;
++}
++
+ /**
+  * -------------------------------------------------------------------------
+  *  Use seeded, exponential moving average to smooth IMU gravity values.
+@@ -1791,11 +1845,19 @@ void welfordUpdate(double &mean, double &M2, uint32_t &count, double newValue) {
+  * @return void   No output is returned.
+  * @since  3.5.0 [2026-10-22-11:30am] New.
+  * @since  3.5.0 [2026-10-28-03:15pm] Switched x & y sources.
++ * @since  3.5.2 [2026-10-31-05:15pm] Count ok / noData / busErr for imuDebugReport(). No change to operation.
+  */
+ bool imuFilterGravity() {
+     if (!imu.dataReady()) {                   // New sample ready? If not, returns (previously filtered values are used).
++        if (imu.status == ICM_20948_Stat_NoData) {
++            imuStatNoData++;                  // Chip answered: no new sample yet (normal).
++        } else {
++            imuStatBusErr++;                  // I2C or library error (not normal).
++            imuStatLastErr = (int)imu.status;
++        }
+         return false;
+     }
++    imuStatOk++;
+ 
+     // --- Get latest acc (gravity) values. ---
+     imu.getAGMT();                            
+@@ -1857,8 +1919,10 @@ void calcRawTiltDeg(float &tiltXDeg, float &tiltYDeg) {
+  * @return bool   True if new values, false if not.
+  * @since  3.5.0 [2026-08-31-03:30pm] New.
+  * @since  3.5.0 [2026-10-28-03:15pm] Changed x & y to negative values.
++ * @since  3.5.2 [2026-10-31-05:15pm] Call imuDebugReport().
+  */
+ bool imuBubbleXY(float &x, float &y) {
++  imuDebugReport();     // DEBUG_IMU only: once per second.
+   if (!imuReadyFlag) {
+     return false;       // IMU is not ready.
+   }
+@@ -2231,13 +2295,15 @@ void startLiPo() {
+  *
+  * @return bool  True if started, false if not.
+  * @since  3.4.3  [2026-10-20-05:30pm] New.
++ * @since  3.5.2  [2026-10-31-05:15pm] Log the library status when the IMU does not start.
+  * @see    setup().
+  * @link   https://github.com/sparkfun/SparkFun_ICM-20948_ArduinoLibrary/blob/main/examples/Arduino/.
+  */
+ bool startIMU() {
+     imu.begin(Wire);
+     if (imu.status != ICM_20948_Stat_Ok) {
+-        logPrint("IMU _NOT_ started on Wire.");
++        snprintf(outputBuffer, sizeof(outputBuffer), "IMU _NOT_ started on Wire. Status: %s.", imu.statusString());
++        logPrint(outputBuffer);
+         return false;
+     }
+     logPrint("IMU started on Wire.");
+@@ -2780,6 +2846,7 @@ void taskRtcmRelay(void *pvParameters) {
+  * @return void   No output is returned (infinite loop).
+  * @since  3.3.2 [2026-08-30-03:30pm] New.
+  * @since  3.5.0 [2026-10-29-11:15am] Moved imuBubbleXY() from taskBuildOperData() to buildOperData().
++ * @since  3.5.2 [2026-10-31-05:15pm] Time each buildOperData() call for imuDebugReport(). No change to operation.
+  * @see    startTasks().
+  * @see    Global vars: FreeRTOS tasks.
+  * @see    buildOperData().
+@@ -2787,7 +2854,14 @@ void taskRtcmRelay(void *pvParameters) {
+  */
+ void taskBuildOperData(void * pvParameters) {
+     while(true) {
++        const int64_t startUs = esp_timer_get_time();           // Diagnostics: how long does one GNSS build take?
+         buildOperData();
++        const uint32_t elapsedUs = (uint32_t)(esp_timer_get_time() - startUs);
++        gnssBuildCount++;
++        gnssBuildSumUs += elapsedUs;
++        if (elapsedUs > gnssBuildMaxUs) {
++            gnssBuildMaxUs = elapsedUs;
++        }
+         browserUpdatePendingFlag = true;
+         vTaskDelay(buildOperDataInterval);
+     }
