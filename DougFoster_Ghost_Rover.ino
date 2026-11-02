@@ -71,6 +71,7 @@
  * @since  3.5.18 [2026-11-02-01:35am] logPrint(): mutex (logMutex) so tasks do not interleave Serial prints & SD log appends.
  * @since  3.5.19 [2026-11-02-03:15pm] Add startTask(): replaces 6 xTaskCreate() + logPrint() pairs in startTasks(); logs a failed task start. Task names shortened to 15 characters or less.
  * @since  3.5.20 [2026-11-02-03:50pm] buildOperData(): fix 32-bit int overflow in prfLckAvgInt * 1000000 (lock averaging ended at once for intervals over 2147 secs).
+ * @since  3.5.21 [2026-11-02-04:05pm] imuFilterGravity(): ignore a failed getAGMT() read (imu.status) or an all-zero sample; both count toward the imuSelectBank0() recovery.
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
  * @link   http://dougfoster.me.
@@ -487,7 +488,7 @@ const bool    RO_MODE                    = true;                // Open preferen
 const char    LOG_FILE[]                 = "/log.txt";          // Log file.
 const uint8_t MAJOR_VERSION              = 3;                   // Current major build version (@see buildInfo()).
 const uint8_t MINOR_VERSION              = 5;                   // Current minor build version (@see buildInfo()).
-const uint8_t PATCH_VERSION              = 20;                   // Current patch build version (@see buildInfo()).
+const uint8_t PATCH_VERSION              = 21;                   // Current patch build version (@see buildInfo()).
 const uint8_t MIN_SATELLITE_THRESHHOLD   = 2;                   // Minimum SIV for reliable coordinate information.      
       char     operMode[2]               = {'\0'};              // Operation mode (r=rover, b=base).
 //    char     debugTemp[250]            = {'\0'};              // Various debug scenarios. Activate when needed.
@@ -1903,15 +1904,31 @@ void imuSelectBank0() {
  *  Use seeded, exponential moving average to smooth IMU gravity values.
  * -------------------------------------------------------------------------
  *
- * @return void   No output is returned.
+ * A sample is used only if dataReady(), getAGMT() succeeds & the sample is not all zero (impossible with real gravity plus noise).
+ * Otherwise the previously filtered values stay, & imuSelectBank0() is tried if there has been no good sample for 500 ms.
+ *
+ * @return bool   True if a new good sample was filtered, false if not.
  * @since  3.5.0 [2026-10-22-11:30am] New.
  * @since  3.5.0 [2026-10-28-03:15pm] Switched x & y sources.
  * @since  3.5.2 [2026-11-01-08:45pm] Call imuSelectBank0() when no new sample for 500 ms.
+ * @since  3.5.21 [2026-11-02-04:05pm] Check imu.status after getAGMT() & reject all-zero samples (bad read) instead of filtering them.
  */
 bool imuFilterGravity() {
     static uint32_t lastSampleMs   = 0;       // millis() of the last new sample.
     static uint32_t lastSelectMs   = 0;       // millis() of the last imuSelectBank0().
-    if (!imu.dataReady()) {                   // New sample ready? If not, returns (previously filtered values are used).
+    // --- Get a new sample, if ready. ---
+    float ax = 0.0f, ay = 0.0f, az = 0.0f;
+    bool  goodSample = false;
+    if (imu.dataReady()) {                    // New sample ready? If not, returns (previously filtered values are used).
+        imu.getAGMT();                    // Updates the library's agmt struct; the result is in imu.status.
+        if (imu.status == ICM_20948_Stat_Ok) {          // A failed read leaves stale values in agmt.
+            ay = imu.accX() / 1000.0f;        // Returns milli-g, divide by 1000 to get g.
+            ax = imu.accY() / 1000.0f;
+            az = imu.accZ() / 1000.0f;
+            goodSample = !(ax == 0.0f && ay == 0.0f && az == 0.0f);   // All zero = bad read, never real gravity.
+        }
+    }
+    if (!goodSample) {
         const uint32_t nowMs = millis();
         if ((nowMs - lastSampleMs) > 500 && (nowMs - lastSelectMs) > 500) {   // Normally every poll has a new sample.
             lastSelectMs = nowMs;
@@ -1920,12 +1937,6 @@ bool imuFilterGravity() {
         return false;
     }
     lastSampleMs = millis();
-
-    // --- Get latest acc (gravity) values. ---
-    imu.getAGMT();                            
-    const float ay = imu.accX() / 1000.0f;    // Returns milli-g, divide by 1000 to get g.
-    const float ax = imu.accY() / 1000.0f;
-    const float az = imu.accZ() / 1000.0f;
 
     // --- First pass, seed filter with raw readings. --
     // At boot, prevents UI bubble from swooping in from the UI center (EMA would start from 0).
