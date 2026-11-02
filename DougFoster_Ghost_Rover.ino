@@ -57,6 +57,8 @@
  * @since  3.5.4 [2026-11-01-10:00pm] Validate setPrefs values before applying/saving them (setPrefsValid()).
  * @since  3.5.5 [2026-11-01-10:15pm] startOutputs(): append all startup messages to startOutputsResults[] with strlcat() (the boot delay message overwrote the Serial USB message).
  * @since  3.5.6 [2026-11-01-10:30pm] prefUtility(): close NVS namespace in every path, defaults for missing/out-of-range prefs, .c_str() for printed Strings.
+ * @since  3.5.7 [2026-11-01-10:30pm] startI2C(): retry in a loop instead of recursion; log "400kHz" (was "4kHz").
+ * @since  3.5.8 [2026-11-01-10:45pm] startAndConfigGNSS(): reset, delay, then configure; retry setAutoPVT(); check & log failed config steps.
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
  * @link   http://dougfoster.me.
@@ -472,7 +474,7 @@ const bool    RO_MODE                    = true;                // Open preferen
 const char    LOG_FILE[]                 = "/log.txt";          // Log file.
 const uint8_t MAJOR_VERSION              = 3;                   // Current major build version (@see buildInfo()).
 const uint8_t MINOR_VERSION              = 5;                   // Current minor build version (@see buildInfo()).
-const uint8_t PATCH_VERSION              = 6;                   // Current patch build version (@see buildInfo()).
+const uint8_t PATCH_VERSION              = 8;                   // Current patch build version (@see buildInfo()).
 const uint8_t MIN_SATELLITE_THRESHHOLD   = 2;                   // Minimum SIV for reliable coordinate information.      
       char     operMode[2]               = {'\0'};              // Operation mode (r=rover, b=base).
 //    char     debugTemp[250]            = {'\0'};              // Various debug scenarios. Activate when needed.
@@ -2028,7 +2030,7 @@ void startOutputs() {
     Serial.begin(SERIAL_USB_SPEED);
     Serial.setTxTimeoutMs(0);                       // Set Serial to non-blocking if USB is not connected.
     serialState[0] = 'u';   // USB interface is up.
-    snprintf(startOutputsResults, sizeof(startOutputsResults), "Serial USB started @ %lu.\n", (unsigned long)SERIAL_USB_SPEED);
+    snprintf(startOutputsResults, sizeof(startOutputsResults), "Serial USB started @ %lubps.\n", (unsigned long)SERIAL_USB_SPEED);
 
 
     // --- Blocking delay, allow RTK-SMA to get started. ---
@@ -2174,7 +2176,7 @@ void startSerial() {
     // -- RTCM out is always over Serial2 (to ZED UART2).
     Serial2.begin(SERIAL2_SPEED, SERIAL_8N1, ZED_RX2, ZED_TX2);     // UART2 object. RX, TX.  
     serialState[3] = 'u';
-    snprintf(outputBuffer, sizeof(outputBuffer), "Serial2 started @ %i bps.", SERIAL2_SPEED);
+    snprintf(outputBuffer, sizeof(outputBuffer), "Serial2 started @ %ibps.", SERIAL2_SPEED);
     logPrint(outputBuffer);
     
     // --- Display RTCM source & output. ---
@@ -2224,6 +2226,7 @@ void initPins() {
  * @since  3.0.10 [2026-01-07-10:00am] Local vars.
  * @since  3.3.1  [2026-08-17-02:45pm] Changed from Serial.print() to logPrint().
  * @since  3.3.3  [2026-08-30-05:15pm] Removed Wire1.
+ * @since  3.5.7  [2026-11-01-10:30pm] Retry in a loop instead of recursion; fixed speed text (400kHz).
  * @see    setup().
  * @link   https://github.com/espressif/arduino-esp32/blob/master/libraries/Wire/src/Wire.h.
  * @link   https://docs.arduino.cc/language-reference/en/functions/communication/wire/. 
@@ -2232,23 +2235,21 @@ void startI2C() {
 
     // --- Local vars. ---
     const uint16_t RETRY      = 500;        // Try restarting I2C interfaces.
-    const uint32_t WIRE_SPEED = 400000;     // I2C Fast mode (4kHz).
+    const uint32_t WIRE_SPEED = 400000;     // I2C Fast mode (400kHz).
 
     // --- Start interfaces. ---
-    if (Wire.begin()) {
-        Wire.setClock(WIRE_SPEED);
-        logPrint("Wire started @ 4kHz.");
-        ws2812LedColor = WHITE;
-        ws2812LedBlink = false;
-        statusLedOn();                      // FreeRTOS task taskLoopStatusLed() has not started yet.
-    } else {
+    while (!Wire.begin()) {
         ws2812LedColor = RED;
         ws2812LedBlink = true;
         statusLedOn();                      // FreeRTOS task taskLoopStatusLed() has not started yet.
         logPrint("Wire failed to start. Retrying.");
         delay(RETRY);
-        startI2C();
-    };
+    }
+    Wire.setClock(WIRE_SPEED);
+    logPrint("Wire started @ 400kHz.");
+    ws2812LedColor = WHITE;
+    ws2812LedBlink = false;
+    statusLedOn();                          // FreeRTOS task taskLoopStatusLed() has not started yet.
 }
 
 /**
@@ -2475,6 +2476,7 @@ void startWebSocketServer() {
  * @since  3.3.1  [2026-08-17-02:45pm] Changed from Serial.print() to logPrint().
  * @since  3.3.1  [2026-08-29-05:45pm] Added UBLOX_CFG_MSGOUT_UBX_NAV_HPPOSLLH_I2C.
  * @since  3.3.3  [2026-09-01-09:00am] Add roverGNSS.setAutoPVT(true).
+ * @since  3.5.8  [2026-11-01-10:45pm] Reset, delay, then configure (setAutoPVT() was sent during the reset). Retry setAutoPVT(), check & log failed steps, continue.
  * @see    Global vars: GNSS, prefUtility(), startSerial(), beginI2C().
  * @link   https://github.com/sparkfun/SparkFun_u-blox_GNSS_v3/blob/main/examples/Example1_PositionVelocityTime/Example1_PositionVelocityTime.ino.
  * @link   https://github.com/sparkfun/SparkFun_u-blox_GNSS_v3/blob/main/src/u-blox_config_keys.h.
@@ -2488,6 +2490,12 @@ void startWebSocketServer() {
  */
 void startAndConfigGNSS() {
 
+    // --- Local vars. ---
+    const uint16_t RESET_DELAY = 1000;                              // ms - allow the module to complete the reset (actual time unknown).
+    const uint8_t  TRIES       = 5;                                 // setAutoPVT() attempts.
+    const uint16_t TRY_DELAY   = 500;                               // ms between attempts.
+          bool     autoPvtSet  = false;
+
     // --- Start GNSS interface on I2C-1. ---
     if (roverGNSS.begin() == false) {
         ws2812LedColor = RED;
@@ -2495,25 +2503,42 @@ void startAndConfigGNSS() {
         statusLedOn();                                              // FreeRTOS task taskLoopStatusLed() has not started yet.
         logPrint("Start roverGNSS failed. Freezing ...");           // Something is wrong, freeze.
         while (true) {};                                            // Freeze.
-    } else {
+    }
+    logPrint("RoverGNSS started.");
 
-        // -- Software reset. --
-        roverGNSS.softwareResetGNSSOnly();
-        roverGNSS.setAutoPVT(true);                                 // Create perodic output. Subsequent PVT calls will not block.
-        logPrint("RoverGNSS started.\nEnumerating satellite constellations.");
-        delay(1000); // Short delay to allow the module to complete the reset process.
+    // --- Software reset, then wait. The reset is not acknowledged, so commands sent during it can be lost. ---
+    roverGNSS.softwareResetGNSSOnly();
+    delay(RESET_DELAY);
+    logPrint("Enumerating satellite constellations.");
 
-        // uint16_t    prfGnsMsrInt;  // ZED: MEASURE every Y (e.g. 100) ms.
-        // uint8_t     prfGnsNavRat;  // ZED: OUTPUT every X (e.g. 5) MEASURE intervals every (e.g. 5*100=500) ms.
-        // roverGNSS.setNavigationFrequency(2) will produce 1 solution every 500ms, but only uses 2 (not 5) measurements per second.
-        roverGNSS.setNavigationRate(prfGnsNavRat, VAL_LAYER_RAM);
-        roverGNSS.setMeasurementRate(prfGnsMsrInt, VAL_LAYER_RAM);
-        snprintf(outputBuffer, sizeof(outputBuffer), "Solution output every (%u * %u) ms.", prfGnsNavRat, prfGnsMsrInt);
-        logPrint(outputBuffer);
+    // --- Create perodic output. Subsequent PVT calls will not block. An acknowledgement means the module is answering. ---
+    for (uint8_t i = 0; (i < TRIES) && !autoPvtSet; i++) {
+        autoPvtSet = roverGNSS.setAutoPVT(true);
+        if (!autoPvtSet && (i < TRIES - 1)) {
+            delay(TRY_DELAY);
+        }
+    }
+    if (!autoPvtSet) {
+        logPrint("GNSS config step setAutoPVT failed.");
     }
 
+    // --- Rates. ---
+    // uint16_t    prfGnsMsrInt;  // ZED: MEASURE every Y (e.g. 100) ms.
+    // uint8_t     prfGnsNavRat;  // ZED: OUTPUT every X (e.g. 5) MEASURE intervals every (e.g. 5*100=500) ms.
+    // roverGNSS.setNavigationFrequency(2) will produce 1 solution every 500ms, but only uses 2 (not 5) measurements per second.
+    if (!roverGNSS.setNavigationRate(prfGnsNavRat, VAL_LAYER_RAM)) {
+        logPrint("GNSS config step setNavigationRate failed.");
+    }
+    if (!roverGNSS.setMeasurementRate(prfGnsMsrInt, VAL_LAYER_RAM)) {
+        logPrint("GNSS config step setMeasurementRate failed.");
+    }
+    snprintf(outputBuffer, sizeof(outputBuffer), "Solution output every (%u * %u) ms.", prfGnsNavRat, prfGnsMsrInt);
+    logPrint(outputBuffer);
+
     // --- New config template. ---
-    roverGNSS.newCfgValset(VAL_LAYER_RAM);                          // Save only to RAM.
+    if (!roverGNSS.newCfgValset(VAL_LAYER_RAM)) {                   // Save only to RAM.
+        logPrint("GNSS config step newCfgValset failed.");
+    }
 
     // --- Enable high precision mode. ---
     roverGNSS.addCfgValset(UBLOX_CFG_NMEA_HIGHPREC,          1);    // NMEA - High precision (7 instead of 5 decimal places for lat/lon in NMEA sentences).
@@ -2541,7 +2566,7 @@ void startAndConfigGNSS() {
     roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_GST_I2C, 3);    // I2C messages - Enable GSA to 1 per 3 solutions  (default is 1 per 1 solution).
                                                                     // ZDA & GNS sentences are off by default.
     // --- Send the config. ---
-    roverGNSS.sendCfgValset() ? logPrint("roverGNSS configured using valset keys.") : logPrint("roverGNSS config failed!");
+    roverGNSS.sendCfgValset() ? logPrint("roverGNSS configured using valset keys.") : logPrint("GNSS config step sendCfgValset failed.");
 
     // --- Not used. ---
     // roverGNSS.newCfgValset(VAL_LAYER_RAM_BBR);
