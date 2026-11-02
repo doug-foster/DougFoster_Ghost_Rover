@@ -661,6 +661,7 @@ const double   MAD_REJECT_K               = 3.0;        // Reject samples beyond
  * @see   madIsOutlier()          = Lock averaging: MAD-based outlier test.
  * @see   bufferAddPair()         - Lock averaging: Append a sample pair into two parallel circular buffers sharing one index.
  * @see   welfordUpdate()         - Lock averaging: Welford's online algorithm.
+ * @see   imuSelectBank0()        - Write register bank 0 to the IMU chip.
  * @see   imuFilterGravity()      - Use seeded, exponential moving average to smooth IMU gravity values.
  * @see   calcRawTiltDeg()        - Calculate raw XY tilt (convert gravity into angles) in degrees.
  * @see   imuBubbleXY()           - Get & smooth IMU gravity values, calculate XY tilt values for bubble UI.
