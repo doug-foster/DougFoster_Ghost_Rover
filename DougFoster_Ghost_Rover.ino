@@ -70,6 +70,7 @@
  * @since  3.5.17 [2026-11-02-01:15am] Docs only: index entries for imuSelectBank0(), isSafeFileName() & setPrefsValid().
  * @since  3.5.18 [2026-11-02-01:35am] logPrint(): mutex (logMutex) so tasks do not interleave Serial prints & SD log appends.
  * @since  3.5.19 [2026-11-02-03:15pm] Add startTask(): replaces 6 xTaskCreate() + logPrint() pairs in startTasks(); logs a failed task start. Task names shortened to 15 characters or less.
+ * @since  3.5.20 [2026-11-02-03:50pm] buildOperData(): fix 32-bit int overflow in prfLckAvgInt * 1000000 (lock averaging ended at once for intervals over 2147 secs).
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
  * @link   http://dougfoster.me.
@@ -486,7 +487,7 @@ const bool    RO_MODE                    = true;                // Open preferen
 const char    LOG_FILE[]                 = "/log.txt";          // Log file.
 const uint8_t MAJOR_VERSION              = 3;                   // Current major build version (@see buildInfo()).
 const uint8_t MINOR_VERSION              = 5;                   // Current minor build version (@see buildInfo()).
-const uint8_t PATCH_VERSION              = 19;                   // Current patch build version (@see buildInfo()).
+const uint8_t PATCH_VERSION              = 20;                   // Current patch build version (@see buildInfo()).
 const uint8_t MIN_SATELLITE_THRESHHOLD   = 2;                   // Minimum SIV for reliable coordinate information.      
       char     operMode[2]               = {'\0'};              // Operation mode (r=rover, b=base).
 //    char     debugTemp[250]            = {'\0'};              // Various debug scenarios. Activate when needed.
@@ -1172,6 +1173,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
  * @since  3.4.1  [2026-09-29-05:00pm] Moved lipo queries to FreeRTOS task taskEvery5000Ms().
  * @since  3.5.0  [2026-10-29-11:15am] Moved imuBubbleXY() from taskBuildOperData() to buildOperData().
  * @since  3.5.0  [2026-10-29-11:30am] Return if not "operate" page.
+ * @since  3.5.20 [2026-11-02-03:50pm] Lock averaging: 64-bit microsecond compare (prfLckAvgInt * 1000000LL), the 32-bit int product overflowed above 2147 secs.
  * @see    Global vars: WebSockets, setup().
  */
  void buildOperData() {
@@ -1255,7 +1257,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
                 welfordUpdate(heightWelfordMeanGeoidSep, heightWelfordM2GeoidSep, heightWelfordCountGeoidSep, geoidSepSample);
             }
 
-            if ((esp_timer_get_time() - heightLockAveragingStart) >= prfLckAvgInt * 1000000) {
+            if ((esp_timer_get_time() - heightLockAveragingStart) >= prfLckAvgInt * 1000000LL) {
                 lockedHeightOrtho       = heightWelfordMeanOrtho;
                 lockedGeoidSep          = heightWelfordMeanGeoidSep;
                 heightLockAveragingFlag = false;
@@ -1290,7 +1292,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
                 welfordUpdate(positionWelfordMeanLon, positionWelfordM2Lon, positionWelfordCountLon, lon);
             }
 
-            if ((esp_timer_get_time() - positionLockAveragingStart) >= prfLckAvgInt * 1000000) {
+            if ((esp_timer_get_time() - positionLockAveragingStart) >= prfLckAvgInt * 1000000LL) {
                 lockedLat                 = positionWelfordMeanLat;
                 lockedLon                 = positionWelfordMeanLon;
                 positionLockAveragingFlag = false;
