@@ -56,6 +56,7 @@
  * @since  3.5.3 [2026-11-01-09:30pm] Clear calibrateImuFlag when a WebSocket client disconnects (page left, reloaded or closed).
  * @since  3.5.4 [2026-11-01-10:00pm] Validate setPrefs values before applying/saving them (setPrefsValid()).
  * @since  3.5.5 [2026-11-01-10:15pm] startOutputs(): append all startup messages to startOutputsResults[] with strlcat() (the boot delay message overwrote the Serial USB message).
+ * @since  3.5.6 [2026-11-01-10:30pm] prefUtility(): close NVS namespace in every path, defaults for missing/out-of-range prefs, .c_str() for printed Strings.
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
  * @link   http://dougfoster.me.
@@ -471,7 +472,7 @@ const bool    RO_MODE                    = true;                // Open preferen
 const char    LOG_FILE[]                 = "/log.txt";          // Log file.
 const uint8_t MAJOR_VERSION              = 3;                   // Current major build version (@see buildInfo()).
 const uint8_t MINOR_VERSION              = 5;                   // Current minor build version (@see buildInfo()).
-const uint8_t PATCH_VERSION              = 5;                   // Current patch build version (@see buildInfo()).
+const uint8_t PATCH_VERSION              = 6;                   // Current patch build version (@see buildInfo()).
 const uint8_t MIN_SATELLITE_THRESHHOLD   = 2;                   // Minimum SIV for reliable coordinate information.      
       char     operMode[2]               = {'\0'};              // Operation mode (r=rover, b=base).
 //    char     debugTemp[250]            = {'\0'};              // Various debug scenarios. Activate when needed.
@@ -790,6 +791,7 @@ void statusLedOn() {
  * @since  3.3.1  [2026-08-27-02:00pm] Add PREF_RESET_NO_REBOOT, changed PREF_RESET to call prefUtility(PRF_SET).
  * @since  3.4.0  [2026-09-20-05:30pm] Add prfLckAvgInt.
  * @since  3.4.1  [2026-09-27-10:00pm] Added ntripCaster.crs.
+ * @since  3.5.6  [2026-11-01-10:30pm] PREF_INIT closes namespace before PREF_READ/PREF_RESET open it; PREF_READ closes it on JSON error, uses defaults for missing prefs & range-checks values; PREF_PRINT .c_str().
  * @see    Global vars: Preference defaults, setup().
  * @link   https://docs.espressif.com/projects/arduino-esp32/en/latest/tutorials/preferences.html.
  * @link   https://github.com/espressif/arduino-esp32/tree/master/libraries/Preferences/.
@@ -814,8 +816,8 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
     const uint16_t  NUM_PREFS               = 14;               // Number of preferences being used.
     const float     DEF_PRF_LVL_OFF_X       = 0;                // Bubble level X offset when level.                                                - Matching global var: float    prfOffsetXDeg.
     const float     DEF_PRF_LVL_OFF_Y       = 0;                // Bubble level Y offset when level.                                                - Matching global var: float    prfOffsetYDeg.    // Newest pref.
-          size_t    remaining               = 0;                // Number of bytes remaining that can be written to char array. 
           DeserializationError ntripError;
+          bool      keyExists               = false;
     memset(prfNtripCastAttr[3], '\0', NTRIP_CAST_ATTR_LEN);     // Scratch buffer - not used.
 
     // --- Which action? ---
@@ -825,39 +827,53 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
 
             // -- Check namespace. --
             roverPrefs.begin(NAMESPACE, RW_MODE);               // Open NAMESPACE object for read/write. If it doesn't exist, create it.
-            if(roverPrefs.isKey("prfUnt")) {
+            keyExists = roverPrefs.isKey("prfUnt");
+            roverPrefs.end();                                   // Close name space: PREF_READ & PREF_RESET open it themselves (begin() fails if already open).
+            if (keyExists) {
                 prefUtility(PREF_READ);                         // Test preference exists, so they all should. Read values from NVS & set global vars.
             } else {
                 prefUtility(PREF_RESET);                        // If the test preference doesn't exist, none of them do.
             }
-
-            // -- Close name space. --
-            roverPrefs.end();
             snprintf(outputBuffer, sizeof(outputBuffer), "NVS namespace %s using %u entries with %u available.", NAMESPACE, NUM_PREFS, roverPrefs.freeEntries());
             logPrint(outputBuffer);
             break;
 
-        case PREF_READ:
+        case PREF_READ: {                                       // Braces: local vars below.
 
             // -- Open name space. --
             roverPrefs.begin(NAMESPACE, RO_MODE);
 
             // -- Set global vars from NVS preferences. --
-            roverPrefs.getString("prfUnt",          prfUnt,              sizeof(prfUnt));    // Preference stored as "prfUnt".
-            roverPrefs.getString("prfRtcmInSource", prfRtcmInSource,     sizeof(prfRtcmInSource));
-            roverPrefs.getString("prfHotSsi",       prfHotSsi,           sizeof(prfHotSsi));
-            roverPrefs.getString("prfHotPas",       prfHotPas,           sizeof(prfHotPas));
-            roverPrefs.getString("prfNtripCaster1", prfNtripCastAttr[0], NTRIP_CAST_ATTR_LEN);
-            roverPrefs.getString("prfNtripCaster2", prfNtripCastAttr[1], NTRIP_CAST_ATTR_LEN);
-            roverPrefs.getString("prfNtripCaster3", prfNtripCastAttr[2], NTRIP_CAST_ATTR_LEN);
-            prfNtripCastAct = roverPrefs.getUShort("prfNtripCastAct");
-            prfGnsNavRat    = roverPrefs.getUShort("prfGnsNavRat");           
-            prfGnsMsrInt    = roverPrefs.getUShort("prfGnsMsrInt");
-            prfInstrHgt     = roverPrefs.getUShort("prfInstrHgt");
-            prfLckAvgInt    = roverPrefs.getUShort("prfLckAvgInt");
-            prfOffsetXDeg   = roverPrefs.getFloat("prfOffsetXDeg");
-            prfOffsetYDeg   = roverPrefs.getFloat("prfOffsetYDeg");     // Newest pref.
-            // Note: a new pref has never been saved to NVS. Test if exists before trying to copy.
+            // getString() returns 0 and leaves dst unchanged if the key is missing (or too long for dst): use the default.
+            auto readStr = [&](const char* nvsKey, char* dst, size_t dstSize, const char* def) {
+                if (roverPrefs.getString(nvsKey, dst, dstSize) == 0) {
+                    strlcpy(dst, def, dstSize);
+                }
+            };
+            readStr("prfUnt",          prfUnt,              sizeof(prfUnt),    DEF_UNT);     // Preference stored as "prfUnt".
+            readStr("prfRtcmInSource", prfRtcmInSource,     sizeof(prfRtcmInSource), DEF_RTC_IN);
+            readStr("prfHotSsi",       prfHotSsi,           sizeof(prfHotSsi), DEF_HOT_SSI);
+            readStr("prfHotPas",       prfHotPas,           sizeof(prfHotPas), DEF_HOT_PASS);
+            readStr("prfNtripCaster1", prfNtripCastAttr[0], NTRIP_CAST_ATTR_LEN, DEF_NTRIP_CAST_ATTR_1);
+            readStr("prfNtripCaster2", prfNtripCastAttr[1], NTRIP_CAST_ATTR_LEN, DEF_NTRIP_CAST_ATTR_2);
+            readStr("prfNtripCaster3", prfNtripCastAttr[2], NTRIP_CAST_ATTR_LEN, DEF_NTRIP_CAST_ATTR_3);
+            // A missing key (e.g. a pref added in a newer version) reads as the default. Out-of-range values fall back to the default.
+            // Ranges match the config page drop-downs & setPrefsValid().
+            const uint16_t nvsCastAct = roverPrefs.getUShort("prfNtripCastAct", DEF_NTRIP_CAST_ACT);
+            const uint16_t nvsNavRat  = roverPrefs.getUShort("prfGnsNavRat",    DEF_GNS_NAV_RAT);
+            const uint16_t nvsMsrInt  = roverPrefs.getUShort("prfGnsMsrInt",    DEF_GNS_MSR_INT);
+            const float    nvsOffX    = roverPrefs.getFloat("prfOffsetXDeg",    DEF_PRF_LVL_OFF_X);
+            const float    nvsOffY    = roverPrefs.getFloat("prfOffsetYDeg",    DEF_PRF_LVL_OFF_Y);
+            prfNtripCastAct = (nvsCastAct >= 1  && nvsCastAct <= 3)    ? nvsCastAct : DEF_NTRIP_CAST_ACT;
+            prfGnsNavRat    = (nvsNavRat  >= 1  && nvsNavRat  <= 10)   ? nvsNavRat  : DEF_GNS_NAV_RAT;
+            prfGnsMsrInt    = (nvsMsrInt  >= 50 && nvsMsrInt  <= 1000) ? nvsMsrInt  : DEF_GNS_MSR_INT;
+            prfInstrHgt     = roverPrefs.getUShort("prfInstrHgt",    DEF_INSTR_HGT);
+            prfLckAvgInt    = roverPrefs.getUShort("prfLckAvgInt",   DEF_LCK_AVG_INT);
+            if (prfLckAvgInt < 1) {
+                prfLckAvgInt = DEF_LCK_AVG_INT;
+            }
+            prfOffsetXDeg   = (fabsf(nvsOffX) <= 45.0f) ? nvsOffX : DEF_PRF_LVL_OFF_X;     // fabsf(NaN) <= 45 is false.
+            prfOffsetYDeg   = (fabsf(nvsOffY) <= 45.0f) ? nvsOffY : DEF_PRF_LVL_OFF_Y;     // Newest pref.
 
             // - Create NTRIP caster JSON doc from embedded JSON string for active caster. -
             // Embedded JSON string allows attributes for an NTRIP caster to be stored as a single preference. 
@@ -866,6 +882,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             if (ntripError) {
                 snprintf(outputBuffer, sizeof(outputBuffer), "JSON deserialize failed: %s", ntripError.f_str());
                 logPrint(outputBuffer);
+                roverPrefs.end();
                 return;
             }
 
@@ -887,6 +904,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
                 logPrint("Preferences read.");
             }
             break;
+        }
 
         case PREF_SET:
 
@@ -956,13 +974,13 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             // -- Print values. --
             logPrint("                       Default    NVS    Global     ");
             logPrint("                       -------    ---    ------     ");
-            snprintf(outputBuffer, sizeof(outputBuffer), "prfUnt                 \"%s\"   \"%s\"   \"%s\"", DEF_UNT,            roverPrefs.getString("prfUnt"),                  prfUnt);
+            snprintf(outputBuffer, sizeof(outputBuffer), "prfUnt                 \"%s\"   \"%s\"   \"%s\"", DEF_UNT,            roverPrefs.getString("prfUnt").c_str(),          prfUnt);
             logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "prfRtcmInSource        \"%s\"   \"%s\"   \"%s\"", DEF_RTC_IN,         roverPrefs.getString("prfRtcmInSource"),         prfRtcmInSource);
+            snprintf(outputBuffer, sizeof(outputBuffer), "prfRtcmInSource        \"%s\"   \"%s\"   \"%s\"", DEF_RTC_IN,         roverPrefs.getString("prfRtcmInSource").c_str(), prfRtcmInSource);
             logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "prfHotSsi              \"%s\"   \"%s\"   \"%s\"", DEF_HOT_SSI,        roverPrefs.getString("prfHotSsi"),               prfHotSsi);
+            snprintf(outputBuffer, sizeof(outputBuffer), "prfHotSsi              \"%s\"   \"%s\"   \"%s\"", DEF_HOT_SSI,        roverPrefs.getString("prfHotSsi").c_str(),       prfHotSsi);
             logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "prfHotPas              \"%s\"   \"%s\"   \"%s\"", DEF_HOT_PASS,       roverPrefs.getString("prfHotPas"),               prfHotPas);
+            snprintf(outputBuffer, sizeof(outputBuffer), "prfHotPas              \"%s\"   \"%s\"   \"%s\"", DEF_HOT_PASS,       roverPrefs.getString("prfHotPas").c_str(),       prfHotPas);
             logPrint(outputBuffer);
             snprintf(outputBuffer, sizeof(outputBuffer), "prfGnsNavRat           %u   %u   %u",             DEF_GNS_NAV_RAT,    roverPrefs.getUShort("prfGnsNavRat"),            prfGnsNavRat);
             logPrint(outputBuffer);
@@ -972,9 +990,9 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             logPrint(outputBuffer);
             snprintf(outputBuffer, sizeof(outputBuffer), "prfNtripCastAct        %u   %u   %u",             DEF_NTRIP_CAST_ACT, roverPrefs.getUShort("prfNtripCastAct"),         prfNtripCastAct);
             logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "prfOffsetXDeg          %6.3f   %6.3f   %6.3f",    DEF_PRF_LVL_OFF_X,  roverPrefs.getFloat("prfOffsetXDeg", 6.3f), prfOffsetXDeg);
+            snprintf(outputBuffer, sizeof(outputBuffer), "prfOffsetXDeg          %6.3f   %6.3f   %6.3f",    DEF_PRF_LVL_OFF_X,  roverPrefs.getFloat("prfOffsetXDeg", NAN), prfOffsetXDeg);
             logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "prfOffsetYDeg          %6.3f   %6.3f   %6.3f",    DEF_PRF_LVL_OFF_Y,  roverPrefs.getFloat("prfOffsetYDeg", 6.3f), prfOffsetYDeg);
+            snprintf(outputBuffer, sizeof(outputBuffer), "prfOffsetYDeg          %6.3f   %6.3f   %6.3f",    DEF_PRF_LVL_OFF_Y,  roverPrefs.getFloat("prfOffsetYDeg", NAN), prfOffsetYDeg);
             logPrint(outputBuffer);
             logPrint(" ");
             logPrint("Default:");
