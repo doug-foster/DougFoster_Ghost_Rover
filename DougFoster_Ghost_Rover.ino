@@ -59,6 +59,7 @@
  * @since  3.5.6 [2026-11-01-10:30pm] prefUtility(): close NVS namespace in every path, defaults for missing/out-of-range prefs, .c_str() for printed Strings.
  * @since  3.5.7 [2026-11-01-10:30pm] startI2C(): retry in a loop instead of recursion; log "400kHz" (was "4kHz").
  * @since  3.5.8 [2026-11-01-10:45pm] startAndConfigGNSS(): reset, delay, then configure; retry setAutoPVT(); check & log failed config steps.
+ * @since  3.5.9 [2026-11-01-10:55pm] startAndConfigGNSS(): add setAutoHPPOSLLH(true) so getHighRes*() & getElipsoid*() etc. no longer poll the ZED.
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
  * @link   http://dougfoster.me.
@@ -474,7 +475,7 @@ const bool    RO_MODE                    = true;                // Open preferen
 const char    LOG_FILE[]                 = "/log.txt";          // Log file.
 const uint8_t MAJOR_VERSION              = 3;                   // Current major build version (@see buildInfo()).
 const uint8_t MINOR_VERSION              = 5;                   // Current minor build version (@see buildInfo()).
-const uint8_t PATCH_VERSION              = 8;                   // Current patch build version (@see buildInfo()).
+const uint8_t PATCH_VERSION              = 9;                   // Current patch build version (@see buildInfo()).
 const uint8_t MIN_SATELLITE_THRESHHOLD   = 2;                   // Minimum SIV for reliable coordinate information.      
       char     operMode[2]               = {'\0'};              // Operation mode (r=rover, b=base).
 //    char     debugTemp[250]            = {'\0'};              // Various debug scenarios. Activate when needed.
@@ -2477,6 +2478,7 @@ void startWebSocketServer() {
  * @since  3.3.1  [2026-08-29-05:45pm] Added UBLOX_CFG_MSGOUT_UBX_NAV_HPPOSLLH_I2C.
  * @since  3.3.3  [2026-09-01-09:00am] Add roverGNSS.setAutoPVT(true).
  * @since  3.5.8  [2026-11-01-10:45pm] Reset, delay, then configure (setAutoPVT() was sent during the reset). Retry setAutoPVT(), check & log failed steps, continue.
+ * @since  3.5.9  [2026-11-01-10:55pm] Add setAutoHPPOSLLH(true).
  * @see    Global vars: GNSS, prefUtility(), startSerial(), beginI2C().
  * @link   https://github.com/sparkfun/SparkFun_u-blox_GNSS_v3/blob/main/examples/Example1_PositionVelocityTime/Example1_PositionVelocityTime.ino.
  * @link   https://github.com/sparkfun/SparkFun_u-blox_GNSS_v3/blob/main/src/u-blox_config_keys.h.
@@ -2520,6 +2522,11 @@ void startAndConfigGNSS() {
     }
     if (!autoPvtSet) {
         logPrint("GNSS config step setAutoPVT failed.");
+    }
+
+    // --- Same for HPPOSLLH. The valset below turns the message on, but only this tells the library it is automatic: otherwise every getHighRes*() / getElipsoid*() / getMeanSeaLevel*() polls (blocks). ---
+    if (!roverGNSS.setAutoHPPOSLLH(true)) {
+        logPrint("GNSS config step setAutoHPPOSLLH failed.");
     }
 
     // --- Rates. ---
