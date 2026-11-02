@@ -74,6 +74,7 @@
  * @since  3.5.21 [2026-11-02-04:05pm] imuFilterGravity(): ignore a failed getAGMT() read (imu.status) or an all-zero sample; both count toward the imuSelectBank0() recovery.
  * @since  3.5.22 [2026-11-02-04:20pm] Moved isSafeFileName() from Setup functions to General functions (code move & index only, no logic change).
  * @since  3.5.23 [2026-11-02-04:35pm] FreeRTOS intervals: pdMS_TO_TICKS(ms) replaces ms/portTICK_PERIOD_MS (same values, one idiom).
+ * @since  3.5.24 [2026-11-02-04:50pm] Add logPrintf() (format + build + print under logMutex) & replace snprintf(outputBuffer) + logPrint(outputBuffer) pairs; outputBuffer is now used only by loop()/setup().
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
  * @link   http://dougfoster.me.
@@ -286,6 +287,7 @@
 // --- Core. ---
 #include <Arduino.h>                                       // https://github.com/espressif/arduino-esp32.
 #include <freertos/semphr.h>                                // FreeRTOS mutex for logPrint().
+#include <stdarg.h>                                         // va_list for logPrintf().
 #include <WiFi.h>                                          // https://github.com/espressif/arduino-esp32/tree/master/libraries/WiFi.
 #include <WiFiAP.h>                                        // https://github.com/espressif/arduino-esp32/tree/master/libraries/WiFi.
 #include <SD_MMC.h>                                        // https://github.com/espressif/arduino-esp32/tree/master/libraries/SD_MMC.
@@ -490,7 +492,7 @@ const bool    RO_MODE                    = true;                // Open preferen
 const char    LOG_FILE[]                 = "/log.txt";          // Log file.
 const uint8_t MAJOR_VERSION              = 3;                   // Current major build version (@see buildInfo()).
 const uint8_t MINOR_VERSION              = 5;                   // Current minor build version (@see buildInfo()).
-const uint8_t PATCH_VERSION              = 23;                   // Current patch build version (@see buildInfo()).
+const uint8_t PATCH_VERSION              = 24;                   // Current patch build version (@see buildInfo()).
 const uint8_t MIN_SATELLITE_THRESHHOLD   = 2;                   // Minimum SIV for reliable coordinate information.      
       char     operMode[2]               = {'\0'};              // Operation mode (r=rover, b=base).
 //    char     debugTemp[250]            = {'\0'};              // Various debug scenarios. Activate when needed.
@@ -507,7 +509,8 @@ const uint8_t MIN_SATELLITE_THRESHHOLD   = 2;                   // Minimum SIV f
       char     operBuffer[24]            = {'\0'};              // Buffer for Operate data.
       char     startOutputsResults[1024] = {'\0'};              // Buffered output from startOutputs().
       char     buildInfoResults[200]     = {'\0'};              // Buffered output from buildInfo().
-      char     outputBuffer[1024]        = {'\0'};              // Buffer for output data.
+      char     outputBuffer[1024]        = {'\0'};              // Buffer for browser responses & startup text. loop() & setup() ONLY: tasks & callbacks use logPrintf().
+      char     logLineBuffer[1024]       = {'\0'};              // logPrintf() line buffer. Only used while logMutex is held.
       char     timeSinceBoot[20]         = {'\0'};              // Time since boot: 01h 03m 12s.
       size_t   wsSendCount               = 0;                   // # of WebSocket messages sent.
       size_t   rtcmSentenceCount         = 0;                   // # of RTCM sentences in.
@@ -672,9 +675,14 @@ const double   MAD_REJECT_K               = 3.0;        // Reject samples beyond
  * @since 3.5.13 [2026-11-01-11:45pm] Add isSafeFileName().
  * @since 3.5.18 [2026-11-02-01:35am] logPrint() takes logMutex.
  * @since 3.5.22 [2026-11-02-04:20pm] Moved isSafeFileName() here from Setup functions.
+ * @since 3.5.24 [2026-11-02-04:50pm] Add logWrite(), logVprintf(), logPrintf() & logPrintfNoNl().
  * @since 3.5.2  [2026-11-01-08:45pm] Add imuSelectBank0().
  * @see   uptime()                - Display time since boot.
+ * @see   logWrite()              - Print text to Serial & add it to LOG_FILE (caller holds logMutex).
  * @see   logPrint()              - Save a message to LOG_FILE, print to Serial if available. Thread-safe (logMutex).
+ * @see   logVprintf()            - Format, print & log a message (va_list version of logPrintf()). Thread-safe (logMutex).
+ * @see   logPrintf()             - printf() to Serial & LOG_FILE, with newline. Thread-safe. Replaces snprintf(outputBuffer) + logPrint(outputBuffer).
+ * @see   logPrintfNoNl()         - printf() to Serial & LOG_FILE, without newline. Thread-safe.
  * @see   statusLedOn()           - Turn on status LED.
  * @see   setStatusLed()          - Set status LED color & blink. Turns it on at once until taskLoopStatusLed() starts.
  * @see   fatalError()            - Fatal error during setup(): solid RED status LED, print the message, freeze.
@@ -726,6 +734,41 @@ void uptime(char *dest, size_t max_len, bool fractional = true) {
 
 /**
  * -------------------------------------------------------------------------
+ *  Print text to Serial & add it to LOG_FILE. Caller must hold logMutex.
+ * -------------------------------------------------------------------------
+ *
+ * @param  const char* text    Text to print/log.
+ * @param  bool        log     Log text to SD card.
+ * @param  bool        newline Use println() vs print().
+ * @return void  No output is returned.
+ * @since  3.5.24 [2026-11-02-04:50pm] New. Code moved from logPrint().
+ * @see    logPrint(), logVprintf().
+ */
+void logWrite(const char* text, bool log, bool newline) {
+
+    // --- Print to Serial. ---
+    if (newline) {
+        Serial.println(text);
+    } else {
+        Serial.print(text);
+    }
+
+    // --- Send to log file. ---
+    if (log) {
+        File file = SD_MMC.open(LOG_FILE, FILE_APPEND);
+        if (file) {
+            if (newline) {
+                file.println(text);
+            } else {
+                file.print(text);
+            }
+            file.close();
+        }
+    }
+}
+
+/**
+ * -------------------------------------------------------------------------
  *  Print text to USB if Serial available. Add text to LOG_FILE.
  * -------------------------------------------------------------------------
  *
@@ -737,6 +780,8 @@ void uptime(char *dest, size_t max_len, bool fractional = true) {
  * @since  3.3.2 [2026-08-16-05:15pm] Added log secondary parameter.
  * @since  3.3.3 [2026-09-04-09:30am] Added newline tertiary parameter.
  * @since  3.5.18 [2026-11-02-01:35am] Take logMutex so tasks do not interleave. Waits up to 1 s, then prints anyway.
+ * @since  3.5.24 [2026-11-02-04:50pm] Serial & SD file code moved to logWrite().
+ * @see    logPrintf(), logPrintfNoNl(), logWrite().
  */
 void logPrint(const char* textToLogPrint = NULL, bool log = true, bool newline = true) {
 
@@ -747,29 +792,81 @@ void logPrint(const char* textToLogPrint = NULL, bool log = true, bool newline =
         // --- One task at a time. logMutex is NULL until startOutputs() creates it (setup() is single threaded). ---
         const bool locked = (logMutex != NULL) && (xSemaphoreTake(logMutex, pdMS_TO_TICKS(1000)) == pdTRUE);
 
-        // --- Print to Serial. ---
-        if (newline) {
-            Serial.println(textToLogPrint);
-        } else {
-            Serial.print(textToLogPrint);
-        }
-
-        // --- Send to log file. ---
-        if (log) {
-            File file = SD_MMC.open(LOG_FILE, FILE_APPEND);
-            if (file) {
-                if (newline) {
-                    file.println(textToLogPrint);
-                } else {
-                    file.print(textToLogPrint);
-                }
-                file.close();
-            }
-        }
+        logWrite(textToLogPrint, log, newline);
         if (locked) {
             xSemaphoreGive(logMutex);
         }
     }
+}
+
+/**
+ * -------------------------------------------------------------------------
+ *  Format, print & log a message (va_list version of logPrintf()).
+ * -------------------------------------------------------------------------
+ *
+ * Builds the line in logLineBuffer while holding logMutex, so tasks cannot overwrite each other's text before it is printed
+ * (the shared outputBuffer allowed that). Waits up to 1 s for logMutex, then goes ahead anyway (same as logPrint()).
+ * Text longer than logLineBuffer is truncated.
+ *
+ * @param  bool        newline Use println() vs print().
+ * @param  const char* format  printf() format.
+ * @param  va_list     args    Arguments for format.
+ * @return void  No output is returned.
+ * @since  3.5.24 [2026-11-02-04:50pm] New.
+ * @see    logPrintf(), logPrintfNoNl(), logWrite().
+ */
+void logVprintf(bool newline, const char* format, va_list args) {
+    const bool locked = (logMutex != NULL) && (xSemaphoreTake(logMutex, pdMS_TO_TICKS(1000)) == pdTRUE);
+    vsnprintf(logLineBuffer, sizeof(logLineBuffer), format, args);
+    logWrite(logLineBuffer, true, newline);
+    if (locked) {
+        xSemaphoreGive(logMutex);
+    }
+}
+
+// Declared with the format attribute so the compiler checks logPrintf() & logPrintfNoNl() arguments against the format string.
+// (If the Arduino build ever rejects these two lines, delete them: only the format checking is lost.)
+void logPrintf(const char* format, ...)     __attribute__((format(printf, 1, 2)));
+void logPrintfNoNl(const char* format, ...) __attribute__((format(printf, 1, 2)));
+
+/**
+ * -------------------------------------------------------------------------
+ *  printf() to Serial & LOG_FILE, with newline. Thread-safe.
+ * -------------------------------------------------------------------------
+ *
+ * Use instead of snprintf(outputBuffer, ...) + logPrint(outputBuffer). Tasks & callbacks must use this (not outputBuffer).
+ *
+ * @param  const char* format printf() format.
+ * @param  ...         Arguments for format.
+ * @return void  No output is returned.
+ * @since  3.5.24 [2026-11-02-04:50pm] New.
+ * @see    logPrintfNoNl(), logVprintf(), logPrint().
+ */
+void logPrintf(const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    logVprintf(true, format, args);
+    va_end(args);
+}
+
+/**
+ * -------------------------------------------------------------------------
+ *  printf() to Serial & LOG_FILE, without newline. Thread-safe.
+ * -------------------------------------------------------------------------
+ *
+ * Same as logPrintf() but uses print() instead of println() (e.g. NMEA debug lines built from several calls).
+ *
+ * @param  const char* format printf() format.
+ * @param  ...         Arguments for format.
+ * @return void  No output is returned.
+ * @since  3.5.24 [2026-11-02-04:50pm] New.
+ * @see    logPrintf(), logVprintf().
+ */
+void logPrintfNoNl(const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    logVprintf(false, format, args);
+    va_end(args);
 }
 
 /**
@@ -930,8 +1027,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             } else {
                 prefUtility(PREF_RESET);                        // If the test preference doesn't exist, none of them do.
             }
-            snprintf(outputBuffer, sizeof(outputBuffer), "NVS namespace %s using %u entries with %u available.", NAMESPACE, NUM_PREFS, roverPrefs.freeEntries());
-            logPrint(outputBuffer);
+            logPrintf("NVS namespace %s using %u entries with %u available.", NAMESPACE, NUM_PREFS, roverPrefs.freeEntries());
             break;
 
         case PREF_READ: {                                       // Braces: local vars below.
@@ -976,8 +1072,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             JsonDocNtrip.clear();
             ntripError = deserializeJson(JsonDocNtrip, prfNtripCastAttr[prfNtripCastAct-1]);
             if (ntripError) {
-                snprintf(outputBuffer, sizeof(outputBuffer), "JSON deserialize failed: %s", ntripError.f_str());
-                logPrint(outputBuffer);
+                logPrintf("JSON deserialize failed: %s", ntripError.f_str());
                 roverPrefs.end();
                 return;
             }
@@ -1070,74 +1165,45 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             // -- Print values. --
             logPrint("                       Default    NVS    Global     ");
             logPrint("                       -------    ---    ------     ");
-            snprintf(outputBuffer, sizeof(outputBuffer), "prfUnt                 \"%s\"   \"%s\"   \"%s\"", DEF_UNT,            roverPrefs.getString("prfUnt").c_str(),          prfUnt);
-            logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "prfRtcmInSource        \"%s\"   \"%s\"   \"%s\"", DEF_RTC_IN,         roverPrefs.getString("prfRtcmInSource").c_str(), prfRtcmInSource);
-            logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "prfHotSsi              \"%s\"   \"%s\"   \"%s\"", DEF_HOT_SSI,        roverPrefs.getString("prfHotSsi").c_str(),       prfHotSsi);
-            logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "prfHotPas              \"%s\"   \"%s\"   \"%s\"", DEF_HOT_PASS,       roverPrefs.getString("prfHotPas").c_str(),       prfHotPas);
-            logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "prfGnsNavRat           %u   %u   %u",             DEF_GNS_NAV_RAT,    roverPrefs.getUShort("prfGnsNavRat"),            prfGnsNavRat);
-            logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "prfGnsMsrInt           %u   %u   %u",             DEF_GNS_MSR_INT,    roverPrefs.getUShort("prfGnsMsrInt"),            prfGnsMsrInt);
-            logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "prfLckAvgInt           %u   %u   %u",             DEF_LCK_AVG_INT,    roverPrefs.getUShort("prfLckAvgInt"),            prfLckAvgInt);
-            logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "prfNtripCastAct        %u   %u   %u",             DEF_NTRIP_CAST_ACT, roverPrefs.getUShort("prfNtripCastAct"),         prfNtripCastAct);
-            logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "prfOffsetXDeg          %6.3f   %6.3f   %6.3f",    DEF_PRF_LVL_OFF_X,  roverPrefs.getFloat("prfOffsetXDeg", NAN), prfOffsetXDeg);
-            logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "prfOffsetYDeg          %6.3f   %6.3f   %6.3f",    DEF_PRF_LVL_OFF_Y,  roverPrefs.getFloat("prfOffsetYDeg", NAN), prfOffsetYDeg);
-            logPrint(outputBuffer);
+            logPrintf("prfUnt                 \"%s\"   \"%s\"   \"%s\"", DEF_UNT,            roverPrefs.getString("prfUnt").c_str(),          prfUnt);
+            logPrintf("prfRtcmInSource        \"%s\"   \"%s\"   \"%s\"", DEF_RTC_IN,         roverPrefs.getString("prfRtcmInSource").c_str(), prfRtcmInSource);
+            logPrintf("prfHotSsi              \"%s\"   \"%s\"   \"%s\"", DEF_HOT_SSI,        roverPrefs.getString("prfHotSsi").c_str(),       prfHotSsi);
+            logPrintf("prfHotPas              \"%s\"   \"%s\"   \"%s\"", DEF_HOT_PASS,       roverPrefs.getString("prfHotPas").c_str(),       prfHotPas);
+            logPrintf("prfGnsNavRat           %u   %u   %u",             DEF_GNS_NAV_RAT,    roverPrefs.getUShort("prfGnsNavRat"),            prfGnsNavRat);
+            logPrintf("prfGnsMsrInt           %u   %u   %u",             DEF_GNS_MSR_INT,    roverPrefs.getUShort("prfGnsMsrInt"),            prfGnsMsrInt);
+            logPrintf("prfLckAvgInt           %u   %u   %u",             DEF_LCK_AVG_INT,    roverPrefs.getUShort("prfLckAvgInt"),            prfLckAvgInt);
+            logPrintf("prfNtripCastAct        %u   %u   %u",             DEF_NTRIP_CAST_ACT, roverPrefs.getUShort("prfNtripCastAct"),         prfNtripCastAct);
+            logPrintf("prfOffsetXDeg          %6.3f   %6.3f   %6.3f",    DEF_PRF_LVL_OFF_X,  roverPrefs.getFloat("prfOffsetXDeg", NAN), prfOffsetXDeg);
+            logPrintf("prfOffsetYDeg          %6.3f   %6.3f   %6.3f",    DEF_PRF_LVL_OFF_Y,  roverPrefs.getFloat("prfOffsetYDeg", NAN), prfOffsetYDeg);
             logPrint(" ");
             logPrint("Default:");
-            snprintf(outputBuffer, sizeof(outputBuffer), "DEF_NTRIP_CAST_ATTR_1  \"%s\"", DEF_NTRIP_CAST_ATTR_1);
-            logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "DEF_NTRIP_CAST_ATTR_2  \"%s\"", DEF_NTRIP_CAST_ATTR_2);
-            logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "DEF_NTRIP_CAST_ATTR_3  \"%s\"", DEF_NTRIP_CAST_ATTR_3);
-            logPrint(outputBuffer);
+            logPrintf("DEF_NTRIP_CAST_ATTR_1  \"%s\"", DEF_NTRIP_CAST_ATTR_1);
+            logPrintf("DEF_NTRIP_CAST_ATTR_2  \"%s\"", DEF_NTRIP_CAST_ATTR_2);
+            logPrintf("DEF_NTRIP_CAST_ATTR_3  \"%s\"", DEF_NTRIP_CAST_ATTR_3);
             logPrint(" ");
             logPrint("NVS:");
             roverPrefs.getString("prfNtripCaster1", prfNtripCastAttr[3], NTRIP_CAST_ATTR_LEN);      // [0,1,2] are used, [3] is for scratch.
-            snprintf(outputBuffer, sizeof(outputBuffer), "prfNtripCaster1        \"%s\"", prfNtripCastAttr[3]);
-            logPrint(outputBuffer);
+            logPrintf("prfNtripCaster1        \"%s\"", prfNtripCastAttr[3]);
             roverPrefs.getString("prfNtripCaster2", prfNtripCastAttr[3], NTRIP_CAST_ATTR_LEN);
-            snprintf(outputBuffer, sizeof(outputBuffer), "prfNtripCaster2        \"%s\"", prfNtripCastAttr[3]);
-            logPrint(outputBuffer);
+            logPrintf("prfNtripCaster2        \"%s\"", prfNtripCastAttr[3]);
             roverPrefs.getString("prfNtripCaster3", prfNtripCastAttr[3], NTRIP_CAST_ATTR_LEN);
-            snprintf(outputBuffer, sizeof(outputBuffer), "prfNtripCaster3        \"%s\"", prfNtripCastAttr[3]);
-            logPrint(outputBuffer);
+            logPrintf("prfNtripCaster3        \"%s\"", prfNtripCastAttr[3]);
             memset(prfNtripCastAttr[3], '\0', NTRIP_CAST_ATTR_LEN);                                 // Scratch buffer - not used.
             logPrint(" ");
             logPrint("Global:");
-            snprintf(outputBuffer, sizeof(outputBuffer), "prfNtripCastAttr[0]    \"%s\"", prfNtripCastAttr[0]);
-            logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "prfNtripCastAttr[1]    \"%s\"", prfNtripCastAttr[1]);
-            logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "prfNtripCastAttr[2]    \"%s\"", prfNtripCastAttr[2]);
-            logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "ntripCaster.name       \"%s\"", ntripCaster.name);
-            logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "ntripCaster.url        \"%s\"", ntripCaster.url);
-            logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "ntripCaster.mount      \"%s\"", ntripCaster.mount);
-            logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "ntripCaster.user       \"%s\"", ntripCaster.user);
-            logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "ntripCaster.pass       \"%s\"", ntripCaster.pass);
-            logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "ntripCaster.crs       \"%s\"", ntripCaster.crs);
-            logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "ntripCaster.id         %d", ntripCaster.id);
-            logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "ntripCaster.version    %d", ntripCaster.version);
-            logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "ntripCaster.port       %d", ntripCaster.port);
-            logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "ntripCaster.sendGga    %d", ntripCaster.sendGga);
-            logPrint(outputBuffer);
+            logPrintf("prfNtripCastAttr[0]    \"%s\"", prfNtripCastAttr[0]);
+            logPrintf("prfNtripCastAttr[1]    \"%s\"", prfNtripCastAttr[1]);
+            logPrintf("prfNtripCastAttr[2]    \"%s\"", prfNtripCastAttr[2]);
+            logPrintf("ntripCaster.name       \"%s\"", ntripCaster.name);
+            logPrintf("ntripCaster.url        \"%s\"", ntripCaster.url);
+            logPrintf("ntripCaster.mount      \"%s\"", ntripCaster.mount);
+            logPrintf("ntripCaster.user       \"%s\"", ntripCaster.user);
+            logPrintf("ntripCaster.pass       \"%s\"", ntripCaster.pass);
+            logPrintf("ntripCaster.crs       \"%s\"", ntripCaster.crs);
+            logPrintf("ntripCaster.id         %d", ntripCaster.id);
+            logPrintf("ntripCaster.version    %d", ntripCaster.version);
+            logPrintf("ntripCaster.port       %d", ntripCaster.port);
+            logPrintf("ntripCaster.sendGga    %d", ntripCaster.sendGga);
 
             // -- Close name space. --
             roverPrefs.end();
@@ -1152,8 +1218,7 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
             JsonDocNtrip.clear();
             ntripError = deserializeJson(JsonDocNtrip, jsonDocFromBrowser["setNtripCasterPref"].as<const char*>());
             if (ntripError) {
-                snprintf(outputBuffer, sizeof(outputBuffer), "NTRIP caster JSON deserialize failed: %s", ntripError.f_str());
-                logPrint(outputBuffer);
+                logPrintf("NTRIP caster JSON deserialize failed: %s", ntripError.f_str());
                 roverPrefs.end();
                 return;
             }
@@ -1286,11 +1351,10 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
                 lockedGeoidSep          = heightWelfordMeanGeoidSep;
                 heightLockAveragingFlag = false;
                 heightLockFlag          = true;
-                snprintf(outputBuffer, sizeof(outputBuffer), "Height locked @ %.4f m (%lu/%u ortho, %lu/%u geoidSep accepted in %u secs).",
-                    lockedHeightOrtho, (unsigned long)heightWelfordCountOrtho, heightSampleBufCount,
-                    (unsigned long)heightWelfordCountGeoidSep, heightSampleBufCount, prfLckAvgInt);
                 if (commandFlag[DEBUG_BTNS]) {
-                    logPrint(outputBuffer);
+                    logPrintf("Height locked @ %.4f m (%lu/%u ortho, %lu/%u geoidSep accepted in %u secs).",
+                        lockedHeightOrtho, (unsigned long)heightWelfordCountOrtho, heightSampleBufCount,
+                        (unsigned long)heightWelfordCountGeoidSep, heightSampleBufCount, prfLckAvgInt);
                 }
             }
         }
@@ -1321,11 +1385,10 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
                 lockedLon                 = positionWelfordMeanLon;
                 positionLockAveragingFlag = false;
                 positionLockFlag          = true;
-                snprintf(outputBuffer, sizeof(outputBuffer), "Position locked @ Lat %.9f (%lu/%u), Lon %.9f (%lu/%u) in %u secs.",
-                    lockedLat, (unsigned long)positionWelfordCountLat, positionSampleBufCount,
-                    lockedLon, (unsigned long)positionWelfordCountLon, positionSampleBufCount, prfLckAvgInt);
                 if (commandFlag[DEBUG_BTNS]) {
-                    logPrint(outputBuffer);
+                    logPrintf("Position locked @ Lat %.9f (%lu/%u), Lon %.9f (%lu/%u) in %u secs.",
+                        lockedLat, (unsigned long)positionWelfordCountLat, positionSampleBufCount,
+                        lockedLon, (unsigned long)positionWelfordCountLon, positionSampleBufCount, prfLckAvgInt);
                 }
             }
         }
@@ -1460,8 +1523,7 @@ void sendDataToBrowser() {
         ws.textAll(jsonBuffer);                         // Send WebSocket message.
         wsSendCount++;
         if (commandFlag[DEBUG_WS_TRAFFIC]) {            // Debug. WebSocket data from GR to browser.
-            snprintf(outputBuffer, sizeof(outputBuffer), "WS #%u: browser <-- %s", clientId, jsonBuffer);
-            logPrint(outputBuffer);
+            logPrintf("WS #%u: browser <-- %s", clientId, jsonBuffer);
         }
     }
 }
@@ -1524,8 +1586,7 @@ void relayRtcmByte(char inputChar, char* rtcmSentence, uint16_t &byteCount, uint
     if (bytesLeftInFrame == 0) {
         if ((uint8_t)inputChar != 0xd3) {
             if (commandFlag[DEBUG_RTCM]) {
-                snprintf(outputBuffer, sizeof(outputBuffer), "RTCM3 desync - expected preamble, got %02x\n", (uint8_t)inputChar);
-                logPrint(outputBuffer);    // (textToLogPrint, add to log file = true, add newline = true).
+                logPrintf("RTCM3 desync - expected preamble, got %02x\n", (uint8_t)inputChar);
             }
             return;                         // Drop stray byte from parsing; relay above already happened.
         }
@@ -1579,9 +1640,8 @@ void relayRtcmByte(char inputChar, char* rtcmSentence, uint16_t &byteCount, uint
             strncat(rtcmSentenceHex, hexBuff, sizeof(hexBuff));
         }
         logPrint(rtcmSentenceHex);      // (textToLogPrint, add to log file = true, add newline = true).
-        snprintf(outputBuffer, sizeof(outputBuffer), "RTCM3 (%s) active(%d) #%zu Type:%u bytes:%u kbps:%.2f\n",
+        logPrintf("RTCM3 (%s) active(%d) #%zu Type:%u bytes:%u kbps:%.2f\n",
             prfRtcmInSource, RTCMinFlag, rtcmSentenceCount, msg_type, byteCount, rtcmKbps);
-        logPrint(outputBuffer);         // (textToLogPrint, add to log file = true, add newline = true).
     }
     lastRTCMtime = esp_timer_get_time();
     // bytesLeftInFrame is already 0 - next byte in is treated as the next preamble.
@@ -1979,8 +2039,7 @@ bool imuFilterGravity() {
         filtAz += TILT_EMA_ALPHA * (az - filtAz);
     }
     if (commandFlag[DEBUG_IMU]) {
-        snprintf(outputBuffer, sizeof(outputBuffer), "IMU.acc(X,Y,Z) filtered = (%6.3f,%6.3f,%6.3f)", filtAx, filtAy, filtAz);
-        logPrint(outputBuffer);
+        logPrintf("IMU.acc(X,Y,Z) filtered = (%6.3f,%6.3f,%6.3f)", filtAx, filtAy, filtAz);
     }
     return true;
 }
@@ -2000,8 +2059,7 @@ void calcRawTiltDeg(float &tiltXDeg, float &tiltYDeg) {
     tiltXDeg = atan2f(filtAx, sqrtf(filtAy * filtAy + filtAz * filtAz)) * rad2deg;
     tiltYDeg = atan2f(filtAy, sqrtf(filtAx * filtAx + filtAz * filtAz)) * rad2deg;
     if (commandFlag[DEBUG_IMU]) {
-        snprintf(outputBuffer, sizeof(outputBuffer), "rawTiltDeg(X,Y) = (%6.3f,%6.3f)", tiltXDeg, tiltYDeg);
-        logPrint(outputBuffer);
+        logPrintf("rawTiltDeg(X,Y) = (%6.3f,%6.3f)", tiltXDeg, tiltYDeg);
     }
 }
 
@@ -2041,8 +2099,7 @@ bool imuBubbleXY(float &x, float &y) {
         y *= scale;
     }
     if (commandFlag[DEBUG_IMU]) {
-        snprintf(outputBuffer, sizeof(outputBuffer), "bubble(X,Y) = (%6.3f,%6.3f)\n", x, y);
-        logPrint(outputBuffer);
+        logPrintf("bubble(X,Y) = (%6.3f,%6.3f)\n", x, y);
     }
     return true;
   } else {
@@ -2261,8 +2318,7 @@ void startSerial() {
     if (strncmp(prfRtcmInSource, "radio", sizeof(prfRtcmInSource)) == 0) {
         Serial1.begin(SERIAL1_SPEED, SERIAL_8N1, SERIAL1_RX, SERIAL1_TX); // UART1 object. RX, TX.
         serialState[2] = 'u';
-        snprintf(outputBuffer, sizeof(outputBuffer), "Serial1 started @ %lu bps.", (unsigned long)SERIAL1_SPEED);
-        logPrint(outputBuffer);
+        logPrintf("Serial1 started @ %lu bps.", (unsigned long)SERIAL1_SPEED);
     } else {        // prfRtcmInSource is other than radio.
         serialState[2] = '-';
         logPrint("Serial1 NOT started.");
@@ -2274,12 +2330,10 @@ void startSerial() {
     // -- RTCM out is always over Serial2 (to ZED UART2).
     Serial2.begin(SERIAL2_SPEED, SERIAL_8N1, SERIAL2_RX, SERIAL2_TX); // UART2 object. RX, TX.  
     serialState[3] = 'u';
-    snprintf(outputBuffer, sizeof(outputBuffer), "Serial2 started @ %lubps.", (unsigned long)SERIAL2_SPEED);
-    logPrint(outputBuffer);
+    logPrintf("Serial2 started @ %lubps.", (unsigned long)SERIAL2_SPEED);
     
     // --- Display RTCM source & output. ---
-    snprintf(outputBuffer, sizeof(outputBuffer), "RTCM in is \"%s\".", prfRtcmInSource);
-    logPrint(outputBuffer);
+    logPrintf("RTCM in is \"%s\".", prfRtcmInSource);
     logPrint("RTCM out is Serial2 -> ZED UART2.");
 
 }
@@ -2433,8 +2487,7 @@ void startWiFiServer() {
     WiFi.softAPsetHostname(AP_NAME);                                // Set hostname.
     IPAddress ip = WiFi.softAPIP();                                 // Start WiFi & check status (get IP).
     snprintf(localIp, sizeof(localIp), "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
-    snprintf(outputBuffer, sizeof(outputBuffer), "WiFi server \"%s\" started @ %s.", AP_SSID, localIp);
-    logPrint(outputBuffer);
+    logPrintf("WiFi server \"%s\" started @ %s.", AP_SSID, localIp);
 }
 
 /**
@@ -2454,8 +2507,7 @@ void startWiFiServer() {
 void startTcpServer() {
     tcpServer.begin();
     tcpServer.setNoDelay(true);                        // Disable Nagle - don't batch NMEA/RTCM bytes.
-    snprintf(outputBuffer, sizeof(outputBuffer), "TCP server started on port %u.", TCP_SERVER_PORT);
-    logPrint(outputBuffer);
+    logPrintf("TCP server started on port %u.", TCP_SERVER_PORT);
 }
 
 /**
@@ -2484,8 +2536,7 @@ void startHttpServer() {
 
     // --- Route: root. ---
     httpServer.on(PAGE_ROOT, HTTP_GET, [](AsyncWebServerRequest *request) {
-        snprintf(outputBuffer, sizeof(outputBuffer), "httpServer - Page \"%s\" requested.", request->url().c_str());
-        logPrint(outputBuffer);
+        logPrintf("httpServer - Page \"%s\" requested.", request->url().c_str());
         request->send(SD_MMC, "/index.html", "text/html");      // Set root.
     }) ;
 
@@ -2508,14 +2559,12 @@ void startHttpServer() {
             } else if (SD_MMC.exists(filepath)) {
                 request->send(SD_MMC, filepath, "application/octet-stream", true);
                 if (commandFlag[DEBUG_FILE_SYSTEM]) {
-                    snprintf(outputBuffer, sizeof(outputBuffer), "httpServer - Downloading file: %s", filename.c_str());
-                    logPrint(outputBuffer);
+                    logPrintf("httpServer - Downloading file: %s", filename.c_str());
                 }
             } else {
                 request->send(404, "text/plain", "File not found");
                 if (commandFlag[DEBUG_FILE_SYSTEM]) {
-                    snprintf(outputBuffer, sizeof(outputBuffer), "File not found: %s", filename.c_str());
-                    logPrint(outputBuffer);
+                    logPrintf("File not found: %s", filename.c_str());
                 }
             }
         } else {
@@ -2546,8 +2595,7 @@ void startHttpServer() {
 void startWebSocketServer() {
     ws.onEvent(onWebSocketEvent);
     httpServer.addHandler(&ws);     // startWebServer() must run first.
-    snprintf(outputBuffer, sizeof(outputBuffer), "WebSocket server \"%s\" listening on port 80.", WEBSOCKET_SERVER_NAME);
-    logPrint(outputBuffer);
+    logPrintf("WebSocket server \"%s\" listening on port 80.", WEBSOCKET_SERVER_NAME);
 }
 
 /**
@@ -2629,8 +2677,7 @@ void startAndConfigGNSS() {
     if (!roverGNSS.setMeasurementRate(prfGnsMsrInt, VAL_LAYER_RAM)) {
         logPrint("GNSS config step setMeasurementRate failed.");
     }
-    snprintf(outputBuffer, sizeof(outputBuffer), "Solution output every (%u * %u) ms.", prfGnsNavRat, prfGnsMsrInt);
-    logPrint(outputBuffer);
+    logPrintf("Solution output every (%u * %u) ms.", prfGnsNavRat, prfGnsMsrInt);
 
     // --- New config template. ---
     if (!roverGNSS.newCfgValset(VAL_LAYER_RAM)) {                   // Save only to RAM.
@@ -2800,8 +2847,7 @@ void preLoop() {
     operMode[0] = 'r';
     inLoopFlag  = true;
     uptime(timeSinceBoot, sizeof(timeSinceBoot));       // Generate timestamp.
-    snprintf(outputBuffer, sizeof(outputBuffer), "Time since boot: %s.\nLoop started.", timeSinceBoot);
-    logPrint(outputBuffer);                             // Battery checks are by taskEvery5000Ms(), first one when it starts.
+    logPrintf("Time since boot: %s.\nLoop started.", timeSinceBoot);  // Battery checks are by taskEvery5000Ms(), first one when it starts.
 }
 
 /**
@@ -3087,8 +3133,7 @@ void taskEvery10000Ms(void * pvParameters) {
         if (okToPushLastGgaFlag) {
             ntripClient.print(lastGGA);         // Push last $GGA to caster.
             if ((commandFlag[DEBUG_RTCM]) || (commandFlag[DEBUG_NTRIP])) {
-                snprintf(outputBuffer, sizeof(outputBuffer), "Pushed last $GGA to NTRIP caster: %s", lastGGA);
-                logPrint(outputBuffer);
+                logPrintf("Pushed last $GGA to NTRIP caster: %s", lastGGA);
             }
         }
         vTaskDelay(EVERY_10000MS_INTERVAL);
@@ -3124,8 +3169,7 @@ void onWiFiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
     if (commandFlag[DEBUG_WIFI_EVENTS]) {
 
         // --- Which event? ---
-        snprintf(outputBuffer, sizeof(outputBuffer), "WiFi event %d - ", event); 
-        logPrint(outputBuffer);
+        logPrintf("WiFi event %d - ", event);
         switch (event) {
             case ARDUINO_EVENT_WIFI_READY:              logPrint("WiFi interface ready."); break;
             case ARDUINO_EVENT_WIFI_SCAN_DONE:          logPrint("completed scan for access points."); break;
@@ -3140,12 +3184,11 @@ void onWiFiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
                 displayWifiClients();
                 break;
             case ARDUINO_EVENT_WIFI_AP_STAIPASSIGNED:   
-                snprintf(outputBuffer, sizeof(outputBuffer), "DHCP assigned IP address %u.%u.%u.%u.", 
-                    IPAddress(info.wifi_ap_staipassigned.ip.addr)[0], 
+                logPrintf("DHCP assigned IP address %u.%u.%u.%u.",
+                    IPAddress(info.wifi_ap_staipassigned.ip.addr)[0],
                     IPAddress(info.wifi_ap_staipassigned.ip.addr)[1],
                     IPAddress(info.wifi_ap_staipassigned.ip.addr)[2],
                     IPAddress(info.wifi_ap_staipassigned.ip.addr)[3]);
-                logPrint(outputBuffer); 
                 break;
             case ARDUINO_EVENT_WIFI_AP_PROBEREQRECVED:  logPrint("received probe request."); break;
             case ARDUINO_EVENT_WIFI_AP_GOT_IP6:         logPrint("AP IPv6 is preferred."); break;
@@ -3221,21 +3264,18 @@ void onHttpFileUpload(AsyncWebServerRequest *request, String filename, size_t in
         }
         SD_MMC.remove("/" + filename);                          // Delete file.
         if (commandFlag[DEBUG_FILE_SYSTEM]) {
-            snprintf(outputBuffer, sizeof(outputBuffer), "%s deleted on SD.", filename.c_str());
-            logPrint(outputBuffer);
+            logPrintf("%s deleted on SD.", filename.c_str());
         }
         uploadFile = SD_MMC.open("/" + filename, FILE_WRITE);   // Open file for writing.
         if (uploadFile) {
             uploadOpenFlag = true;
             if (commandFlag[DEBUG_FILE_SYSTEM]) {
-                snprintf(outputBuffer, sizeof(outputBuffer), "%s opened on SD.", filename.c_str());
-                logPrint(outputBuffer);
+                logPrintf("%s opened on SD.", filename.c_str());
             }
         } else {
             request->send(500, "text/plain", "Cannot open file for writing on SD.");
             if (commandFlag[DEBUG_FILE_SYSTEM]) {
-                snprintf(outputBuffer, sizeof(outputBuffer), "Cannot open %s on SD for writing.", filename.c_str());
-                logPrint(outputBuffer);
+                logPrintf("Cannot open %s on SD for writing.", filename.c_str());
             }
             return;  
         }
@@ -3250,8 +3290,7 @@ void onHttpFileUpload(AsyncWebServerRequest *request, String filename, size_t in
     if (len) {                                              // Data chunk.                                            
         uploadFile.write(data, len);                        // Write received data to file.
         if (commandFlag[DEBUG_FILE_SYSTEM]) {
-            snprintf(outputBuffer, sizeof(outputBuffer), "%u total bytes written.", (unsigned int)(index + len));
-            logPrint(outputBuffer);
+            logPrintf("%u total bytes written.", (unsigned int)(index + len));
         }
     }
 
@@ -3259,8 +3298,7 @@ void onHttpFileUpload(AsyncWebServerRequest *request, String filename, size_t in
     if (final) {                                            // Complete.
         uploadFile.close();
         if (commandFlag[DEBUG_FILE_SYSTEM]) {
-            snprintf(outputBuffer, sizeof(outputBuffer), "%s closed on SD.", filename.c_str());
-            logPrint(outputBuffer);
+            logPrintf("%s closed on SD.", filename.c_str());
         }
         request->send(200, "text/plain", "Upload complete. File saved to SD.");
     }
@@ -3288,16 +3326,14 @@ void onWebSocketEvent(AsyncWebSocket *httpServer, AsyncWebSocketClient *client, 
         case WS_EVT_CONNECT:
 
             if (commandFlag[DEBUG_WS_EVENTS]) {             // Debug.
-                snprintf(outputBuffer, sizeof(outputBuffer), "%s connected to WebSocket server on WS #%u.", client->remoteIP().toString().c_str(), clientId);
-                logPrint(outputBuffer);
+                logPrintf("%s connected to WebSocket server on WS #%u.", client->remoteIP().toString().c_str(), clientId);
             }
             setStatusLed(GREEN);                         // Loop status indicator LED.
             wsSendCount    = 0;                             // Reset counter.
             break;
         case WS_EVT_DISCONNECT:
             if (commandFlag[DEBUG_WS_EVENTS]) {             // Debug.
-                snprintf(outputBuffer, sizeof(outputBuffer), "%s disconnected to WebSocket server on WS #%u.", client->remoteIP().toString().c_str(), clientId);
-                logPrint(outputBuffer);
+                logPrintf("%s disconnected to WebSocket server on WS #%u.", client->remoteIP().toString().c_str(), clientId);
             }
             setStatusLed(BLUE);
             wsSendCount    = 0;                             // Reset counter.
@@ -3394,8 +3430,7 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
         if (tcpClientConnectedFlag) {
             size_t bytesWritten = tcpClient.write((const uint8_t*)nmeaBuffer, strlen(nmeaBuffer));
             if (commandFlag[DEBUG_NMEA_SENT]) {
-                snprintf(outputBuffer, sizeof(outputBuffer), "%u ", bytesWritten);
-                logPrint(outputBuffer, true, false);     // (textToLogPrint, add to log file = true, add newline = true).
+                logPrintfNoNl("%u ", bytesWritten);
             }
             NMEAoutFlag = (bytesWritten > 0);
         }
@@ -3434,12 +3469,10 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
 
         // -- Debug: display NMEA sentence. ---
         if ((commandFlag[DEBUG_NMEA]) || (commandFlag[DEBUG_NMEA_HEX])) {
-            snprintf(outputBuffer, sizeof(outputBuffer), "%u %s", nmeaCountAll, nmeaBuffer);
-            logPrint(outputBuffer, true, false);     // (textToLogPrint, add to log file = true, add newline = true).
+            logPrintfNoNl("%u %s", nmeaCountAll, nmeaBuffer);
             if (commandFlag[DEBUG_NMEA_HEX]) {
                 for (int i = 0; i < strlen(nmeaBuffer); i++) {
-                    snprintf(outputBuffer, sizeof(outputBuffer), "[\"%c\" 0x%02X] ", nmeaBuffer[i], nmeaBuffer[i]);
-                    logPrint(outputBuffer, true, false);
+                    logPrintfNoNl("[\"%c\" 0x%02X] ", nmeaBuffer[i], nmeaBuffer[i]);
                 }
             }
         }
@@ -3841,8 +3874,7 @@ bool setPrefsValid() {
     jsonDocFromBrowser.clear();
     DeserializationError error = deserializeJson(jsonDocFromBrowser, item.data, item.len);
     if (error) {
-        snprintf(outputBuffer, sizeof(outputBuffer), "JSON deserialize failed: %s", error.f_str());
-        logPrint(outputBuffer);
+        logPrintf("JSON deserialize failed: %s", error.f_str());
         return;
     }
     memset(outputBuffer, '\0', sizeof(outputBuffer));
@@ -3851,8 +3883,7 @@ bool setPrefsValid() {
     // --- Set page name global var. ---
     if (jsonDocFromBrowser["page"].is<JsonVariant>()) {                     // Does key exist?
         strlcpy(whichPage, jsonDocFromBrowser["page"], sizeof(whichPage));  // Important global used in loop().
-        snprintf(outputBuffer, sizeof(outputBuffer), "Page loaded: \"%s\" ", whichPage);
-        logPrint(outputBuffer);
+        logPrintf("Page loaded: \"%s\" ", whichPage);
     }
 
     // -------------------------------------------------------------------------
@@ -4271,8 +4302,7 @@ bool setPrefsValid() {
             char userCredentials[sizeof(ntripCaster.user) + sizeof(ntripCaster.pass) + 1];  // ':' takes a spot.
             snprintf(userCredentials, sizeof(userCredentials), "%s:%s", ntripCaster.user, ntripCaster.pass);
             if (commandFlag[DEBUG_NTRIP]) {
-                snprintf(outputBuffer, sizeof(outputBuffer), "Using credentials \"%s\".", userCredentials);
-                logPrint(outputBuffer);
+                logPrintf("Using credentials \"%s\".", userCredentials);
             }
             base64 b;                                                                       // Built-in ESP32 lib returns String.
             String strEncodedCredentials = b.encode(userCredentials);                       // converted to char[] immediately below.
@@ -4286,8 +4316,7 @@ bool setPrefsValid() {
         // -- Send request. --
         ntripClient.write(serverRequest, strlen(serverRequest));
         if (commandFlag[DEBUG_NTRIP]) {
-            snprintf(outputBuffer, sizeof(outputBuffer), "Sent:\n\"%s\".", serverRequest);
-            logPrint(outputBuffer);
+            logPrintf("Sent:\n\"%s\".", serverRequest);
         }
 
         // -- Set response. Send to browser. --
@@ -4534,8 +4563,7 @@ void checkTCPServer() {
         tcpClient = tcpServer.available();
         tcpClient.setNoDelay(true);
         tcpClientConnectedFlag = true;
-        snprintf(outputBuffer, sizeof(outputBuffer), "TCP client connected: %s", tcpClient.remoteIP().toString().c_str());
-        logPrint(outputBuffer);
+        logPrintf("TCP client connected: %s", tcpClient.remoteIP().toString().c_str());
     }
 
     // --- Detect client disconnect. ---
@@ -4611,16 +4639,14 @@ void debug() {
 
     // --- Heap. ---
     if (commandFlag[DEBUG_HEAP]) {
-        snprintf(outputBuffer, sizeof(outputBuffer), "heap: %lu  min: %lu", (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getMinFreeHeap());
-        logPrint(outputBuffer);
+        logPrintf("heap: %lu  min: %lu", (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getMinFreeHeap());
     }
 
         // --- Loop stack. ---
     if (commandFlag[DEBUG_LOOP_STACK]) {
         UBaseType_t remaining = uxTaskGetStackHighWaterMark(loopTaskHandle);
-        snprintf(outputBuffer, sizeof(outputBuffer), "Stack headroom - %u bytes remain of %u total bytes.",
+        logPrintf("Stack headroom - %u bytes remain of %u total bytes.",
             remaining * sizeof(StackType_t), getArduinoLoopTaskStackSize());
-        logPrint(outputBuffer);
     }
 
     // --- Test radio. ---
@@ -4690,9 +4716,8 @@ void debug() {
 
     // --- Display NMEA counts. ---
     if (commandFlag[DEBUG_NMEA_COUNTS]) {
-        snprintf(outputBuffer, sizeof(outputBuffer), "All=%u, GGA=%u, RMC=%u, GSA=%u, GSV=%u, GST=%u, TXT=%u, other=%u.",
+        logPrintf("All=%u, GGA=%u, RMC=%u, GSA=%u, GSV=%u, GST=%u, TXT=%u, other=%u.",
             nmeaCountAll, nmeaCountGGA, nmeaCountRMC, nmeaCountGSA, nmeaCountGSV, nmeaCountGST, nmeaCountTXT, nmeaCountOther);
-        logPrint(outputBuffer);
     }
 
     // --- NMEA sentences. ---
@@ -4710,9 +4735,8 @@ void debug() {
     // --- Serial. ---
     if (commandFlag[DEBUG_SER]) {
         // - Serial state (d,u). -
-        snprintf(outputBuffer, sizeof(outputBuffer), "Serial USB %c  Serial0 (not used) %c serial1 (RTCMin -> HC12) %c  serial2 (RTCMout -> ZED UART2) %c",
+        logPrintf("Serial USB %c  Serial0 (not used) %c serial1 (RTCMin -> HC12) %c  serial2 (RTCMout -> ZED UART2) %c",
             serialState[0], serialState[1], serialState[2], serialState[3]);
-        logPrint(outputBuffer);     // (textToLogPrint, add to log file = true, add newline = true).
     }
 
     // --- WiFi. ---
@@ -4735,11 +4759,9 @@ void debug() {
     // memset(debugTemp, '\0', sizeof(debugTemp));
     // strcpy(debugTemp,numberbuffer);
     if (commandFlag[DEBUG_TEMP]) {
-            snprintf(outputBuffer, sizeof(outputBuffer), 
+            logPrintf(
                 "ellipsoid=%d, ellipsoidHp=%d, heightEllipsoid=%.3f", ellipsoid, ellipsoidHp, heightEllipsoid);
-            logPrint(outputBuffer);
-            snprintf(outputBuffer, sizeof(outputBuffer), "msl=%d, mslHp=%d, prfInstrHgt=%.2f, heightOrthometric=%.3f, altitudeMSL=%.3f", msl, mslHp, prfInstrHgt, heightOrthometric, altitudeMSL);
-            logPrint(outputBuffer);
+            logPrintf("msl=%d, mslHp=%d, prfInstrHgt=%.2f, heightOrthometric=%.3f, altitudeMSL=%.3f", msl, mslHp, prfInstrHgt, heightOrthometric, altitudeMSL);
             logPrint(lastGGA);
     }
 
