@@ -69,6 +69,7 @@
  * @since  3.5.16 [2026-11-02-01:00am] Add setStatusLed(): replaces 11 copies of the ws2812LedColor / ws2812LedBlink / statusLedOn() code.
  * @since  3.5.17 [2026-11-02-01:15am] Docs only: index entries for imuSelectBank0(), isSafeFileName() & setPrefsValid().
  * @since  3.5.18 [2026-11-02-01:35am] logPrint(): mutex (logMutex) so tasks do not interleave Serial prints & SD log appends.
+ * @since  3.5.19 [2026-11-02-03:15pm] Add startTask(): replaces 6 xTaskCreate() + logPrint() pairs in startTasks(); logs a failed task start. Task names shortened to 15 characters or less.
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
  * @link   http://dougfoster.me.
@@ -485,7 +486,7 @@ const bool    RO_MODE                    = true;                // Open preferen
 const char    LOG_FILE[]                 = "/log.txt";          // Log file.
 const uint8_t MAJOR_VERSION              = 3;                   // Current major build version (@see buildInfo()).
 const uint8_t MINOR_VERSION              = 5;                   // Current minor build version (@see buildInfo()).
-const uint8_t PATCH_VERSION              = 18;                   // Current patch build version (@see buildInfo()).
+const uint8_t PATCH_VERSION              = 19;                   // Current patch build version (@see buildInfo()).
 const uint8_t MIN_SATELLITE_THRESHHOLD   = 2;                   // Minimum SIV for reliable coordinate information.      
       char     operMode[2]               = {'\0'};              // Operation mode (r=rover, b=base).
 //    char     debugTemp[250]            = {'\0'};              // Various debug scenarios. Activate when needed.
@@ -2023,6 +2024,7 @@ bool imuBubbleXY(float &x, float &y) {
  * @since 3.3.1  [2026-08-17-09:00am] Changed position of startOutputs() in setup().
  * @since 3.3.4  [2026-10-20-02:15pm] Re-added Wire1 for IMU.
  * @since 3.5.13 [2026-11-01-11:45pm] Add isSafeFileName().
+ * @since 3.5.19 [2026-11-02-03:15pm] Add startTask().
  * @see   startOutputs()         - Start serial & microSD card reader. Status LED is YELLOW then WHITE.
  * @see   buildInfo()            - Display build & processor info.
  * @see   prefUtility(PREF_INIT) - Preference utility (get preferences).
@@ -2038,6 +2040,7 @@ bool imuBubbleXY(float &x, float &y) {
  * @see   startWebSocketServer() - Start WebSocket server.
  * @see   startAndConfigGNSS()   - Start GNSS, config ZED settings.
  * @see   startQueues()          - Start GhostRover FreeRTOS queues.
+ * @see   startTask()            - Create one GhostRover FreeRTOS task & log it; log a failed start.
  * @see   startTasks()           - Start GhostRover FreeRTOS tasks.
  * @see   preLoop()              - Prepare for loop().
  */
@@ -2679,6 +2682,36 @@ void startQueues() {
 
 /**
  * -------------------------------------------------------------------------
+ *  Create one GhostRover FreeRTOS task, log it.
+ * -------------------------------------------------------------------------
+ *
+ * Logs "started" on success. On failure (usually not enough free heap for the stack) logs "FAILED to start" and returns false. The sketch carries on.
+ *
+ * @param  TaskFunction_t fn     Task function.
+ * @param  const char*    name   Task name, also used in the log message. Max 15 characters (FreeRTOS limit is 16 incl. terminating null).
+ * @param  uint32_t       stack  Stack size in bytes (ESP32 FreeRTOS).
+ * @param  TaskHandle_t*  handle Receives the task handle (NULL if the task was not created).
+ * @param  BaseType_t     core   Core to pin to (0 or 1), default tskNO_AFFINITY (any core).
+ * @return bool  true if the task was created.
+ * @since  3.5.19 [2026-11-02-03:15pm] New.
+ * @see    startTasks().
+ * @link   https://www.freertos.org/Documentation/02-Kernel/04-API-references/01-Task-creation/01-xTaskCreate.
+ */
+bool startTask(TaskFunction_t fn, const char* name, uint32_t stack, TaskHandle_t* handle, BaseType_t core = tskNO_AFFINITY) {
+    char msg[96];
+    if (xTaskCreatePinnedToCore(fn, name, stack, NULL, 2, handle, core) == pdPASS) {
+        snprintf(msg, sizeof(msg), "FreeRTOS task \"%s\" started.", name);
+        logPrint(msg);
+        return true;
+    }
+    *handle = NULL;
+    snprintf(msg, sizeof(msg), "FreeRTOS task \"%s\" FAILED to start.", name);
+    logPrint(msg);
+    return false;
+}
+
+/**
+ * -------------------------------------------------------------------------
  *  Start GhostRover FreeRTOS tasks.
  * -------------------------------------------------------------------------
  *
@@ -2693,23 +2726,22 @@ void startQueues() {
  * @since  3.5.0  [2026-10-25-11:00am] Move buildOperDataInterval calculation from global var to startTasks().
  * @since  3.5.0  [2026-10-29-10:30am] Add taskEvery100Ms().
  * @since  3.5.11 [2026-11-01-11:20pm] Merged duplicate RTCM source "off" tests.
+ * @since  3.5.19 [2026-11-02-03:15pm] Use startTask(): a failed task start is now logged. Task names shortened to 15 characters or less.
+ * @see    startTask().
  * @see    Global vars: FreeRTOS handles.
  * @see    setup().
- * @link   https://www.freertos.org/Documentation/02-Kernel/04-API-references/01-Task-creation/01-xTaskCreate.
  */
 void startTasks() {
 
     // --- Loop status LED. ---
-    xTaskCreate(taskLoopStatusLed, "Loop status LED", 2048, NULL, 2, &taskLoopStatusLedHandle);
-    logPrint("FreeRTOS task \"Loop status LED\" started.");
+    startTask(taskLoopStatusLed, "Loop status LED", 2048, &taskLoopStatusLedHandle);
 
     // --- RTCM relay. ---
     // Arduino-ESP32 core 0 defaults: WiFi/BT.
     // Arduino-ESP32 core 1 defaults: Arduino loop(), WiFi/I2C.
     // Pin taskRtcmRelay() to core 0 for parallel execution instead of round-robin in loop() since I2C calls block and don't yield.
     if (strncmp(prfRtcmInSource, "off", sizeof(prfRtcmInSource)) != 0) {    // Relay RTCM, skip for "off".
-        xTaskCreatePinnedToCore(taskRtcmRelay, "RTCM_Relay", 8192, NULL, 2, &taskRtcmRelayHandle, 0);
-        logPrint("FreeRTOS task \"RTCM relay\" started.");
+        startTask(taskRtcmRelay, "RTCM relay", 8192, &taskRtcmRelayHandle, 0);
         RTCMinFlag = false;
     }
 
@@ -2718,24 +2750,19 @@ void startTasks() {
     if (buildOperDataInterval < 1) {
         buildOperDataInterval = 1;   // Never let it be 0.
     }
-    xTaskCreate(taskBuildOperData, "Call buildOperData", 4096, NULL, 2, &taskBuildOperDataHandle);
-    logPrint("FreeRTOS task \"Build operate data\" started.");
+    startTask(taskBuildOperData, "Build oper data", 4096, &taskBuildOperDataHandle);
 
     // --- One tenth second interval. ---
-    xTaskCreate(taskEvery100Ms, "Do these every 1/10 second.", 4096, NULL, 2, &taskEvery100MsHandle);
-    logPrint("FreeRTOS task \"Do these every 1/10 second\" started.");
+    startTask(taskEvery100Ms, "Every 100 ms", 4096, &taskEvery100MsHandle);
 
     // --- One second interval. ---
-    xTaskCreate(taskEvery1000Ms, "Do these every 1 second.", 4096, NULL, 2, &taskEvery1000MsHandle);
-    logPrint("FreeRTOS task \"Do these every 1 second\" started.");
+    startTask(taskEvery1000Ms, "Every 1000 ms", 4096, &taskEvery1000MsHandle);
 
     // --- Five second interval. ---
-    xTaskCreate(taskEvery5000Ms, "Do these every 5 seconds.", 2048, NULL, 2, &taskEvery5000MsHandle);
-    logPrint("FreeRTOS task \"Do these every 5 seconds\" started.");
+    startTask(taskEvery5000Ms, "Every 5000 ms", 2048, &taskEvery5000MsHandle);
 
     // --- Ten second interval. ---
-    xTaskCreate(taskEvery10000Ms, "Do these every 10 seconds.", 4096, NULL, 2, &taskEvery10000MsHandle);
-    logPrint("FreeRTOS task \"Do these every 10 seconds\" started.");
+    startTask(taskEvery10000Ms, "Every 10000 ms", 4096, &taskEvery10000MsHandle);
 
 }
 
