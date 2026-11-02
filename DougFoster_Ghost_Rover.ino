@@ -73,6 +73,7 @@
  * @since  3.5.20 [2026-11-02-03:50pm] buildOperData(): fix 32-bit int overflow in prfLckAvgInt * 1000000 (lock averaging ended at once for intervals over 2147 secs).
  * @since  3.5.21 [2026-11-02-04:05pm] imuFilterGravity(): ignore a failed getAGMT() read (imu.status) or an all-zero sample; both count toward the imuSelectBank0() recovery.
  * @since  3.5.22 [2026-11-02-04:20pm] Moved isSafeFileName() from Setup functions to General functions (code move & index only, no logic change).
+ * @since  3.5.23 [2026-11-02-04:35pm] FreeRTOS intervals: pdMS_TO_TICKS(ms) replaces ms/portTICK_PERIOD_MS (same values, one idiom).
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
  * @link   http://dougfoster.me.
@@ -489,7 +490,7 @@ const bool    RO_MODE                    = true;                // Open preferen
 const char    LOG_FILE[]                 = "/log.txt";          // Log file.
 const uint8_t MAJOR_VERSION              = 3;                   // Current major build version (@see buildInfo()).
 const uint8_t MINOR_VERSION              = 5;                   // Current minor build version (@see buildInfo()).
-const uint8_t PATCH_VERSION              = 22;                   // Current patch build version (@see buildInfo()).
+const uint8_t PATCH_VERSION              = 23;                   // Current patch build version (@see buildInfo()).
 const uint8_t MIN_SATELLITE_THRESHHOLD   = 2;                   // Minimum SIV for reliable coordinate information.      
       char     operMode[2]               = {'\0'};              // Operation mode (r=rover, b=base).
 //    char     debugTemp[250]            = {'\0'};              // Various debug scenarios. Activate when needed.
@@ -608,11 +609,11 @@ extern TaskHandle_t  loopTaskHandle;                            // Handle for Fr
        QueueHandle_t wsRxQueue;                                 // Handle for GhostRover FreeRTOS queue: AsyncTCP task -> loop().
 
 // --- FreeRTOS tasks. ---
-const TickType_t LED_BLINK_INTERVAL     = 40/portTICK_PERIOD_MS;                             // LED "blink" time (ms) =  0.04 seconds.
-const TickType_t EVERY_100MS_INTERVAL   = 100/portTICK_PERIOD_MS;                            // Do these every 1/10 second.
-const TickType_t EVERY_1000MS_INTERVAL  = 1000/portTICK_PERIOD_MS;                           // Do these every 1 second.
-const TickType_t EVERY_5000MS_INTERVAL  = 5000/portTICK_PERIOD_MS;                           // Do these every 5 seconds.
-const TickType_t EVERY_10000MS_INTERVAL = 10000/portTICK_PERIOD_MS;                          // Do these every 10 seconds.
+const TickType_t LED_BLINK_INTERVAL     = pdMS_TO_TICKS(40);                                 // LED "blink" time (ms) =  0.04 seconds.
+const TickType_t EVERY_100MS_INTERVAL   = pdMS_TO_TICKS(100);                                // Do these every 1/10 second.
+const TickType_t EVERY_1000MS_INTERVAL  = pdMS_TO_TICKS(1000);                               // Do these every 1 second.
+const TickType_t EVERY_5000MS_INTERVAL  = pdMS_TO_TICKS(5000);                               // Do these every 5 seconds.
+const TickType_t EVERY_10000MS_INTERVAL = pdMS_TO_TICKS(10000);                              // Do these every 10 seconds.
       TickType_t buildOperDataInterval  = pdMS_TO_TICKS(200);                                // Time (ms) [pref based] between operate page updates.
 
 // --- Lock/average state. ---
