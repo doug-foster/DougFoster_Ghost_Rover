@@ -72,6 +72,7 @@
  * @since  3.5.19 [2026-11-02-03:15pm] Add startTask(): replaces 6 xTaskCreate() + logPrint() pairs in startTasks(); logs a failed task start. Task names shortened to 15 characters or less.
  * @since  3.5.20 [2026-11-02-03:50pm] buildOperData(): fix 32-bit int overflow in prfLckAvgInt * 1000000 (lock averaging ended at once for intervals over 2147 secs).
  * @since  3.5.21 [2026-11-02-04:05pm] imuFilterGravity(): ignore a failed getAGMT() read (imu.status) or an all-zero sample; both count toward the imuSelectBank0() recovery.
+ * @since  3.5.22 [2026-11-02-04:20pm] Moved isSafeFileName() from Setup functions to General functions (code move & index only, no logic change).
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
  * @link   http://dougfoster.me.
@@ -488,7 +489,7 @@ const bool    RO_MODE                    = true;                // Open preferen
 const char    LOG_FILE[]                 = "/log.txt";          // Log file.
 const uint8_t MAJOR_VERSION              = 3;                   // Current major build version (@see buildInfo()).
 const uint8_t MINOR_VERSION              = 5;                   // Current minor build version (@see buildInfo()).
-const uint8_t PATCH_VERSION              = 21;                   // Current patch build version (@see buildInfo()).
+const uint8_t PATCH_VERSION              = 22;                   // Current patch build version (@see buildInfo()).
 const uint8_t MIN_SATELLITE_THRESHHOLD   = 2;                   // Minimum SIV for reliable coordinate information.      
       char     operMode[2]               = {'\0'};              // Operation mode (r=rover, b=base).
 //    char     debugTemp[250]            = {'\0'};              // Various debug scenarios. Activate when needed.
@@ -667,13 +668,16 @@ const double   MAD_REJECT_K               = 3.0;        // Reject samples beyond
  * @since 3.4.2  [2026-10-05-01:45am] Add stringToHex().
  * @since 3.5.15 [2026-10-05-01:45am] Add fatalError().
  * @since 3.5.16 [2026-11-02-01:00am] Add setStatusLed().
+ * @since 3.5.13 [2026-11-01-11:45pm] Add isSafeFileName().
  * @since 3.5.18 [2026-11-02-01:35am] logPrint() takes logMutex.
+ * @since 3.5.22 [2026-11-02-04:20pm] Moved isSafeFileName() here from Setup functions.
  * @since 3.5.2  [2026-11-01-08:45pm] Add imuSelectBank0().
  * @see   uptime()                - Display time since boot.
  * @see   logPrint()              - Save a message to LOG_FILE, print to Serial if available. Thread-safe (logMutex).
  * @see   statusLedOn()           - Turn on status LED.
  * @see   setStatusLed()          - Set status LED color & blink. Turns it on at once until taskLoopStatusLed() starts.
  * @see   fatalError()            - Fatal error during setup(): solid RED status LED, print the message, freeze.
+ * @see   isSafeFileName()        - Check a file name from the network: reject empty names & names containing "..".
  * @see   prefUtility()           - Preference utility.
  * @see   buildOperData()         - Build data for operate page.
  * @see   sendDataToBrowser()     - Fill & send jsonDocToBrowser.
@@ -835,6 +839,24 @@ void fatalError(const char* message, bool logToSd = true) {
     setStatusLed(RED);
     logPrint(message, logToSd);
     while (true) {};                                            // Freeze.
+}
+
+/**
+ * -------------------------------------------------------------------------
+ *  Check a file name received from the network (HTTP download/upload, WebSocket delete).
+ * -------------------------------------------------------------------------
+ *
+ * Files live in the SD card root. A name containing ".." could reach outside it ("../x", "..\\x"), so any ".." is rejected, as is an empty name.
+ * Names like "a..b" are also rejected: a deliberate trade for a simple test.
+ *
+ * @param  const char* name File name from the browser.
+ * @return bool        true = OK to use, false = reject.
+ * @since  3.5.13 [2026-11-01-11:45pm] New.
+ * @since  3.5.22 [2026-11-02-04:20pm] Moved from Setup functions to General functions.
+ * @see    startHttpServer(), onHttpFileUpload(), processMessagesIn().
+ */
+bool isSafeFileName(const char* name) {
+    return (name != NULL) && (name[0] != '\0') && (strstr(name, "..") == NULL);
 }
 
 /**
@@ -2036,7 +2058,6 @@ bool imuBubbleXY(float &x, float &y) {
  * @since 3.2.3  [2026-08-10-09:45am] Add startTcpServer().
  * @since 3.3.1  [2026-08-17-09:00am] Changed position of startOutputs() in setup().
  * @since 3.3.4  [2026-10-20-02:15pm] Re-added Wire1 for IMU.
- * @since 3.5.13 [2026-11-01-11:45pm] Add isSafeFileName().
  * @since 3.5.19 [2026-11-02-03:15pm] Add startTask().
  * @see   startOutputs()         - Start serial & microSD card reader. Status LED is YELLOW then WHITE.
  * @see   buildInfo()            - Display build & processor info.
@@ -2048,7 +2069,6 @@ bool imuBubbleXY(float &x, float &y) {
  * @see   startIMU()             - Start IMU.
  * @see   startWiFiServer()      - Start WiFi server.
  * @see   startTcpServer()       - Start TCP server for GNSS Master (NMEA out / RTCM in bridge).
- * @see   isSafeFileName()       - Check a file name from the network: reject empty names & names containing "..".
  * @see   startHttpServer()      - Start HTTP server.
  * @see   startWebSocketServer() - Start WebSocket server.
  * @see   startAndConfigGNSS()   - Start GNSS, config ZED settings.
@@ -2435,23 +2455,6 @@ void startTcpServer() {
     tcpServer.setNoDelay(true);                        // Disable Nagle - don't batch NMEA/RTCM bytes.
     snprintf(outputBuffer, sizeof(outputBuffer), "TCP server started on port %u.", TCP_SERVER_PORT);
     logPrint(outputBuffer);
-}
-
-/**
- * -------------------------------------------------------------------------
- *  Check a file name received from the network (HTTP download/upload, WebSocket delete).
- * -------------------------------------------------------------------------
- *
- * Files live in the SD card root. A name containing ".." could reach outside it ("../x", "..\\x"), so any ".." is rejected, as is an empty name.
- * Names like "a..b" are also rejected: a deliberate trade for a simple test.
- *
- * @param  const char* name File name from the browser.
- * @return bool        true = OK to use, false = reject.
- * @since  3.5.13 [2026-11-01-11:45pm] New.
- * @see    startHttpServer(), onHttpFileUpload(), processMessagesIn().
- */
-bool isSafeFileName(const char* name) {
-    return (name != NULL) && (name[0] != '\0') && (strstr(name, "..") == NULL);
 }
 
 /**
