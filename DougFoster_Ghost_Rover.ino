@@ -68,6 +68,7 @@
  * @since  3.5.15 [2026-11-02-12:40am] Add fatalError(): replaces 5 copies of the red LED / print / freeze code in setup() functions.
  * @since  3.5.16 [2026-11-02-01:00am] Add setStatusLed(): replaces 11 copies of the ws2812LedColor / ws2812LedBlink / statusLedOn() code.
  * @since  3.5.17 [2026-11-02-01:15am] Docs only: index entries for imuSelectBank0(), isSafeFileName() & setPrefsValid().
+ * @since  3.5.18 [2026-11-02-01:35am] logPrint(): mutex (logMutex) so tasks do not interleave Serial prints & SD log appends.
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
  * @link   http://dougfoster.me.
@@ -279,6 +280,7 @@
 
 // --- Core. ---
 #include <Arduino.h>                                       // https://github.com/espressif/arduino-esp32.
+#include <freertos/semphr.h>                                // FreeRTOS mutex for logPrint().
 #include <WiFi.h>                                          // https://github.com/espressif/arduino-esp32/tree/master/libraries/WiFi.
 #include <WiFiAP.h>                                        // https://github.com/espressif/arduino-esp32/tree/master/libraries/WiFi.
 #include <SD_MMC.h>                                        // https://github.com/espressif/arduino-esp32/tree/master/libraries/SD_MMC.
@@ -483,7 +485,7 @@ const bool    RO_MODE                    = true;                // Open preferen
 const char    LOG_FILE[]                 = "/log.txt";          // Log file.
 const uint8_t MAJOR_VERSION              = 3;                   // Current major build version (@see buildInfo()).
 const uint8_t MINOR_VERSION              = 5;                   // Current minor build version (@see buildInfo()).
-const uint8_t PATCH_VERSION              = 17;                   // Current patch build version (@see buildInfo()).
+const uint8_t PATCH_VERSION              = 18;                   // Current patch build version (@see buildInfo()).
 const uint8_t MIN_SATELLITE_THRESHHOLD   = 2;                   // Minimum SIV for reliable coordinate information.      
       char     operMode[2]               = {'\0'};              // Operation mode (r=rover, b=base).
 //    char     debugTemp[250]            = {'\0'};              // Various debug scenarios. Activate when needed.
@@ -591,6 +593,7 @@ int64_t lastRTCMtime   = esp_timer_get_time();                  // Last time (us
 
 // --- FreeRTOS handles. ---
 extern TaskHandle_t  loopTaskHandle;                            // Handle for FreeRTOS task: loopTask (i.e. loop()). Declared in Arduino-ESP32 core's main.cpp
+       SemaphoreHandle_t logMutex = NULL;                       // Mutex: one task at a time in logPrint(). Created in startOutputs().
        TaskHandle_t  taskLoopStatusLedHandle;                   // Handle for GhostRover FreeRTOS task: Loop status LED.
        TaskHandle_t  taskRtcmRelayHandle;                       // Handle for GhostRover FreeRTOS task: RTCM relay, Serial1 -> Serial2.
        TaskHandle_t  taskBuildOperDataHandle;                   // Handle for GhostRover FreeRTOS task: buildOperData.
@@ -661,9 +664,10 @@ const double   MAD_REJECT_K               = 3.0;        // Reject samples beyond
  * @since 3.4.2  [2026-10-05-01:45am] Add stringToHex().
  * @since 3.5.15 [2026-10-05-01:45am] Add fatalError().
  * @since 3.5.16 [2026-11-02-01:00am] Add setStatusLed().
+ * @since 3.5.18 [2026-11-02-01:35am] logPrint() takes logMutex.
  * @since 3.5.2  [2026-11-01-08:45pm] Add imuSelectBank0().
  * @see   uptime()                - Display time since boot.
- * @see   logPrint()              - Save a message to LOG_FILE, print to Serial if available.
+ * @see   logPrint()              - Save a message to LOG_FILE, print to Serial if available. Thread-safe (logMutex).
  * @see   statusLedOn()           - Turn on status LED.
  * @see   setStatusLed()          - Set status LED color & blink. Turns it on at once until taskLoopStatusLed() starts.
  * @see   fatalError()            - Fatal error during setup(): solid RED status LED, print the message, freeze.
@@ -724,12 +728,16 @@ void uptime(char *dest, size_t max_len, bool fractional = true) {
  * @since  3.3.1 [2026-08-16-05:15pm] New.
  * @since  3.3.2 [2026-08-16-05:15pm] Added log secondary parameter.
  * @since  3.3.3 [2026-09-04-09:30am] Added newline tertiary parameter.
+ * @since  3.5.18 [2026-11-02-01:35am] Take logMutex so tasks do not interleave. Waits up to 1 s, then prints anyway.
  */
 void logPrint(const char* textToLogPrint = NULL, bool log = true, bool newline = true) {
 
     if (textToLogPrint == NULL)  {
         return;
     } else {
+
+        // --- One task at a time. logMutex is NULL until startOutputs() creates it (setup() is single threaded). ---
+        const bool locked = (logMutex != NULL) && (xSemaphoreTake(logMutex, pdMS_TO_TICKS(1000)) == pdTRUE);
 
         // --- Print to Serial. ---
         if (newline) {
@@ -749,6 +757,9 @@ void logPrint(const char* textToLogPrint = NULL, bool log = true, bool newline =
                 }
                 file.close();
             }
+        }
+        if (locked) {
+            xSemaphoreGive(logMutex);
         }
     }
 }
@@ -2077,6 +2088,9 @@ void startOutputs() {
     const uint16_t START_DELAY      = 1000;         // Blocking delay, allow RTK-SMA to get started
     const uint32_t SERIAL_USB_SPEED = 115200;       // Serial USB speed.
           bool     startedSd        = true;
+
+    // --- Mutex for logPrint(). If creation fails logPrint() works without it. ---
+    logMutex = xSemaphoreCreateMutex();
 
     // --- Set initial state. ---
     setStatusLed(WHITE);                         // Indicates no error during setup().
