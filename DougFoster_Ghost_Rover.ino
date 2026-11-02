@@ -60,6 +60,7 @@
  * @since  3.5.7 [2026-11-01-10:30pm] startI2C(): retry in a loop instead of recursion; log "400kHz" (was "4kHz").
  * @since  3.5.8 [2026-11-01-10:45pm] startAndConfigGNSS(): reset, delay, then configure; retry setAutoPVT(); check & log failed config steps.
  * @since  3.5.9 [2026-11-01-10:55pm] startAndConfigGNSS(): add setAutoHPPOSLLH(true) so getHighRes*() & getElipsoid*() etc. no longer poll the ZED.
+ * @since  3.5.10 [2026-11-01-11:10pm] Add lipoReadyFlag: no LiPo I2C reads if the MAX17048 was not detected. Removed duplicate battery read from preLoop().
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
  * @link   http://dougfoster.me.
@@ -475,7 +476,7 @@ const bool    RO_MODE                    = true;                // Open preferen
 const char    LOG_FILE[]                 = "/log.txt";          // Log file.
 const uint8_t MAJOR_VERSION              = 3;                   // Current major build version (@see buildInfo()).
 const uint8_t MINOR_VERSION              = 5;                   // Current minor build version (@see buildInfo()).
-const uint8_t PATCH_VERSION              = 9;                   // Current patch build version (@see buildInfo()).
+const uint8_t PATCH_VERSION              = 10;                   // Current patch build version (@see buildInfo()).
 const uint8_t MIN_SATELLITE_THRESHHOLD   = 2;                   // Minimum SIV for reliable coordinate information.      
       char     operMode[2]               = {'\0'};              // Operation mode (r=rover, b=base).
 //    char     debugTemp[250]            = {'\0'};              // Various debug scenarios. Activate when needed.
@@ -524,6 +525,7 @@ bool commandFlag[NUM_COMMANDS]      = {false};                  // Debug command
 bool okToPushLastGgaFlag            = false;                    // Push lastGGA NMEA sentence to NTRIP caster _after_ link is established.
 bool ntripHandshakeCompleteFlag     = false;                    // NTRIP caster handshake in processMessagesIn() is complete. taskRtcmRelay() can read RTCM.
 bool imuReadyFlag                   = false;                    // IMU/I2C interface started.
+bool lipoReadyFlag                  = false;                    // LiPo/I2C interface started.
 bool filterSeededFlag               = false;                    // IMU first pass, seed filter with raw readings.
 bool calibrateImuFlag               = false;                    // UI is requesting IMU calibration.
 
@@ -2262,6 +2264,7 @@ void startI2C() {
  * @since  3.0.7  [2025-11-09-10:15pm].
  * @since  3.0.10 [2026-01-06-11:15am]. Spelling, move lipo.enableDebugging().
  * @since  3.3.1  [2026-08-17-02:45pm] Changed from Serial.print() to logPrint().
+ * @since  3.5.10 [2026-11-01-11:10pm] Set lipoReadyFlag.
  * @see    setup().
  * @link   https://github.com/sparkfun/SparkFun_MAX1704x_Fuel_Gauge_Arduino_Library.
  */
@@ -2270,6 +2273,7 @@ void startLiPo() {
         logPrint("LiPo not started. MAX17048 not detected.");
     } else {
         lipo.quickStart();          // Restart for a more accurate initial SOC guess.
+        lipoReadyFlag = true;
         logPrint("LiPo started.");
     }
 }
@@ -2683,6 +2687,7 @@ void startTasks() {
  * @since  3.0.7 [2025-11-21-06:00pm] Added inLoopFlag.
  * @since  3.3.1 [2026-08-17-03:45pm] Changed from Serial.print() to logPrint().
  * @since  3.3.3 [2026-09-01-09:15am] Add uptime().
+ * @since  3.5.10 [2026-11-01-11:10pm] Removed battery reads, taskEvery5000Ms() reads immediately when it starts.
  * @see    setup().
  */
 void preLoop() {
@@ -2693,9 +2698,7 @@ void preLoop() {
     inLoopFlag  = true;
     uptime(timeSinceBoot, sizeof(timeSinceBoot));       // Generate timestamp.
     snprintf(outputBuffer, sizeof(outputBuffer), "Time since boot: %s.\nLoop started.", timeSinceBoot);
-    batterySoc        = lipo.getSOC();                  // Initial battery check. Follow on checks are by taskEvery5000Ms().
-    batteryChangeRate = lipo.getChangeRate();
-    logPrint(outputBuffer);
+    logPrint(outputBuffer);                             // Battery checks are by taskEvery5000Ms(), first one when it starts.
 }
 
 /**
@@ -2944,6 +2947,7 @@ void taskEvery1000Ms(void * pvParameters) {
  * @param  void * pvParameters Pointer to FreeRTOS task parameters.
  * @return void   No output is returned (infinite loop).
  * @since  3.4.1 [2026-09-29-05:00pm] New.
+ * @since  3.5.10 [2026-11-01-11:10pm] Only read the LiPo if lipoReadyFlag.
  * @see    startTasks().
  * @see    Global vars: FreeRTOS tasks.
  */
@@ -2951,8 +2955,10 @@ void taskEvery5000Ms(void * pvParameters) {
     while(true) {
 
         // -- Battery. --
-        batterySoc        = lipo.getSOC();
-        batteryChangeRate = lipo.getChangeRate();
+        if (lipoReadyFlag) {
+            batterySoc        = lipo.getSOC();
+            batteryChangeRate = lipo.getChangeRate();
+        }
         vTaskDelay(EVERY_5000MS_INTERVAL);
     }
 }
