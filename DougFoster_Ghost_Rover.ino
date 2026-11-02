@@ -53,6 +53,7 @@
  * @since  3.5.0 [2026-10-20-09:00pm] Add IMU functionality - prfOffsetXDeg, prfOffsetYDeg, ... .
  * @since  3.5.1 [2026-10-31-10:00am] Cleanup.
  * @since  3.5.2 [2026-11-01-08:45pm] IMU: write register bank 0 when no new sample for 500 ms (chip can end up in bank 2, every read is then 0).
+ * @since  3.5.3 [2026-11-01-09:30pm] Clear calibrateImuFlag when a WebSocket client disconnects (page left, reloaded or closed).
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
  * @link   http://dougfoster.me.
@@ -468,7 +469,7 @@ const bool    RO_MODE                    = true;                // Open preferen
 const char    LOG_FILE[]                 = "/log.txt";          // Log file.
 const uint8_t MAJOR_VERSION              = 3;                   // Current major build version (@see buildInfo()).
 const uint8_t MINOR_VERSION              = 5;                   // Current minor build version (@see buildInfo()).
-const uint8_t PATCH_VERSION              = 2;                   // Current patch build version (@see buildInfo()).
+const uint8_t PATCH_VERSION              = 3;                   // Current patch build version (@see buildInfo()).
 const uint8_t MIN_SATELLITE_THRESHHOLD   = 2;                   // Minimum SIV for reliable coordinate information.      
       char     operMode[2]               = {'\0'};              // Operation mode (r=rover, b=base).
 //    char     debugTemp[250]            = {'\0'};              // Various debug scenarios. Activate when needed.
@@ -3105,6 +3106,7 @@ void onHttpFileUpload(AsyncWebServerRequest *request, String filename, size_t in
  * @since  3.0.8 [2025-12-01-05:15pm] Changed color & blink status.
  * @since  3.2.1  [2026-07-28-04:45pm] Removed NMEA out switch & preference.
  * @since  3.2.1  [2026-07-30-10:00am] Refactored case WS_EVT_DATA.
+ * @since  3.5.3  [2026-11-01-09:30pm] Clear calibrateImuFlag in case WS_EVT_DISCONNECT.
  * @see    startWebSocketServer().
  * @link   https://randomnerdtutorials.com/esp32-websocket-server-arduino/.
  * @link   https://shawnhymel.com/1882/how-to-create-a-web-server-with-websockets-using-an-esp32-in-arduino/.
@@ -3131,6 +3133,7 @@ void onWebSocketEvent(AsyncWebSocket *httpServer, AsyncWebSocketClient *client, 
             ws2812LedColor = BLUE;
             ws2812LedBlink = false;
             wsSendCount    = 0;                             // Reset counter.
+            calibrateImuFlag = false;                       // Every page load opens a new WebSocket & leaving closes it: stops a calibration the UI never stopped.
             break;
         case WS_EVT_DATA: {
                 AwsFrameInfo *info = (AwsFrameInfo*)arg;
