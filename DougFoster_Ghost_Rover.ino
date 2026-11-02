@@ -66,6 +66,7 @@
  * @since  3.5.13 [2026-11-01-11:45pm] Reject file names with ".." (or empty) in HTTP download, HTTP upload & WebSocket deleteFile (isSafeFileName()).
  * @since  3.5.14 [2026-11-02-12:20am] Stale comments/docs fixed (ZED keys, UART2 speed, I2C bus, GPIO & LED docs); %lu/(int) for uint32_t/int32_t log formats; Serial pin constants named from the ESP's side.
  * @since  3.5.15 [2026-11-02-12:40am] Add fatalError(): replaces 5 copies of the red LED / print / freeze code in setup() functions.
+ * @since  3.5.16 [2026-11-02-01:00am] Add setStatusLed(): replaces 11 copies of the ws2812LedColor / ws2812LedBlink / statusLedOn() code.
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
  * @link   http://dougfoster.me.
@@ -481,7 +482,7 @@ const bool    RO_MODE                    = true;                // Open preferen
 const char    LOG_FILE[]                 = "/log.txt";          // Log file.
 const uint8_t MAJOR_VERSION              = 3;                   // Current major build version (@see buildInfo()).
 const uint8_t MINOR_VERSION              = 5;                   // Current minor build version (@see buildInfo()).
-const uint8_t PATCH_VERSION              = 15;                   // Current patch build version (@see buildInfo()).
+const uint8_t PATCH_VERSION              = 16;                   // Current patch build version (@see buildInfo()).
 const uint8_t MIN_SATELLITE_THRESHHOLD   = 2;                   // Minimum SIV for reliable coordinate information.      
       char     operMode[2]               = {'\0'};              // Operation mode (r=rover, b=base).
 //    char     debugTemp[250]            = {'\0'};              // Various debug scenarios. Activate when needed.
@@ -658,9 +659,11 @@ const double   MAD_REJECT_K               = 3.0;        // Reject samples beyond
  * @since 3.3.5  [2026-09-07-01:15pm] Replaced checkLoopTimers() in loop() with FreeRTOS tasks.
  * @since 3.4.2  [2026-10-05-01:45am] Add stringToHex().
  * @since 3.5.15 [2026-10-05-01:45am] Add fatalError().
+ * @since 3.5.16 [2026-11-02-01:00am] Add setStatusLed().
  * @see   uptime()                - Display time since boot.
  * @see   logPrint()              - Save a message to LOG_FILE, print to Serial if available.
  * @see   statusLedOn()           - Turn on status LED.
+ * @see   setStatusLed()          - Set status LED color & blink. Turns it on at once until taskLoopStatusLed() starts.
  * @see   fatalError()            - Fatal error during setup(): solid RED status LED, print the message, freeze.
  * @see   prefUtility()           - Preference utility.
  * @see   buildOperData()         - Build data for operate page.
@@ -778,6 +781,28 @@ void statusLedOn() {
 
 /**
  * -------------------------------------------------------------------------
+ *  Set status LED color & blink.
+ * -------------------------------------------------------------------------
+ *
+ * Sets ws2812LedColor & ws2812LedBlink. Until FreeRTOS task taskLoopStatusLed() has started (during setup()) nothing else
+ * shows the LED, so it is turned on here. After that the task shows it within LED_BLINK_INTERVAL.
+ *
+ * @param  ws2812_LED_COLOR color RED, YELLOW, GREEN, BLUE, WHITE.
+ * @param  bool             blink true = blink, false = solid.
+ * @return void             No output is returned.
+ * @since  3.5.16 [2026-11-02-01:00am] New.
+ * @see    statusLedOn(), taskLoopStatusLed().
+ */
+void setStatusLed(ws2812_LED_COLOR color, bool blink = false) {
+    ws2812LedColor = color;
+    ws2812LedBlink = blink;
+    if (taskLoopStatusLedHandle == NULL) {          // Task has not started yet.
+        statusLedOn();
+    }
+}
+
+/**
+ * -------------------------------------------------------------------------
  *  Fatal error during setup(): solid RED status LED, print the message, freeze.
  * -------------------------------------------------------------------------
  *
@@ -790,9 +815,7 @@ void statusLedOn() {
  * @see    startOutputs(), startWiFiServer(), startAndConfigGNSS(), startQueues().
  */
 void fatalError(const char* message, bool logToSd = true) {
-    ws2812LedColor = RED;
-    ws2812LedBlink = false;
-    statusLedOn();
+    setStatusLed(RED);
     logPrint(message, logToSd);
     while (true) {};                                            // Freeze.
 }
@@ -1466,8 +1489,7 @@ void relayRtcmByte(char inputChar, char* rtcmSentence, uint16_t &byteCount, uint
             return;                         // Drop stray byte from parsing; relay above already happened.
         }
         RTCMinFlag     = true;
-        ws2812LedColor = GREEN;
-        ws2812LedBlink = true;
+        setStatusLed(GREEN, true);
         memset(rtcmSentence, '\0', 1030);
         rtcmSentence[0] = 0xd3;
         byteCount = 1;
@@ -2052,9 +2074,7 @@ void startOutputs() {
           bool     startedSd        = true;
 
     // --- Set initial state. ---
-    ws2812LedColor = WHITE;                         // Indicates no error during setup(). 
-    ws2812LedBlink = false;
-    statusLedOn();                                  // FreeRTOS task taskLoopStatusLed() has not started yet.
+    setStatusLed(WHITE);                         // Indicates no error during setup().
     memset(startOutputsResults, '\0', sizeof(startOutputsResults));     // Display startOutputsResults[] at end of buildInfo().
 
     // --- Start Serial USB. ---
@@ -2065,15 +2085,11 @@ void startOutputs() {
 
 
     // --- Blocking delay, allow RTK-SMA to get started. ---
-    ws2812LedColor = YELLOW;
-    ws2812LedBlink = false;
-    statusLedOn();                                  // FreeRTOS task taskLoopStatusLed() has not started yet.   
+    setStatusLed(YELLOW);
     snprintf(outputBuffer, sizeof(outputBuffer), "RTK-SMA boot delay (%ums).\n", (unsigned)START_DELAY);
     strlcat(startOutputsResults, outputBuffer, sizeof(startOutputsResults));
     delay(START_DELAY);
-    ws2812LedColor = WHITE;
-    ws2812LedBlink = false;
-    statusLedOn();                                  // FreeRTOS task taskLoopStatusLed() has not started yet.       
+    setStatusLed(WHITE);
 
     // --- Assign SDIO pins for SD card reader. ---
     if (SD_MMC.setPins(SDIO_CLK, SDIO_CMD, SDIO_D0, SDIO_D1, SDIO_D2, SDIO_D3)) {
@@ -2265,17 +2281,13 @@ void startI2C() {
 
     // --- Start interfaces. ---
     while (!Wire.begin()) {
-        ws2812LedColor = RED;
-        ws2812LedBlink = true;
-        statusLedOn();                      // FreeRTOS task taskLoopStatusLed() has not started yet.
+        setStatusLed(RED, true);
         logPrint("Wire failed to start. Retrying.");
         delay(RETRY);
     }
     Wire.setClock(WIRE_SPEED);
     logPrint("Wire started @ 400kHz.");
-    ws2812LedColor = WHITE;
-    ws2812LedBlink = false;
-    statusLedOn();                          // FreeRTOS task taskLoopStatusLed() has not started yet.
+    setStatusLed(WHITE);
 }
 
 /**
@@ -2721,9 +2733,7 @@ void startTasks() {
  * @see    setup().
  */
 void preLoop() {
-    ws2812LedColor = BLUE;
-    ws2812LedBlink = false;
-    statusLedOn();                                      // FreeRTOS task taskLoopStatusLed() has not started yet.
+    setStatusLed(BLUE);
     operMode[0] = 'r';
     inLoopFlag  = true;
     uptime(timeSinceBoot, sizeof(timeSinceBoot));       // Generate timestamp.
@@ -3218,8 +3228,7 @@ void onWebSocketEvent(AsyncWebSocket *httpServer, AsyncWebSocketClient *client, 
                 snprintf(outputBuffer, sizeof(outputBuffer), "%s connected to WebSocket server on WS #%u.", client->remoteIP().toString().c_str(), clientId);
                 logPrint(outputBuffer);
             }
-            ws2812LedColor = GREEN;                         // Loop status indicator LED.
-            ws2812LedBlink = false;
+            setStatusLed(GREEN);                         // Loop status indicator LED.
             wsSendCount    = 0;                             // Reset counter.
             break;
         case WS_EVT_DISCONNECT:
@@ -3227,8 +3236,7 @@ void onWebSocketEvent(AsyncWebSocket *httpServer, AsyncWebSocketClient *client, 
                 snprintf(outputBuffer, sizeof(outputBuffer), "%s disconnected to WebSocket server on WS #%u.", client->remoteIP().toString().c_str(), clientId);
                 logPrint(outputBuffer);
             }
-            ws2812LedColor = BLUE;
-            ws2812LedBlink = false;
+            setStatusLed(BLUE);
             wsSendCount    = 0;                             // Reset counter.
             calibrateImuFlag = false;                       // Every page load opens a new WebSocket & leaving closes it: stops a calibration the UI never stopped.
             break;
@@ -4094,8 +4102,7 @@ bool setPrefsValid() {
         }
 
         if (WiFi.status() == WL_CONNECTED) {
-            ws2812LedColor = WHITE;                     // Hotspot connected.
-            ws2812LedBlink = false;
+            setStatusLed(WHITE);                     // Hotspot connected.
 
             // -- Set response. --
             strlcpy(hotspotIp, WiFi.localIP().toString().c_str(), sizeof(hotspotIp));
