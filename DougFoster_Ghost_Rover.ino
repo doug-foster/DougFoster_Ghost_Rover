@@ -64,6 +64,7 @@
  * @since  3.5.11 [2026-11-01-11:20pm] startTasks(): merged duplicate RTCM source "off" tests.
  * @since  3.5.12 [2026-11-01-11:30pm] startWiFiServer(): register onWiFiEvent() before WiFi.mode() so the ready & AP start events are not missed.
  * @since  3.5.13 [2026-11-01-11:45pm] Reject file names with ".." (or empty) in HTTP download, HTTP upload & WebSocket deleteFile (isSafeFileName()).
+ * @since  3.5.14 [2026-11-02-12:20am] Stale comments/docs fixed (ZED keys, UART2 speed, I2C bus, GPIO & LED docs); %lu/(int) for uint32_t/int32_t log formats; Serial pin constants named from the ESP's side.
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
  * @link   http://dougfoster.me.
@@ -187,14 +188,14 @@
  *        - solid  WHITE: setup() started & running ok.
  *        - solid YELLOW: startup delay.
  *        - solid    RED: startOutputs() error,
- *                        startI2C error,
  *                        startWiFiServer() error,
- *                        startAndConfigGNSS() error.
+ *                        startAndConfigGNSS() error,
  *                        startQueues() error.
+ *        - blink    RED: startI2C() error (retrying).
  *     -- loop(). --  
  *        - solid   BLUE: loop running ok with no websocket connection.
  *        - solid  GREEN: loop running ok with onWebSocketEvent(WS_EVT_CONNECT) connection.
- *        - blink  GREEN: relaySerial1toSerial2() RTCM in Serial1 out Serial2. 
+ *        - blink  GREEN: taskRtcmRelay() RTCM in (Serial1 or NTRIP), out Serial2. 
  * 
  * --- GNSS ----
  *     -- https://learn.sparkfun.com/tutorials/gps-rtk2-hookup-guide#hardware-overview. --
@@ -394,7 +395,7 @@ float   heightEllipsoid    = 0;                                 // GNSS - ellips
 float   heightOrthometric  = 0;                                 // GNSS - orthometric height (meters).
 float   accuracyHorizontal = 0;                                 // GNSS - horizontal accuracy.
 float   accuracyVertical   = 0;                                 // GNSS - vertical accuracy.
-SFE_UBLOX_GNSS roverGNSS;                                       // GNSS object (uses I2C-1).
+SFE_UBLOX_GNSS roverGNSS;                                       // GNSS object (uses I2C0, Wire).
 
 // --- IMU/bubble level. ---
 const float   MAX_TILT              = 5.0f;                     // Tilt, max measured: 5 degrees.
@@ -479,7 +480,7 @@ const bool    RO_MODE                    = true;                // Open preferen
 const char    LOG_FILE[]                 = "/log.txt";          // Log file.
 const uint8_t MAJOR_VERSION              = 3;                   // Current major build version (@see buildInfo()).
 const uint8_t MINOR_VERSION              = 5;                   // Current minor build version (@see buildInfo()).
-const uint8_t PATCH_VERSION              = 13;                   // Current patch build version (@see buildInfo()).
+const uint8_t PATCH_VERSION              = 14;                   // Current patch build version (@see buildInfo()).
 const uint8_t MIN_SATELLITE_THRESHHOLD   = 2;                   // Minimum SIV for reliable coordinate information.      
       char     operMode[2]               = {'\0'};              // Operation mode (r=rover, b=base).
 //    char     debugTemp[250]            = {'\0'};              // Various debug scenarios. Activate when needed.
@@ -696,9 +697,9 @@ void uptime(char *dest, size_t max_len, bool fractional = true) {
     int32_t minutes       = (total_seconds / 60) % 60;
     float   secs          = (total_seconds % 60) + (us % 1000000) / 1000000.0f;
     if (fractional) {
-        snprintf(dest, max_len, "%dh %dm %.2fs", hours % 24, minutes, secs);
+        snprintf(dest, max_len, "%dh %dm %.2fs", (int)(hours % 24), (int)minutes, secs);
     } else {
-        snprintf(dest, max_len, "%dh %dm %ds", hours % 24, minutes, (int)secs);
+        snprintf(dest, max_len, "%dh %dm %ds", (int)(hours % 24), (int)minutes, (int)secs);
     }
 }
 
@@ -1197,9 +1198,9 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
                 lockedGeoidSep          = heightWelfordMeanGeoidSep;
                 heightLockAveragingFlag = false;
                 heightLockFlag          = true;
-                snprintf(outputBuffer, sizeof(outputBuffer), "Height locked @ %.4f m (%u/%u ortho, %u/%u geoidSep accepted in %u secs).",
-                    lockedHeightOrtho, heightWelfordCountOrtho, heightSampleBufCount,
-                    heightWelfordCountGeoidSep, heightSampleBufCount, prfLckAvgInt);
+                snprintf(outputBuffer, sizeof(outputBuffer), "Height locked @ %.4f m (%lu/%u ortho, %lu/%u geoidSep accepted in %u secs).",
+                    lockedHeightOrtho, (unsigned long)heightWelfordCountOrtho, heightSampleBufCount,
+                    (unsigned long)heightWelfordCountGeoidSep, heightSampleBufCount, prfLckAvgInt);
                 if (commandFlag[DEBUG_BTNS]) {
                     logPrint(outputBuffer);
                 }
@@ -1232,9 +1233,9 @@ void prefUtility(prefAction action, const char* key = NULL, const char* value = 
                 lockedLon                 = positionWelfordMeanLon;
                 positionLockAveragingFlag = false;
                 positionLockFlag          = true;
-                snprintf(outputBuffer, sizeof(outputBuffer), "Position locked @ Lat %.9f (%u/%u), Lon %.9f (%u/%u) in %u secs.",
-                    lockedLat, positionWelfordCountLat, positionSampleBufCount,
-                    lockedLon, positionWelfordCountLon, positionSampleBufCount, prfLckAvgInt);
+                snprintf(outputBuffer, sizeof(outputBuffer), "Position locked @ Lat %.9f (%lu/%u), Lon %.9f (%lu/%u) in %u secs.",
+                    lockedLat, (unsigned long)positionWelfordCountLat, positionSampleBufCount,
+                    lockedLon, (unsigned long)positionWelfordCountLon, positionSampleBufCount, prfLckAvgInt);
                 if (commandFlag[DEBUG_BTNS]) {
                     logPrint(outputBuffer);
                 }
@@ -2133,11 +2134,11 @@ void buildInfo() {
  *  Start serial interfaces.
  * -------------------------------------------------------------------------
  * 
- * Default pins for ESP32-S3 Thing Plus using Arduino core:
- *   GPIO 43 - Serial1    UART1 TX.
- *   GPIO 44 - Serial1    UART1 RX.
- *   GPIO 17 - Serial2    UART2 TX (also default for I2C1).
- *   GPIO 18 - Serial2    UART2 RX (also default for I2C1).
+ * Pins used (passed to begin(), not the Arduino core defaults):
+ *   GPIO  5 - Serial1    UART1 RX <- HC-12 TXD.
+ *   GPIO  6 - Serial1    UART1 TX -> HC-12 RXD.
+ *   GPIO 16 - Serial2    UART2 RX <- ZED UART2 TX2.
+ *   GPIO 17 - Serial2    UART2 TX -> ZED UART2 RX2.
  *
  * @return void  No output is returned.
  * @since  3.0.3  [2025-10-13-01:00pm].
@@ -2146,6 +2147,7 @@ void buildInfo() {
  * @since  3.0.10 [2026-01-07-09:45am] Local vars.
  * @since  3.3.1  [2026-08-17-02:45pm] Changed from Serial.print() to logPrint().
  * @since  3.3.4  [2026-09-16-09:30pm] Crossed pins 16 & 17.
+ * @since  3.5.14 [2026-11-02-12:20am] Renamed pin constants to the ESP's side (SERIAL1_RX, ...). Same pins.
  * @see    buildInfo(), setup().
  * @link   https://github.com/G6EJD/ESP32-Using-Hardware-Serial-Ports.
  * @link   https://randomnerdtutorials.com/esp32-uart-communication-serial-arduino/#esp32-custom-uart-pins.
@@ -2153,10 +2155,10 @@ void buildInfo() {
 void startSerial() {
 
     // --- Local vars. ---
-    const uint8_t  HC12_TX       =  5;                              // HC-12 TXD     {white wire}.
-    const uint8_t  HC12_RX       =  6;                              // HC-12 RXD     {yellow wire}.
-    const uint8_t  ZED_RX2       = 16;                              // ZED UART2 RX2 {white wire}.
-    const uint8_t  ZED_TX2       = 17;                              // ZED UART2 TX2 {yellow wire}.
+    const uint8_t  SERIAL1_RX    =  5;                            // ESP RX1 <- HC-12 TXD     {white wire}.
+    const uint8_t  SERIAL1_TX    =  6;                            // ESP TX1 -> HC-12 RXD     {yellow wire}.
+    const uint8_t  SERIAL2_RX    = 16;                            // ESP RX2 <- ZED UART2 TX2 {white wire}.
+    const uint8_t  SERIAL2_TX    = 17;                            // ESP TX2 -> ZED UART2 RX2 {yellow wire}.
     const uint32_t SERIAL1_SPEED = 9600;                            // HC-12 default speed is 9600.
     // const uint32_t SERIAL2_SPEED = 57600;                        // ZED UART2 default speed is 38400.
     const uint32_t SERIAL2_SPEED = 38400;                           // ZED UART2 default speed is 38400.
@@ -2167,9 +2169,9 @@ void startSerial() {
 
     // --- Serial1 connects to HC-12. If config preference for NTRIP is not radio, it is not started.
     if (strncmp(prfRtcmInSource, "radio", sizeof(prfRtcmInSource)) == 0) {
-        Serial1.begin(SERIAL1_SPEED, SERIAL_8N1, HC12_TX, HC12_RX); // UART1 object. RX, TX.
+        Serial1.begin(SERIAL1_SPEED, SERIAL_8N1, SERIAL1_RX, SERIAL1_TX); // UART1 object. RX, TX.
         serialState[2] = 'u';
-        snprintf(outputBuffer, sizeof(outputBuffer), "Serial1 started @ %i bps.", SERIAL1_SPEED);
+        snprintf(outputBuffer, sizeof(outputBuffer), "Serial1 started @ %lu bps.", (unsigned long)SERIAL1_SPEED);
         logPrint(outputBuffer);
     } else {        // prfRtcmInSource is other than radio.
         serialState[2] = '-';
@@ -2180,9 +2182,9 @@ void startSerial() {
     }
 
     // -- RTCM out is always over Serial2 (to ZED UART2).
-    Serial2.begin(SERIAL2_SPEED, SERIAL_8N1, ZED_RX2, ZED_TX2);     // UART2 object. RX, TX.  
+    Serial2.begin(SERIAL2_SPEED, SERIAL_8N1, SERIAL2_RX, SERIAL2_TX); // UART2 object. RX, TX.  
     serialState[3] = 'u';
-    snprintf(outputBuffer, sizeof(outputBuffer), "Serial2 started @ %ibps.", SERIAL2_SPEED);
+    snprintf(outputBuffer, sizeof(outputBuffer), "Serial2 started @ %lubps.", (unsigned long)SERIAL2_SPEED);
     logPrint(outputBuffer);
     
     // --- Display RTCM source & output. ---
@@ -2211,7 +2213,7 @@ void initPins() {
 
 /**
  * -------------------------------------------------------------------------
- *. Start I2C wire interfaces.
+ *  Start I2C wire interfaces.
  * -------------------------------------------------------------------------
  * 
  * Default pins for ESP32-S3 Thing Plus using Arduino core:
@@ -2510,7 +2512,7 @@ void startWebSocketServer() {
  * @since  3.3.3  [2026-09-01-09:00am] Add roverGNSS.setAutoPVT(true).
  * @since  3.5.8  [2026-11-01-10:45pm] Reset, delay, then configure (setAutoPVT() was sent during the reset). Retry setAutoPVT(), check & log failed steps, continue.
  * @since  3.5.9  [2026-11-01-10:55pm] Add setAutoHPPOSLLH(true).
- * @see    Global vars: GNSS, prefUtility(), startSerial(), beginI2C().
+ * @see    Global vars: GNSS, prefUtility(), startSerial(), startI2C().
  * @link   https://github.com/sparkfun/SparkFun_u-blox_GNSS_v3/blob/main/examples/Example1_PositionVelocityTime/Example1_PositionVelocityTime.ino.
  * @link   https://github.com/sparkfun/SparkFun_u-blox_GNSS_v3/blob/main/src/u-blox_config_keys.h.
  * @link   GNGGA = PVT, fix quality, SIV, HDOP, ...           https://receiverhelp.trimble.com/alloy-gnss/en-us/NMEA-0183messages_GGA.html.
@@ -2529,7 +2531,7 @@ void startAndConfigGNSS() {
     const uint16_t TRY_DELAY   = 500;                               // ms between attempts.
           bool     autoPvtSet  = false;
 
-    // --- Start GNSS interface on I2C-1. ---
+    // --- Start GNSS interface on I2C0 (Wire). ---
     if (roverGNSS.begin() == false) {
         ws2812LedColor = RED;
         ws2812LedBlink = false;
@@ -2544,7 +2546,7 @@ void startAndConfigGNSS() {
     delay(RESET_DELAY);
     logPrint("Enumerating satellite constellations.");
 
-    // --- Create perodic output. Subsequent PVT calls will not block. An acknowledgement means the module is answering. ---
+    // --- Create periodic output. Subsequent PVT calls will not block. An acknowledgement means the module is answering. ---
     for (uint8_t i = 0; (i < TRIES) && !autoPvtSet; i++) {
         autoPvtSet = roverGNSS.setAutoPVT(true);
         if (!autoPvtSet && (i < TRIES - 1)) {
@@ -2581,7 +2583,7 @@ void startAndConfigGNSS() {
     // --- Enable high precision mode. ---
     roverGNSS.addCfgValset(UBLOX_CFG_NMEA_HIGHPREC,          1);    // NMEA - High precision (7 instead of 5 decimal places for lat/lon in NMEA sentences).
 
-    // --- Push solutions onto I2. ---
+    // --- Push solutions onto I2C. ---
     roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_UBX_NAV_PVT_I2C, 1);    // Output solutions periodically on I2C.
     roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_UBX_NAV_HPPOSLLH_I2C, 1);   // avoid blocking polls in buildOperData()
 
@@ -2589,7 +2591,7 @@ void startAndConfigGNSS() {
     roverGNSS.addCfgValset(UBLOX_CFG_UART1_ENABLED,          0);    // UART1 - Disable (on by default).  SPI is off by default.
     roverGNSS.addCfgValset(UBLOX_CFG_UART2INPROT_SPARTN,     0);    // UART2 - Disable SPARTN in (on by default). Only RTCM3 in is needed.
     roverGNSS.addCfgValset(UBLOX_CFG_UART2INPROT_UBX,        0);    // UART2 - Disable UBX in (on by default). 
-    roverGNSS.addCfgValset(UBLOX_CFG_UART2OUTPROT_UBX,       0);    // UART2 - Disable UBX in (on by default).
+    roverGNSS.addCfgValset(UBLOX_CFG_UART2OUTPROT_UBX,       0);    // UART2 - Disable UBX out (on by default).
     roverGNSS.addCfgValset(UBLOX_CFG_UART2OUTPROT_RTCM3X,    0);    // UART2 - Disable RTCM3 out (on by default).
     roverGNSS.addCfgValset(UBLOX_CFG_I2CINPROT_RTCM3X,       0);    // I2C - Disable RTCM3 in (on by default).
     roverGNSS.addCfgValset(UBLOX_CFG_I2COUTPROT_RTCM3X,      0);    // I2C - Disable RTCM3 out (on by default).
@@ -2598,10 +2600,10 @@ void startAndConfigGNSS() {
 
     // --- Minimize I2C bandwidth. ---
     roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_GLL_I2C, 0);    // I2C messages - Disable GLL (on by default).
-    roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_VTG_I2C, 0);    // I2C messages - Disable GLL (on by default).
+    roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_VTG_I2C, 0);    // I2C messages - Disable VTG (on by default).
     roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_GSA_I2C, 3);    // I2C messages - Reduce GSA to 1 per 3 solutions (default is 1 per 1 solution).
     roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_GSV_I2C, 5);    // I2C messages - Reduce GSV to 1 per 5 solutions (default is 1 per 1 solution).
-    roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_GST_I2C, 3);    // I2C messages - Enable GSA to 1 per 3 solutions  (default is 1 per 1 solution).
+    roverGNSS.addCfgValset(UBLOX_CFG_MSGOUT_NMEA_ID_GST_I2C, 3);    // I2C messages - Reduce GST to 1 per 3 solutions (default is 1 per 1 solution).
                                                                     // ZDA & GNS sentences are off by default.
     // --- Send the config. ---
     roverGNSS.sendCfgValset() ? logPrint("roverGNSS configured using valset keys.") : logPrint("GNSS config step sendCfgValset failed.");
@@ -2784,12 +2786,12 @@ void taskLoopStatusLed(void * pvParameters) {
  *
  * RTCM preamble = '11010011 000000xx' = 0xd3 0x00.  // ToDo: cleanup after new code inserted.
  *
- *  ESP32-S3 Serial1 (HC12) is set to 9,600 bps (default speed) in Global Vars.
- *  ESP32-S3 Serial2 (ZED UART2) is set to 57,600 bps in Global Vars.
- *  RTK-SMA (ZED UART2) is set to 57,600 bps by default (could change in startAndConfigGNSS() ).
+ *  ESP32-S3 Serial1 (HC12) is set to 9,600 bps (default speed) in startSerial().
+ *  ESP32-S3 Serial2 (ZED UART2) is set to 38,400 bps in startSerial().
+ *  RTK-SMA (ZED UART2) is 38,400 bps by default (startAndConfigGNSS() does not change it).
  * 
- * Runs independently of loop() so blocking I2C calls in checkZedTriggerUpdate(). // ToDo: Update description.
- * (NMEA-over-I2C forwarding) can't starve the RTCM relay. Drains Serial1 fully
+ * Runs independently of loop() so blocking I2C calls (NMEA-over-I2C forwarding)
+ * can't starve the RTCM relay. Drains Serial1 fully
  * on every wake so any backlog from a stall clears immediately instead of
  * trickling out one byte per loop() pass.
  * 
@@ -2807,7 +2809,7 @@ void taskLoopStatusLed(void * pvParameters) {
  * @since  3.4.2  [2026-10-05-11:45am] Refactor NTRIP.
  * @see    startTasks().
  * @see    rtcm3GetMessageType().
- * @see    Global vars: Serial, startSerialInterfaces(), loop().
+ * @see    Global vars: Serial, startSerial(), loop().
  * @link   https://github.com/sparkfun/SparkFun_u-blox_GNSS_v3/blob/main/examples/ZED-F9P/Example3_StartRTCMBase/Example3_StartRTCMBase.ino.
  * @link   https://www.use-snip.com/kb/knowledge-base/an-rtcm-message-cheat-sheet/.
  * @link   https://www.use-snip.com/kb/knowledge-base/rtcm-3-message-list/.
@@ -4090,7 +4092,7 @@ bool setPrefsValid() {
         }
 
         if (WiFi.status() == WL_CONNECTED) {
-            ws2812LedColor = WHITE;                     // Indicates no error during setup(). 
+            ws2812LedColor = WHITE;                     // Hotspot connected.
             ws2812LedBlink = false;
 
             // -- Set response. --
@@ -4535,7 +4537,7 @@ void debug() {
 
     // --- Heap. ---
     if (commandFlag[DEBUG_HEAP]) {
-        snprintf(outputBuffer, sizeof(outputBuffer), "heap: %u  min: %u", ESP.getFreeHeap(), ESP.getMinFreeHeap());
+        snprintf(outputBuffer, sizeof(outputBuffer), "heap: %lu  min: %lu", (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getMinFreeHeap());
         logPrint(outputBuffer);
     }
 
