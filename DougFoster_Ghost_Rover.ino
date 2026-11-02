@@ -65,6 +65,7 @@
  * @since  3.5.12 [2026-11-01-11:30pm] startWiFiServer(): register onWiFiEvent() before WiFi.mode() so the ready & AP start events are not missed.
  * @since  3.5.13 [2026-11-01-11:45pm] Reject file names with ".." (or empty) in HTTP download, HTTP upload & WebSocket deleteFile (isSafeFileName()).
  * @since  3.5.14 [2026-11-02-12:20am] Stale comments/docs fixed (ZED keys, UART2 speed, I2C bus, GPIO & LED docs); %lu/(int) for uint32_t/int32_t log formats; Serial pin constants named from the ESP's side.
+ * @since  3.5.15 [2026-11-02-12:40am] Add fatalError(): replaces 5 copies of the red LED / print / freeze code in setup() functions.
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
  * @link   http://dougfoster.me.
@@ -480,7 +481,7 @@ const bool    RO_MODE                    = true;                // Open preferen
 const char    LOG_FILE[]                 = "/log.txt";          // Log file.
 const uint8_t MAJOR_VERSION              = 3;                   // Current major build version (@see buildInfo()).
 const uint8_t MINOR_VERSION              = 5;                   // Current minor build version (@see buildInfo()).
-const uint8_t PATCH_VERSION              = 14;                   // Current patch build version (@see buildInfo()).
+const uint8_t PATCH_VERSION              = 15;                   // Current patch build version (@see buildInfo()).
 const uint8_t MIN_SATELLITE_THRESHHOLD   = 2;                   // Minimum SIV for reliable coordinate information.      
       char     operMode[2]               = {'\0'};              // Operation mode (r=rover, b=base).
 //    char     debugTemp[250]            = {'\0'};              // Various debug scenarios. Activate when needed.
@@ -656,9 +657,11 @@ const double   MAD_REJECT_K               = 3.0;        // Reject samples beyond
  * @since 3.3.1  [2026-08-16-05:30pm] Add logPrint().
  * @since 3.3.5  [2026-09-07-01:15pm] Replaced checkLoopTimers() in loop() with FreeRTOS tasks.
  * @since 3.4.2  [2026-10-05-01:45am] Add stringToHex().
+ * @since 3.5.15 [2026-10-05-01:45am] Add fatalError().
  * @see   uptime()                - Display time since boot.
  * @see   logPrint()              - Save a message to LOG_FILE, print to Serial if available.
  * @see   statusLedOn()           - Turn on status LED.
+ * @see   fatalError()            - Fatal error during setup(): solid RED status LED, print the message, freeze.
  * @see   prefUtility()           - Preference utility.
  * @see   buildOperData()         - Build data for operate page.
  * @see   sendDataToBrowser()     - Fill & send jsonDocToBrowser.
@@ -771,6 +774,27 @@ void statusLedOn() {
             rgbLedWrite(LED_BUILTIN, LED_BRIGHT, LED_BRIGHT, LED_BRIGHT);
             break;
     }
+}
+
+/**
+ * -------------------------------------------------------------------------
+ *  Fatal error during setup(): solid RED status LED, print the message, freeze.
+ * -------------------------------------------------------------------------
+ *
+ * Does not return. Only for setup() functions: FreeRTOS task taskLoopStatusLed() has not started yet, so the LED is set here.
+ *
+ * @param  const char* message Text to print & log.
+ * @param  bool        logToSd Also add the text to LOG_FILE. Use false when the SD card is the problem.
+ * @return void        No output is returned.
+ * @since  3.5.15 [2026-11-02-12:40am] New.
+ * @see    startOutputs(), startWiFiServer(), startAndConfigGNSS(), startQueues().
+ */
+void fatalError(const char* message, bool logToSd = true) {
+    ws2812LedColor = RED;
+    ws2812LedBlink = false;
+    statusLedOn();
+    logPrint(message, logToSd);
+    while (true) {};                                            // Freeze.
 }
 
 /**
@@ -2080,13 +2104,7 @@ void startOutputs() {
 
     // --- Error starting SD? ---
     if (!startedSd)  {
-        ws2812LedColor = RED;
-        ws2812LedBlink = false;
-        statusLedOn();                                          // FreeRTOS task taskLoopStatusLed() has not started yet.
-        if (Serial) {   // SD card contains UI files, do not continue.
-            Serial.print("ERROR SD card. Freezing ...");
-        }
-        while (true) {};                                        // Freeze.
+        fatalError("ERROR SD card. Freezing ...", false);       // SD card contains UI files, do not continue. Not logged: the SD card is the problem.
     }
 }
 
@@ -2339,18 +2357,10 @@ void startWiFiServer() {
 
     // --- Config & start WiFi server (Access Point) for easy browser access. ---
     if (!WiFi.softAPConfig(AP_LOCAL_IP, AP_GATEWAY, AP_SUBNET)) {   // Configure IP network.
-        ws2812LedColor = RED;                                       // Indicates error during setup(). 
-        ws2812LedBlink = false;
-        statusLedOn();                                              // FreeRTOS task taskLoopStatusLed() has not started yet.
-        logPrint("Soft AP - config failed. Freezing ...");
-        while (true) {};                                            // Freeze.
+        fatalError("Soft AP - config failed. Freezing ...");
     }
     if (!WiFi.softAP(AP_SSID)) {                                    // Open access point - set SSID, omit password.
-        ws2812LedColor = RED;                                       // Indicates error during setup(). 
-        ws2812LedBlink = false;
-        statusLedOn();                                              // FreeRTOS task taskLoopStatusLed() has not started yet.
-        logPrint("Soft AP - create failed. Freezing ...");
-        while (true) {};                                            // Freeze.
+        fatalError("Soft AP - create failed. Freezing ...");
     }
     WiFi.softAPsetHostname(AP_NAME);                                // Set hostname.
     IPAddress ip = WiFi.softAPIP();                                 // Start WiFi & check status (get IP).
@@ -2533,11 +2543,7 @@ void startAndConfigGNSS() {
 
     // --- Start GNSS interface on I2C0 (Wire). ---
     if (roverGNSS.begin() == false) {
-        ws2812LedColor = RED;
-        ws2812LedBlink = false;
-        statusLedOn();                                              // FreeRTOS task taskLoopStatusLed() has not started yet.
-        logPrint("Start roverGNSS failed. Freezing ...");           // Something is wrong, freeze.
-        while (true) {};                                            // Freeze.
+        fatalError("Start roverGNSS failed. Freezing ...");
     }
     logPrint("RoverGNSS started.");
 
@@ -2635,11 +2641,7 @@ void startAndConfigGNSS() {
 void startQueues() {
     wsRxQueue = xQueueCreate(WS_RX_QUEUE_LEN, sizeof(WsQueueItem));
     if (wsRxQueue == NULL) {
-        ws2812LedColor = RED;
-        ws2812LedBlink = false;
-        statusLedOn();                                      // FreeRTOS task taskLoopStatusLed() has not started yet.
-        logPrint("Failed to create wsRxQueue. Freezing ...");
-        while (true) {};           // Freeze.
+        fatalError("Failed to create wsRxQueue. Freezing ...");
     }
     logPrint("GhostRover FreeRTOS queue \"wsRxQueue\" created.");
 }
