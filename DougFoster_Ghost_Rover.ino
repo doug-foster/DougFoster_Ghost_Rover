@@ -67,6 +67,7 @@
  * @since  3.5.14 [2026-11-02-12:20am] Stale comments/docs fixed (ZED keys, UART2 speed, I2C bus, GPIO & LED docs); %lu/(int) for uint32_t/int32_t log formats; Serial pin constants named from the ESP's side.
  * @since  3.5.15 [2026-11-02-12:40am] Add fatalError(): replaces 5 copies of the red LED / print / freeze code in setup() functions.
  * @since  3.5.16 [2026-11-02-01:00am] Add setStatusLed(): replaces 11 copies of the ws2812LedColor / ws2812LedBlink / statusLedOn() code.
+ * @since  3.5.17 [2026-11-02-01:15am] Docs only: index entries for imuSelectBank0(), isSafeFileName() & setPrefsValid().
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
  * @link   http://dougfoster.me.
@@ -482,7 +483,7 @@ const bool    RO_MODE                    = true;                // Open preferen
 const char    LOG_FILE[]                 = "/log.txt";          // Log file.
 const uint8_t MAJOR_VERSION              = 3;                   // Current major build version (@see buildInfo()).
 const uint8_t MINOR_VERSION              = 5;                   // Current minor build version (@see buildInfo()).
-const uint8_t PATCH_VERSION              = 16;                   // Current patch build version (@see buildInfo()).
+const uint8_t PATCH_VERSION              = 17;                   // Current patch build version (@see buildInfo()).
 const uint8_t MIN_SATELLITE_THRESHHOLD   = 2;                   // Minimum SIV for reliable coordinate information.      
       char     operMode[2]               = {'\0'};              // Operation mode (r=rover, b=base).
 //    char     debugTemp[250]            = {'\0'};              // Various debug scenarios. Activate when needed.
@@ -660,6 +661,7 @@ const double   MAD_REJECT_K               = 3.0;        // Reject samples beyond
  * @since 3.4.2  [2026-10-05-01:45am] Add stringToHex().
  * @since 3.5.15 [2026-10-05-01:45am] Add fatalError().
  * @since 3.5.16 [2026-11-02-01:00am] Add setStatusLed().
+ * @since 3.5.2  [2026-11-01-08:45pm] Add imuSelectBank0().
  * @see   uptime()                - Display time since boot.
  * @see   logPrint()              - Save a message to LOG_FILE, print to Serial if available.
  * @see   statusLedOn()           - Turn on status LED.
@@ -680,6 +682,7 @@ const double   MAD_REJECT_K               = 3.0;        // Reject samples beyond
  * @see   madIsOutlier()          = Lock averaging: MAD-based outlier test.
  * @see   bufferAddPair()         - Lock averaging: Append a sample pair into two parallel circular buffers sharing one index.
  * @see   welfordUpdate()         - Lock averaging: Welford's online algorithm.
+ * @see   imuSelectBank0()        - Write register bank 0 to the ICM-20948 (recovers a chip left in another register bank).
  * @see   imuFilterGravity()      - Use seeded, exponential moving average to smooth IMU gravity values.
  * @see   calcRawTiltDeg()        - Calculate raw XY tilt (convert gravity into angles) in degrees.
  * @see   imuBubbleXY()           - Get & smooth IMU gravity values, calculate XY tilt values for bubble UI.
@@ -2008,6 +2011,7 @@ bool imuBubbleXY(float &x, float &y) {
  * @since 3.2.3  [2026-08-10-09:45am] Add startTcpServer().
  * @since 3.3.1  [2026-08-17-09:00am] Changed position of startOutputs() in setup().
  * @since 3.3.4  [2026-10-20-02:15pm] Re-added Wire1 for IMU.
+ * @since 3.5.13 [2026-11-01-11:45pm] Add isSafeFileName().
  * @see   startOutputs()         - Start serial & microSD card reader. Status LED is YELLOW then WHITE.
  * @see   buildInfo()            - Display build & processor info.
  * @see   prefUtility(PREF_INIT) - Preference utility (get preferences).
@@ -2018,6 +2022,7 @@ bool imuBubbleXY(float &x, float &y) {
  * @see   startIMU()             - Start IMU.
  * @see   startWiFiServer()      - Start WiFi server.
  * @see   startTcpServer()       - Start TCP server for GNSS Master (NMEA out / RTCM in bridge).
+ * @see   isSafeFileName()       - Check a file name from the network: reject empty names & names containing "..".
  * @see   startHttpServer()      - Start HTTP server.
  * @see   startWebSocketServer() - Start WebSocket server.
  * @see   startAndConfigGNSS()   - Start GNSS, config ZED settings.
@@ -3407,8 +3412,10 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
  * @since 3.3.5  [2026-09-07-01:15pm] Replaced checkLoopTimers() in loop() with FreeRTOS tasks.
  * @since 3.4.0  [2026-09-13-04:30pm] Removed checkGnssLockButton(), not needed.
  * @since 3.4.0  [2026-09-20-05:30pm] Add prfLckAvgInt.
+ * @since 3.5.4  [2026-11-01-10:00pm] Add setPrefsValid().
  * @see checkSerialUSB()          - Check serial USB for input.
  * @see checkFlags()              - Check flags set in other functions or FreeRTOS tasks.
+ * @see setPrefsValid()           - Validate the values in a setPrefs message before they are applied or saved.
  * @see processMessagesIn()       - Process queued WS messages. All JSON activity lives here & sendDataToBrowser().
  * @see checkTCPServer()          - Check TCP server for new/dropped client.
  * @see ws.cleanupClients()       - HTTP WebSocket cleanup.
