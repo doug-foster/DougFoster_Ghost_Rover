@@ -54,6 +54,8 @@
  * @since  3.5.1 [2026-10-31-10:00am] Cleanup.
  * @since  3.5.2 [2026-11-01-08:45pm] IMU: write register bank 0 when no new sample for 500 ms (chip can end up in bank 2, every read is then 0).
  * @since  3.5.3 [2026-11-01-09:30pm] Clear calibrateImuFlag when a WebSocket client disconnects (page left, reloaded or closed).
+ * @since  3.5.4 [2026-11-01-10:00pm] Validate setPrefs values before applying/saving them (setPrefsValid()).
+ * @since  3.5.5 [2026-11-01-10:15pm] startOutputs(): append all startup messages to startOutputsResults[] with strlcat() (the boot delay message overwrote the Serial USB message).
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
  * @link   http://dougfoster.me.
@@ -469,7 +471,7 @@ const bool    RO_MODE                    = true;                // Open preferen
 const char    LOG_FILE[]                 = "/log.txt";          // Log file.
 const uint8_t MAJOR_VERSION              = 3;                   // Current major build version (@see buildInfo()).
 const uint8_t MINOR_VERSION              = 5;                   // Current minor build version (@see buildInfo()).
-const uint8_t PATCH_VERSION              = 3;                   // Current patch build version (@see buildInfo()).
+const uint8_t PATCH_VERSION              = 5;                   // Current patch build version (@see buildInfo()).
 const uint8_t MIN_SATELLITE_THRESHHOLD   = 2;                   // Minimum SIV for reliable coordinate information.      
       char     operMode[2]               = {'\0'};              // Operation mode (r=rover, b=base).
 //    char     debugTemp[250]            = {'\0'};              // Various debug scenarios. Activate when needed.
@@ -662,7 +664,6 @@ const double   MAD_REJECT_K               = 3.0;        // Reject samples beyond
  * @see   madIsOutlier()          = Lock averaging: MAD-based outlier test.
  * @see   bufferAddPair()         - Lock averaging: Append a sample pair into two parallel circular buffers sharing one index.
  * @see   welfordUpdate()         - Lock averaging: Welford's online algorithm.
- * @see   imuSelectBank0()        - Write register bank 0 to the IMU chip.
  * @see   imuFilterGravity()      - Use seeded, exponential moving average to smooth IMU gravity values.
  * @see   calcRawTiltDeg()        - Calculate raw XY tilt (convert gravity into angles) in degrees.
  * @see   imuBubbleXY()           - Get & smooth IMU gravity values, calculate XY tilt values for bubble UI.
@@ -1998,7 +1999,6 @@ void startOutputs() {
     const uint16_t START_DELAY      = 1000;         // Blocking delay, allow RTK-SMA to get started
     const uint32_t SERIAL_USB_SPEED = 115200;       // Serial USB speed.
           bool     startedSd        = true;
-          size_t   remaining        = 0;            // Number of bytes remaining that can be written to char array. 
 
     // --- Set initial state. ---
     ws2812LedColor = WHITE;                         // Indicates no error during setup(). 
@@ -2010,14 +2010,15 @@ void startOutputs() {
     Serial.begin(SERIAL_USB_SPEED);
     Serial.setTxTimeoutMs(0);                       // Set Serial to non-blocking if USB is not connected.
     serialState[0] = 'u';   // USB interface is up.
-    snprintf(startOutputsResults, sizeof(startOutputsResults), "Serial USB started @ %d.\n", SERIAL_USB_SPEED);
-    
+    snprintf(startOutputsResults, sizeof(startOutputsResults), "Serial USB started @ %lu.\n", (unsigned long)SERIAL_USB_SPEED);
+
 
     // --- Blocking delay, allow RTK-SMA to get started. ---
     ws2812LedColor = YELLOW;
     ws2812LedBlink = false;
     statusLedOn();                                  // FreeRTOS task taskLoopStatusLed() has not started yet.   
-    snprintf(startOutputsResults, sizeof(startOutputsResults), "RTK-SMA boot delay (%dms).\n", START_DELAY);
+    snprintf(outputBuffer, sizeof(outputBuffer), "RTK-SMA boot delay (%ums).\n", (unsigned)START_DELAY);
+    strlcat(startOutputsResults, outputBuffer, sizeof(startOutputsResults));
     delay(START_DELAY);
     ws2812LedColor = WHITE;
     ws2812LedBlink = false;
@@ -2025,16 +2026,14 @@ void startOutputs() {
 
     // --- Assign SDIO pins for SD card reader. ---
     if (SD_MMC.setPins(SDIO_CLK, SDIO_CMD, SDIO_D0, SDIO_D1, SDIO_D2, SDIO_D3)) {
-        remaining = sizeof(startOutputsResults) - strlen(startOutputsResults) - 1;
-        strncat(startOutputsResults, "SDIO pins assigned.\n", remaining);
+        strlcat(startOutputsResults, "SDIO pins assigned.\n", sizeof(startOutputsResults));
     } else {
         startedSd = false;
     }
 
     // --- Mount SD card. ---
     if (SD_MMC.begin()) {
-        remaining = sizeof(startOutputsResults) - strlen(startOutputsResults) - 1;
-        strncat(startOutputsResults, "SD card started.\n", remaining);
+        strlcat(startOutputsResults, "SD card started.\n", sizeof(startOutputsResults));
 
         // -- Test SD card & reader by writing new LOG_FILE. --
         if (SD_MMC.exists(LOG_FILE)) {                          // Create a fresh log file for every boot.
@@ -2042,9 +2041,7 @@ void startOutputs() {
         }
         File file = SD_MMC.open(LOG_FILE, FILE_WRITE);          // FILE_WRITE to write to log file, FILE_APPEND to append to log file.
         if (file) {
-            snprintf(outputBuffer, sizeof(outputBuffer), "Log file created.");
-            remaining = sizeof(startOutputsResults) - strlen(startOutputsResults) - 1;
-            strncat(startOutputsResults, outputBuffer, remaining);
+            strlcat(startOutputsResults, "Log file created.", sizeof(startOutputsResults));
             file.print("#");
             file.close();
         } else  {
@@ -3310,6 +3307,31 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
  */
 
 /**
+ * Validate the values in a "setPrefs" message from the browser before they are applied or saved.
+ * A blank or non-numeric field converts to 0: a 0 measure interval makes vTaskDelay(0) busy-loop, a 0 NTRIP caster
+ * index makes prfNtripCastAttr[-1] get read at every boot, a missing string key makes strlcpy() crash.
+ * Limits mirror the config page drop-downs (measure interval 50-1000 ms, nav rate 1-10, NTRIP caster 1-3).
+ * Widen them here if the UI changes.
+ *
+ * @return bool  true = all values usable, false = reject the whole save.
+ * @since  3.5.4 [2026-11-01-10:00pm] New.
+ * @see    processMessagesIn().
+ */
+bool setPrefsValid() {
+    const uint16_t newMsrInt  = jsonDocFromBrowser["4"];
+    const uint8_t  newNavRat  = jsonDocFromBrowser["5"];
+    const uint8_t  newCastAct = jsonDocFromBrowser["42"];
+    const uint16_t newLckAvg  = jsonDocFromBrowser["52"];
+    const float    newOffX    = jsonDocFromBrowser["54"];
+    const float    newOffY    = jsonDocFromBrowser["55"];
+    return jsonDocFromBrowser["1"].is<const char*>() && jsonDocFromBrowser["2"].is<const char*>() &&
+           jsonDocFromBrowser["6"].is<const char*>() && jsonDocFromBrowser["7"].is<const char*>() &&
+           (newMsrInt >= 50) && (newMsrInt <= 1000) && (newNavRat >= 1) && (newNavRat <= 10) &&
+           (newCastAct >= 1) && (newCastAct <= 3) && (newLckAvg >= 1) &&
+           (fabsf(newOffX) <= 45.0f) && (fabsf(newOffY) <= 45.0f);      // fabsf(NaN) <= 45 is false.
+}
+
+/**
  * -------------------------------------------------------------------------
  *  Process queued WS messages. All JSON activity lives here & sendDataToBrowser(). 
  * -------------------------------------------------------------------------
@@ -3695,7 +3717,11 @@ void DevUBLOXGNSS::processNMEA(char incoming) {
     // -------------------------------------------------------------------------
     // --- Config page. Set all preferences. ---
     // -------------------------------------------------------------------------
-    if (jsonDocFromBrowser["setPrefs"].is<JsonVariant>()) {
+    if (jsonDocFromBrowser["setPrefs"].is<JsonVariant>() && !setPrefsValid()) {
+        logPrint("Preferences NOT saved: a value is missing or out of range.");
+        strcpy(outputBuffer, "Preferences NOT saved: a value is missing or out of range.");
+        jsonDocToBrowser["setPrefsResp"] = outputBuffer;
+    } else if (jsonDocFromBrowser["setPrefs"].is<JsonVariant>()) {
 
         // -- Set global vars from JSON values. --
         strlcpy(prfUnt,          jsonDocFromBrowser["1"],  sizeof(prfUnt));  // dst, src, sizeof(dest)
