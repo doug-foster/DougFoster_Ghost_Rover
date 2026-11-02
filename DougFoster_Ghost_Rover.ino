@@ -4,63 +4,66 @@
  * *************************************************************************
  *
  * @author D. Foster <doug@dougfoster.me>.
- * @since  3.1.0 [2026-03-02-05:00pm] Stable 3.0 version.
- * @since  3.1.0 [2026-03-10-11:30am] Add pole height preference.
- * @since  3.1.1 [2026-06-25-10:30pm] Regroup. Cleanup.
- * @since  3.1.1 [2026-06-26-12:30pm] Cleanup formatting.
- * @since  3.1.1 [2026-06-26-06:00pm] Change reset to restart.
- * @since  3.1.1 [2026-06-26-06:00pm] Change checkZED to checkZedTriggerUpdate.
- * @since  3.1.1 [2026-07-03-10:30am] General cleanup.
- * @since  3.1.2 [2026-07-03-06:15pm] New, GhostRover FreeRTOS task taskRtcmRelay() replaced relaySerial1toSerial2() in loop().
- * @since  3.1.2 [2026-07-03-07:30pm] Address rtcmSentence buffer overflow.
- * @since  3.1.2 [2026-07-15-04:45pm] Add NTRIP preferences.
- * @since  3.1.2 [2026-07-16-09:00am] Changed int16_t prfInstrHgt to uint16_t.
- * @since  3.2.1 [2026-07-24-03:30pm] Refactor JSON.
- * @since  3.2.1 [2026-07-25-11:00am] Removed wsKey().
- * @since  3.2.1 [2026-07-25-05:00pm] Convert NTRIP keys from alpha to numeric.
- * @since  3.2.1 [2026-07-27-01:45pm] Add sendDataToBrowser(), refactor to consolidate JSON.
- * @since  3.2.1 [2026-07-28-04:45pm] Removed NMEA out switch & preference.
- * @since  3.2.1 [2026-07-31-09:30am] Add Internet for NTRIP access.
- * @since  3.2.1 [2026-08-02-04:30pm] Remove connectInternet().
- * @since  3.2.1 [2026-08-03-10:00am] Removed jsonObj["21'] & jsonObj["21'].
- * @since  3.2.2 [2026-08-09-11:45am] Add NTRIP client.
- * @since  3.2.2 [2026-08-09-02:00pm] Updated platform from 3.3.10 to 3.3.11. Updated AsyncTCP & ESPAsyncWebServer libraries.
- * @since  3.2.2 [2026-08-09-05:30pm] Only print for DEBUG_WS_EVENTS.
- * @since  3.2.3 [2026-08-10-09:45am] Add TCP to replace BLE.
- * @since  3.2.3 [2026-08-10-10:15pm] Refactor rtcm3GetMessageType(), relayRtcmByte(), & taskRtcmRelay() to properly handle RTCM sentences.
- * @since  3.3.0 [2026-08-13-12:00pm] Replaced checkZedTriggerUpdate() with checkLoopTimers().
- * @since  3.3.0 [2026-08-13-12:30pm] Replaced ntripPushGGA() with checkLoopTimers().
- * @since  3.3.0 [2026-08-13-01:00pm] Replaced debug timer with checkLoopTimers().
- * @since  3.3.0 [2026-08-17-09:15am] Refactored card test in startOutputs() to use log file. Changed position in setup().
- * @since  3.3.1 [2026-08-16-12:00pm] Changed from SD (SPI) to SD_MMC (SDIO).
- * @since  3.3.1 [2026-08-16-05:30pm] Add logPrint().
- * @since  3.3.1 [2026-08-28-06:30pm] Add logic to manage nmeaBuffer if buffer gets out of sync.
- * @since  3.3.2 [2026-08-30-04:45pm] Moved char diagMsg[] to global vars.
- * @since  3.3.3 [2026-08-31-05:00pm] More cleanup.
- * @since  3.3.4 [2026-09-07-11:45am] Cleanup & memory management.
- * @since  3.3.5 [2026-09-07-01:15pm] Removed checkLoopTimers() in loop(), replaced with FreeRTOS tasks.
- * @since  3.4.0 [2026-09-13-05:30pm] Height/position lock/unlock.
- * @since  3.4.0 [2026-09-20-05:30pm] Add prfLckAvgInt.
- * @since  3.4.1 [2026-09-27-10:00pm] Added caster.crs.
- * @since  3.4.1 [2026-09-28-12:30pm] ntripCasterProfile.crs from char[24] to char[48].
- * @since  3.4.1 [2026-09-28-06:30pm] Added section for instrument height calculation doc. @see Global vars. in global.js.
- * @since  3.4.1 [2026-09-29-05:15pm] Moved lipo checks from buildOperData() to taskEvery5000Ms().
- * @since  3.4.1 [2026-09-29-05:45pm] Added logPrint(rtcmSentence) to DEBUG_RTCM IN relayRtcmByte().
- * @since  3.4.2 [2026-10-03-10:00pm] Removed laser feature.
- * @since  3.4.2 [2026-10-03-10:30pm] Also set RTCMinFlag = false if !tcpClient.connected() in checkTCPServer().
- * @since  3.4.2 [2026-10-05-11:45am] Refactor NTRIP.
- * @since  3.4.2 [2026-10-05-01:45am] Add general function stringToHex().
- * @since  3.5.0 [2026-10-20-09:00pm] Add IMU functionality - prfOffsetXDeg, prfOffsetYDeg, ... .
- * @since  3.5.1 [2026-10-31-10:00am] Cleanup.
- * @since  3.5.2 [2026-11-01-08:45pm] IMU: write register bank 0 when no new sample for 500 ms (chip can end up in bank 2, every read is then 0).
- * @since  3.5.3 [2026-11-01-09:30pm] Clear calibrateImuFlag when a WebSocket client disconnects (page left, reloaded or closed).
- * @since  3.5.4 [2026-11-01-10:00pm] Validate setPrefs values before applying/saving them (setPrefsValid()).
- * @since  3.5.5 [2026-11-01-10:15pm] startOutputs(): append all startup messages to startOutputsResults[] with strlcat() (the boot delay message overwrote the Serial USB message).
- * @since  3.5.6 [2026-11-01-10:30pm] prefUtility(): close NVS namespace in every path, defaults for missing/out-of-range prefs, .c_str() for printed Strings.
- * @since  3.5.7 [2026-11-01-10:30pm] startI2C(): retry in a loop instead of recursion; log "400kHz" (was "4kHz").
- * @since  3.5.8 [2026-11-01-10:45pm] startAndConfigGNSS(): reset, delay, then configure; retry setAutoPVT(); check & log failed config steps.
- * @since  3.5.9 [2026-11-01-10:55pm] startAndConfigGNSS(): add setAutoHPPOSLLH(true) so getHighRes*() & getElipsoid*() etc. no longer poll the ZED.
+ * @since  3.1.0  [2026-03-02-05:00pm] Stable 3.0 version.
+ * @since  3.1.0  [2026-03-10-11:30am] Add pole height preference.
+ * @since  3.1.1  [2026-06-25-10:30pm] Regroup. Cleanup.
+ * @since  3.1.1  [2026-06-26-12:30pm] Cleanup formatting.
+ * @since  3.1.1  [2026-06-26-06:00pm] Change reset to restart.
+ * @since  3.1.1  [2026-06-26-06:00pm] Change checkZED to checkZedTriggerUpdate.
+ * @since  3.1.1  [2026-07-03-10:30am] General cleanup.
+ * @since  3.1.2  [2026-07-03-06:15pm] New, GhostRover FreeRTOS task taskRtcmRelay() replaced relaySerial1toSerial2() in loop().
+ * @since  3.1.2  [2026-07-03-07:30pm] Address rtcmSentence buffer overflow.
+ * @since  3.1.2  [2026-07-15-04:45pm] Add NTRIP preferences.
+ * @since  3.1.2  [2026-07-16-09:00am] Changed int16_t prfInstrHgt to uint16_t.
+ * @since  3.2.1  [2026-07-24-03:30pm] Refactor JSON.
+ * @since  3.2.1  [2026-07-25-11:00am] Removed wsKey().
+ * @since  3.2.1  [2026-07-25-05:00pm] Convert NTRIP keys from alpha to numeric.
+ * @since  3.2.1  [2026-07-27-01:45pm] Add sendDataToBrowser(), refactor to consolidate JSON.
+ * @since  3.2.1  [2026-07-28-04:45pm] Removed NMEA out switch & preference.
+ * @since  3.2.1  [2026-07-31-09:30am] Add Internet for NTRIP access.
+ * @since  3.2.1  [2026-08-02-04:30pm] Remove connectInternet().
+ * @since  3.2.1  [2026-08-03-10:00am] Removed jsonObj["21'] & jsonObj["21'].
+ * @since  3.2.2  [2026-08-09-11:45am] Add NTRIP client.
+ * @since  3.2.2  [2026-08-09-02:00pm] Updated platform from 3.3.10 to 3.3.11. Updated AsyncTCP & ESPAsyncWebServer libraries.
+ * @since  3.2.2  [2026-08-09-05:30pm] Only print for DEBUG_WS_EVENTS.
+ * @since  3.2.3  [2026-08-10-09:45am] Add TCP to replace BLE.
+ * @since  3.2.3  [2026-08-10-10:15pm] Refactor rtcm3GetMessageType(), relayRtcmByte(), & taskRtcmRelay() to properly handle RTCM sentences.
+ * @since  3.3.0  [2026-08-13-12:00pm] Replaced checkZedTriggerUpdate() with checkLoopTimers().
+ * @since  3.3.0  [2026-08-13-12:30pm] Replaced ntripPushGGA() with checkLoopTimers().
+ * @since  3.3.0  [2026-08-13-01:00pm] Replaced debug timer with checkLoopTimers().
+ * @since  3.3.0  [2026-08-17-09:15am] Refactored card test in startOutputs() to use log file. Changed position in setup().
+ * @since  3.3.1  [2026-08-16-12:00pm] Changed from SD (SPI) to SD_MMC (SDIO).
+ * @since  3.3.1  [2026-08-16-05:30pm] Add logPrint().
+ * @since  3.3.1  [2026-08-28-06:30pm] Add logic to manage nmeaBuffer if buffer gets out of sync.
+ * @since  3.3.2  [2026-08-30-04:45pm] Moved char diagMsg[] to global vars.
+ * @since  3.3.3  [2026-08-31-05:00pm] More cleanup.
+ * @since  3.3.4  [2026-09-07-11:45am] Cleanup & memory management.
+ * @since  3.3.5  [2026-09-07-01:15pm] Removed checkLoopTimers() in loop(), replaced with FreeRTOS tasks.
+ * @since  3.4.0  [2026-09-13-05:30pm] Height/position lock/unlock.
+ * @since  3.4.0  [2026-09-20-05:30pm] Add prfLckAvgInt.
+ * @since  3.4.1  [2026-09-27-10:00pm] Added caster.crs.
+ * @since  3.4.1  [2026-09-28-12:30pm] ntripCasterProfile.crs from char[24] to char[48].
+ * @since  3.4.1  [2026-09-28-06:30pm] Added section for instrument height calculation doc. @see Global vars. in global.js.
+ * @since  3.4.1  [2026-09-29-05:15pm] Moved lipo checks from buildOperData() to taskEvery5000Ms().
+ * @since  3.4.1  [2026-09-29-05:45pm] Added logPrint(rtcmSentence) to DEBUG_RTCM IN relayRtcmByte().
+ * @since  3.4.2  [2026-10-03-10:00pm] Removed laser feature.
+ * @since  3.4.2  [2026-10-03-10:30pm] Also set RTCMinFlag = false if !tcpClient.connected() in checkTCPServer().
+ * @since  3.4.2  [2026-10-05-11:45am] Refactor NTRIP.
+ * @since  3.4.2  [2026-10-05-01:45am] Add general function stringToHex().
+ * @since  3.5.0  [2026-10-20-09:00pm] Add IMU functionality - prfOffsetXDeg, prfOffsetYDeg, ... .
+ * @since  3.5.1  [2026-10-31-10:00am] Cleanup.
+ * @since  3.5.2  [2026-11-01-08:45pm] IMU: write register bank 0 when no new sample for 500 ms (chip can end up in bank 2, every read is then 0).
+ * @since  3.5.3  [2026-11-01-09:30pm] Clear calibrateImuFlag when a WebSocket client disconnects (page left, reloaded or closed).
+ * @since  3.5.4  [2026-11-01-10:00pm] Validate setPrefs values before applying/saving them (setPrefsValid()).
+ * @since  3.5.5  [2026-11-01-10:15pm] startOutputs(): append all startup messages to startOutputsResults[] with strlcat() (the boot delay message overwrote the Serial USB message).
+ * @since  3.5.6  [2026-11-01-10:30pm] prefUtility(): close NVS namespace in every path, defaults for missing/out-of-range prefs, .c_str() for printed Strings.
+ * @since  3.5.7  [2026-11-01-10:30pm] startI2C(): retry in a loop instead of recursion; log "400kHz" (was "4kHz").
+ * @since  3.5.8  [2026-11-01-10:45pm] startAndConfigGNSS(): reset, delay, then configure; retry setAutoPVT(); check & log failed config steps.
+ * @since  3.5.9  [2026-11-01-10:55pm] startAndConfigGNSS(): add setAutoHPPOSLLH(true) so getHighRes*() & getElipsoid*() etc. no longer poll the ZED.
  * @since  3.5.10 [2026-11-01-11:10pm] Add lipoReadyFlag: no LiPo I2C reads if the MAX17048 was not detected. Removed duplicate battery read from preLoop().
+ * @since  3.5.11 [2026-11-01-11:20pm] startTasks(): merged duplicate RTCM source "off" tests.
+ * @since  3.5.12 [2026-11-01-11:30pm] startWiFiServer(): register onWiFiEvent() before WiFi.mode() so the ready & AP start events are not missed.
+ * @since  3.5.13 [2026-11-01-11:45pm] Reject file names with ".." (or empty) in HTTP download, HTTP upload & WebSocket deleteFile (isSafeFileName()).
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover.
  * @link   https://github.com/doug-foster/DougFoster_Ghost_Rover_EVK_RTCM_relay.
  * @link   http://dougfoster.me.
@@ -476,7 +479,7 @@ const bool    RO_MODE                    = true;                // Open preferen
 const char    LOG_FILE[]                 = "/log.txt";          // Log file.
 const uint8_t MAJOR_VERSION              = 3;                   // Current major build version (@see buildInfo()).
 const uint8_t MINOR_VERSION              = 5;                   // Current minor build version (@see buildInfo()).
-const uint8_t PATCH_VERSION              = 10;                   // Current patch build version (@see buildInfo()).
+const uint8_t PATCH_VERSION              = 13;                   // Current patch build version (@see buildInfo()).
 const uint8_t MIN_SATELLITE_THRESHHOLD   = 2;                   // Minimum SIV for reliable coordinate information.      
       char     operMode[2]               = {'\0'};              // Operation mode (r=rover, b=base).
 //    char     debugTemp[250]            = {'\0'};              // Various debug scenarios. Activate when needed.
@@ -2311,6 +2314,7 @@ bool startIMU() {
  * @since  3.0.12 [2026-02-01-05:30pm] Use preferences.
  * @since  3.2.1  [2026-07-31-12:30pm] Add Internet for NTRIP access. Refactor.
  * @since  3.3.1  [2026-08-17-02:45pm] Changed from Serial.print() to logPrint().
+ * @since  3.5.12 [2026-11-01-11:30pm] Moved WiFi.onEvent() before WiFi.mode().
  * @see    setup(), prefUtility().
  * @link   https://github.com/espressif/arduino-esp32/tree/master/libraries/WiFi.
  * @link   https://docs.espressif.com/projects/arduino-esp32/en/latest/api/wifi.html.
@@ -2324,6 +2328,9 @@ void startWiFiServer() {
     const IPAddress AP_LOCAL_IP(192, 168, 23, 1);                   // AP host address.
     const IPAddress AP_GATEWAY(192, 168, 23, 1);                    // AP gateway address.
     const IPAddress AP_SUBNET(255, 255, 255, 0);                    // AP subnet mask.      
+
+    // --- Add event handler first, so the events from WiFi.mode() & softAP() (ready, AP start) are not missed. ---
+    WiFi.onEvent(onWiFiEvent);                                      // Add event handler WiFiEvent().
 
     // --- Set WiFi mode to WIFI_AP_STA for both WiFi server (WIFI_AP) & client (WIFI_STA). ---
     WiFi.mode(WIFI_AP_STA);
@@ -2344,7 +2351,6 @@ void startWiFiServer() {
         while (true) {};                                            // Freeze.
     }
     WiFi.softAPsetHostname(AP_NAME);                                // Set hostname.
-    WiFi.onEvent(onWiFiEvent);                                      // Add event handler WiFiEvent().
     IPAddress ip = WiFi.softAPIP();                                 // Start WiFi & check status (get IP).
     snprintf(localIp, sizeof(localIp), "%d.%d.%d.%d", ip[0], ip[1], ip[2], ip[3]);
     snprintf(outputBuffer, sizeof(outputBuffer), "WiFi server \"%s\" started @ %s.", AP_SSID, localIp);
@@ -2374,6 +2380,23 @@ void startTcpServer() {
 
 /**
  * -------------------------------------------------------------------------
+ *  Check a file name received from the network (HTTP download/upload, WebSocket delete).
+ * -------------------------------------------------------------------------
+ *
+ * Files live in the SD card root. A name containing ".." could reach outside it ("../x", "..\\x"), so any ".." is rejected, as is an empty name.
+ * Names like "a..b" are also rejected: a deliberate trade for a simple test.
+ *
+ * @param  const char* name File name from the browser.
+ * @return bool        true = OK to use, false = reject.
+ * @since  3.5.13 [2026-11-01-11:45pm] New.
+ * @see    startHttpServer(), onHttpFileUpload(), processMessagesIn().
+ */
+bool isSafeFileName(const char* name) {
+    return (name != NULL) && (name[0] != '\0') && (strstr(name, "..") == NULL);
+}
+
+/**
+ * -------------------------------------------------------------------------
  *  Start HTTP server. 
  * -------------------------------------------------------------------------
  *
@@ -2384,6 +2407,7 @@ void startTcpServer() {
  * @since  3.0.10 [2026-01-07-11:30am] Local vars.
  * @see    setup(), onHttpFileUpload().
  * @since  3.3.1 [2026-08-17-02:45pm] Changed from Serial.print() to logPrint().
+ * @since  3.5.13 [2026-11-01-11:45pm] Download: reject unsafe file names.
  * @link   https://github.com/ESP32Async/ESPAsyncWebServer/wiki#get-post-and-file-parameters.
  * @link   https://github.com/ESP32Async/AsyncTCP.
  * @link   https://github.com/ESP32Async/ESPAsyncWebServer.
@@ -2415,7 +2439,10 @@ void startHttpServer() {
         if (request->hasParam("file")) {                    // Process request.
             String filename = request->getParam("file")->value();
             String filepath = "/" + filename;
-            if (SD_MMC.exists(filepath)) {
+            if (!isSafeFileName(filename.c_str())) {
+                request->send(400, "text/plain", "Invalid file name");
+                logPrint("httpServer - Download rejected: invalid file name.");
+            } else if (SD_MMC.exists(filepath)) {
                 request->send(SD_MMC, filepath, "application/octet-stream", true);
                 if (commandFlag[DEBUG_FILE_SYSTEM]) {
                     snprintf(outputBuffer, sizeof(outputBuffer), "httpServer - Downloading file: %s", filename.c_str());
@@ -2630,6 +2657,7 @@ void startQueues() {
  * @since  3.4.1  [2026-09-29-05:00pm] Add taskEvery5000Ms().
  * @since  3.5.0  [2026-10-25-11:00am] Move buildOperDataInterval calculation from global var to startTasks().
  * @since  3.5.0  [2026-10-29-10:30am] Add taskEvery100Ms().
+ * @since  3.5.11 [2026-11-01-11:20pm] Merged duplicate RTCM source "off" tests.
  * @see    Global vars: FreeRTOS handles.
  * @see    setup().
  * @link   https://www.freertos.org/Documentation/02-Kernel/04-API-references/01-Task-creation/01-xTaskCreate.
@@ -2647,8 +2675,6 @@ void startTasks() {
     if (strncmp(prfRtcmInSource, "off", sizeof(prfRtcmInSource)) != 0) {    // Relay RTCM, skip for "off".
         xTaskCreatePinnedToCore(taskRtcmRelay, "RTCM_Relay", 8192, NULL, 2, &taskRtcmRelayHandle, 0);
         logPrint("FreeRTOS task \"RTCM relay\" started.");
-    }
-    if (strncmp(prfRtcmInSource, "off", sizeof(prfRtcmInSource)) != 0) {
         RTCMinFlag = false;
     }
 
@@ -3095,6 +3121,7 @@ void displayWifiClients() {
  * @since  3.0.7  [2025-11-11-06:00pm].
  * @since  3.0.10 [2026-01-07-12:00pm] Local vars.
  * @since  3.3.1  [2026-08-17-03:45pm] Changed from Serial.print() to logPrint().
+ * @since  3.5.13 [2026-11-01-11:45pm] Reject unsafe file names; ignore data chunks when the file was not opened.
  * @see    startHttpServer().
  * @link   https://randomnerdtutorials.com/esp32-async-web-server-espasyncwebserver-library/.
  */
@@ -3102,11 +3129,18 @@ void onHttpFileUpload(AsyncWebServerRequest *request, String filename, size_t in
 
     // --- Local vars. ---
     static File uploadFile;                                 // HTTP upload file.
+    static bool uploadOpenFlag = false;                     // uploadFile was opened for this upload.
 
     // --- Begin. ---
     if (index == 0) {                                       // Start.
+        uploadOpenFlag = false;
         if (commandFlag[DEBUG_FILE_SYSTEM]) {
             logPrint("\nhttpServer endpoint \"/upload\".\nonHttpFileUpload() running.");
+        }
+        if (!isSafeFileName(filename.c_str())) {
+            request->send(400, "text/plain", "Invalid file name");
+            logPrint("httpServer - Upload rejected: invalid file name.");
+            return;
         }
         SD_MMC.remove("/" + filename);                          // Delete file.
         if (commandFlag[DEBUG_FILE_SYSTEM]) {
@@ -3115,6 +3149,7 @@ void onHttpFileUpload(AsyncWebServerRequest *request, String filename, size_t in
         }
         uploadFile = SD_MMC.open("/" + filename, FILE_WRITE);   // Open file for writing.
         if (uploadFile) {
+            uploadOpenFlag = true;
             if (commandFlag[DEBUG_FILE_SYSTEM]) {
                 snprintf(outputBuffer, sizeof(outputBuffer), "%s opened on SD.", filename.c_str());
                 logPrint(outputBuffer);
@@ -3127,6 +3162,11 @@ void onHttpFileUpload(AsyncWebServerRequest *request, String filename, size_t in
             }
             return;  
         }
+    }
+
+    // --- Nothing was opened (rejected or open failed): ignore the rest of this upload. ---
+    if (!uploadOpenFlag) {
+        return;
     }
 
     // --- Continue (write data to SD). ---
@@ -3889,8 +3929,11 @@ bool setPrefsValid() {
 
         // -- Delete file. --
         const char* fileName = jsonDocFromBrowser["deleteFile"];
-        strcpy(outputBuffer, fileName);
-        strcat(outputBuffer, SD_MMC.remove(fileName) ? " deleted." : " NOT deleted.");
+        if (isSafeFileName(fileName)) {
+            snprintf(outputBuffer, sizeof(outputBuffer), "%.200s%s", fileName, SD_MMC.remove(fileName) ? " deleted." : " NOT deleted.");
+        } else {
+            strcpy(outputBuffer, "Invalid file name, NOT deleted.");
+        }
 
         // -- Set response. --
         jsonDocToBrowser["deleteFileResp"] = outputBuffer;
