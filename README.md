@@ -270,9 +270,26 @@ If you make changes to the code, be careful of how functions running independent
 ## UI snapshots
 [&uarr;](#table-of-contents)
 
-### Operate page
-![operate page - normal display](<docs/operate - normal.png>)
-ToDo: add snapshots.
+<table>
+  <tr>
+    <td>Operate page - normal</td>
+    <td>Operate page - conversions *<br>* Click normal coordinates display to expand/contract.</td>
+  </tr>
+  <tr>
+    <td><img src="docs/operate - normal.png" alt="Operate page - normal"></td>
+    <td><img src="docs/operate - conversions.png" alt="Operate page - conversions"></td>
+  </tr>
+</table>
+
+<!-- <div style="display: flex; gap: 10px;">
+  <div>
+    <span>Operate.html
+    </span>
+  </div>
+  <div>
+    <img src="docs/operate - normal.png" style="width: 50%;" alt="Image 2">
+  </div>
+</div> -->
 
 ## References
 [&uarr;](#table-of-contents) 
