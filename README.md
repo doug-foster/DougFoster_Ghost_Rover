@@ -273,23 +273,59 @@ If you make changes to the code, be careful of how functions running independent
 <table>
   <tr>
     <td>Operate page - normal</td>
-    <td>Operate page - conversions *<br>* Click normal coordinates display to expand/contract.</td>
+    <td>Operate page - conversions display<br>(Click coordinates area to toggle.)</td>
   </tr>
   <tr>
     <td><img src="docs/operate - normal.png" alt="Operate page - normal"></td>
-    <td><img src="docs/operate - conversions.png" alt="Operate page - conversions"></td>
+    <td><img src="docs/operate - conversions.png" alt="Operate page - conversions display"></td>
   </tr>
 </table>
-
-<!-- <div style="display: flex; gap: 10px;">
-  <div>
-    <span>Operate.html
-    </span>
-  </div>
-  <div>
-    <img src="docs/operate - normal.png" style="width: 50%;" alt="Image 2">
-  </div>
-</div> -->
+<table>
+  <tr>
+    <td>Operate page - status display<br>(Click "Status" button to toggle.)</td>
+  </tr>
+  <tr>
+    <td><img src="docs/operate - status.png" alt="Operate page - status display"></td>
+  </tr>
+</table>
+<table>
+  <tr>
+    <td>Config page - top<br>(Can save 3 NTRIP server configs.)</td>
+    <td>Config page - bottom</td>
+  </tr>
+  <tr>
+    <td><img src="docs/config - top.png" alt="Config page - top"></td>
+    <td><img src="docs/config - bottom.png" alt="Config page - bottom"></td>
+  </tr>
+</table>
+<table>
+  <tr>
+    <td>Files page - top<br>(Drag/drop to upload.)</td>
+    <td>Files page - bottom</td>
+  </tr>
+  <tr>
+    <td><img src="docs/files - top.png" alt="Files page - top"></td>
+    <td><img src="docs/files - bottom.png" alt="Files page - bottom"></td>
+  </tr>
+</table>
+<table>
+  <tr>
+    <td>Menu page</td>
+    <td>Debug page - top<br>(Mirrors CLI debug.)</td>
+  </tr>
+  <tr>
+    <td><img src="docs/menu.png" alt="Menu page"></td>
+    <td><img src="docs/debug - top.png" alt="Debug page - top"></td>
+  </tr>
+</table>
+<table>
+  <tr>
+    <td>NMEA page</td>
+  </tr>
+  <tr>
+    <td><img src="docs/nmea.png" alt="NMEA page"></td>
+  </tr>
+</table>
 
 ## References
 [&uarr;](#table-of-contents) 
