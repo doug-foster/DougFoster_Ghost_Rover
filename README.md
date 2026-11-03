@@ -1,13 +1,16 @@
-# GhostRover&trade; - V 3.4
-Last update: 2026-10-06 (V 3.4.2)
+# GhostRover&trade; - V 3.5
+Last update: 2026-11-03 (V 3.5.24)
 
 ## Table of Contents
 [GitHub repository](#github-repository)<br>
 [Description](#description)<br>
 [User interface](#user-interface)<br>
 [GNSS coordinate Locking](#gnss-coordinate-locking)<br>
+[Bubble level](#bubble-level)<br>
 [Hardware](#hardware)<br>
+[Photos](#photos)<br>
 [Software](#software)<br>
+[UI snapshots](#ui-snapshots)<br>
 [References](#references)<br>
 [Caveats](#caveats)<br>
 [Thoughts](#thoughts)<br>
@@ -63,48 +66,57 @@ The "Config" page is used to manage GhostRover's configuration. Options stored a
 * Units - Meters or standard (not US Survey) feet.
 * RTCM source - Off, Bridge (external NTRIP client), NTRIP (internal NTRIP client), or Radio (base station).
 * GNSS lock interval - The # of seconds to average GNSS position/height readings before fixing for this survey point.
+* Calibrate IMU - The X & Y offests (degrees) to account for IMU not being mounted perfectly level in the enclosure.
 * Instrument height - GhostRover height (APC offset, antenna, quick release, etc) + selectable holding options & preset lengths (or an optional custom length) = total instrument height (always in mm).
 * Generate PVT - Selectable options for GNSS measurement and navigation rates.
 * WiF (STA mode) - SSID & password for the secondary WiFi interface.
-* Checkbox - Display WebSocket messages on Chrome Inspect's JS console.
 * Attributes for up to (3) NTRIP casters - ID, name, URL, mount point, port, version (1/2), user, password, CRS (Coordinate Reference System used for RTCM data), flag to send $GGA NMEA sentence to caster.
+* Checkbox - Display WebSocket messages on Chrome Inspect's JS console.
 
 The "Operate" page is used to operate GhostRover. The following is displayed:
 * GNSS fix type (None, Single, RTK-Float, RTK-Fix)
 * Coordinates @ 1mm precision:
-    * EPSG:4979 (WGS 84-3D) Note: changes to specific RTCM CRS if being received.
+    * EPSG:9707 (EPSG:4326 + EPSG:5773) Note: changes to specific RTCM CRS if being received.
         * Latitude (8 decimal degrees)
         * Longitude (8 decimal degrees)
-        * Height (ellipsoid)
-        * Height (ortho Mean Sea Level)
         * Horizontal accuracy
         * Vertical accuracy
-    * EPSG:32816 (UTM)
-        * Grid Zone
-        * Easting (X)
-        * Northing (Y)
+    * EPSG:5773 (EGM96 Geoid, H = h - N)
+        * Height (Ortho (MSL) - H*)
+        * Height (Ellipsoid (HAE) -h)
+        * Geoid Separation - N*
     * EPSG:4978 (ECEF)
         * X
         * Y
         * Z
-* RTCM in, NMEA out LED indicators
-* Battery (charge amount & discharge rate)
-* Status - Button reveals hidden table of all GhostRover status data being received in real time:
-    * Config preferences, uptime, WebSocket message stats, RTCM message stats, NMEA message stats, WiFi (primary & secondary) stats.
+    * EPSG:32617 / 32618 (UTM 17N / 18N)
+        * Grid Zone
+        * Easting (X)
+        * Northing (Y)
 * Three operational buttons:
     * Height - The current GNSS height (ellipsoidal and geoid separation) - can be locked/unlocked.
     * Position - The current GNSS 2D position can be locked/unlocked.
     * Lock - Both current height & position can be locked/unlocked.
+* RTCM in, NMEA out LED indicators
+* Battery (charge amount & discharge rate)
+* Bubble level - Displays the degrees of offset adjusted tilt (-5 to +5) from plumb as "bubble level."
+* Status - Button reveals hidden table of all GhostRover status data being received in real time:
+    * Config preferences, uptime, WebSocket message stats, RTCM message stats, NMEA message stats, WiFi (primary & secondary) stats.
 
 ## GNSS coordinate locking
-[&uarr;](#table-of-contents) 
+[&uarr;](#table-of-contents)
 
 When a button is pressed (e.g. lock mode), a blinking lock icon is displayed on the button. The blinking lock icon remains for a length of time (set by a configuration preference) while the received coordinates are averaged. Once averaged, the respective coordinates are frozen and all NMEA messages sent from GhostRover to the mapping software will contain those frozen coordinates (with a new, correctly calculated sentence checksum). During this time GhostRover can be physically moved, but the "spoofed" coordinates used by the mapping software remain frozen. Once the survey point has been recorded and geo-located photos taken, the button can be pressed again to unlock and instantly return to normal operation.
 
 The lock averaging process takes place on GhostRover's MCU (not in the UI's Javascript). It's rather complex and uses a combination of MAD (Median Absolute Deviation) and Welford's online algorithm for running mean/variance. There is a circular buffer for the samples, from which MAD throws out the outliers. The Welford algorithm folds in all non-outliers and accumulates a running mean. I'll try to write up a better explanation summary later, but for now review the code. It's complex, but it's also more accurate than just a standard summation/average of the readings during the lock period. 
 
+## Bubble level
+[&uarr;](#table-of-contents)
+
+The operate page contains a bubble level which driven by the accelerometer on the 9DoF IMU breakout board. Rather than calulate tilt offset adjusted position, GhostRover relies on the operator to hold the pole steady and plumb. The bubble level has (5) radial concentric circles spaced at 1 degree intervals. The operator is given realtime visual feedback by the position of the "bubble" within the concentric circles. The SingularXYZ survey pole also has a traditional bubble level (albeit small and hard to read). The bubbble level UI component is immediately to the right of the three lock buttons, making it quite easy to maintian the pole within 1-2 degrees of plumb while locking/averaging the position & height values. This is a low cost (< $20) IMU and not an expensive, super precise IMU like might be used in more expensive GNSS rovers. However, the ICM-20948 seems accurate to about 1 degree with maybe 0.5 degree drift when stationary, so IMO it's a reasonably cost effective choice. Just about any 3DOF accelerometer board should work though (you'll have to account for a difference between IMU libraries).
+
 ## Hardware
-[&uarr;](#table-of-contents) 
+[&uarr;](#table-of-contents)
 
 ### Rover
 ![Ghost Rover V3.4 - wiring diagram](ui/wiring.png)
@@ -113,6 +125,8 @@ The lock averaging process takes place on GhostRover's MCU (not in the UI's Java
 * GNSS board
     * SparkFun GPS-RTK-SMA Breakout - https://www.sparkfun.com/sparkfun-gps-rtk-sma-breakout-zed-f9p-qwiic.html
     * ZED-F9P (Qwiic) - I2C address 0x42
+* IMU board
+    * SparkFun 9DoF IMU Breakout ICM-20948 (Qwiic) - https://www.sparkfun.com/sparkfun-9dof-imu-breakout-icm-20948-qwiic.html
 * GNSS antenna
     * SparkFun GNSS Surveying Antenna - https://www.sparkfun.com/gnss-multi-band-l1-l2-l5-surveying-antenna-tnc-spk6618h.html
     * Multi-Band L1/L2/L5
@@ -141,7 +155,8 @@ The lock averaging process takes place on GhostRover's MCU (not in the UI's Java
     * Push button switch (12mm latching) - https://www.amazon.com/dp/B0BXPFW69R
     * 3.7V Lipo battery (4000mAh) - https://www.amazon.com/dp/B0CNLNY597
     * Battery pack (+5V 2.4A max, 8000 mAh) - https://www.walmart.com/ip/onn-8000mAh-Portable-Battery-Power-Bank-with-USB-A-to-C-Charging-Cable-LED-Indicator-Black/5266111773
-    * Enclosure (Pelican Micro Case 1040) - https://www.rei.com/product/778220/pelican-micro-case-1040-with-carabiner
+    * Enclosure - 7.9” x 4.89” x 1.02”
+        * Outdoor Products Large SmartPhone Watertight Phone Case - https://www.dickssportinggoods.com/p/outdoor-products-smartphone-watertight-phone-case-17oprulrgsmrtphnbpas/17oprulrgsmrtphnbpas
     * FALCAM F38 Quick Release - https://www.amazon.com/dp/B0CPPHWW9D
     * Other - 22 & 26 ga wire, heat shrink tubing
 
@@ -180,6 +195,11 @@ The lock averaging process takes place on GhostRover's MCU (not in the UI's Java
 * Base
     * Mini tripod - https://www.amazon.com/dp/B0CQ6WTRW6
     * Laser pointer - https://www.petsmart.com/cat/toys/interactive-and-electronic/whisker-city-thrills-and-chills-laser-cat-toy-84577.html
+
+## Photos
+[&uarr;](#table-of-contents)
+
+ToDo: add photos.
 
 ## Software
 [&uarr;](#table-of-contents) 
@@ -247,6 +267,13 @@ If you make changes to the code, be careful of how functions running independent
 ### FQBN
 * "Sparkfun ESP32-S3 Thing Plus" - ~/Library/Arduino15/packages/esp32/hardware/esp32/3.3.10/boards.txt
 
+## UI snapshots
+[&uarr;](#table-of-contents)
+
+### Operate page
+![operate page - normal display](<docs/operate - normal.png>)
+ToDo: add snapshots.
+
 ## References
 [&uarr;](#table-of-contents) 
 
@@ -276,7 +303,11 @@ If you make changes to the code, be careful of how functions running independent
 * What kinda worked: SW Maps on iPhone. - It seems obvious that the devs for SW Maps prefer Android OS as apposed to IOS. While it works on IOS, I don't think it gets the TLC that the Android version does. So I decided to keep it simple, Android for the UI & Mapping devices, and my iPhone for the internet hot spot.
 * What worked surprisingly well: C-12 point-to-point radios. - It's not like using a set of 1 watt LORA radios (which I might switch to later on), but it was cheap and they worked great. When I began building version 1 of GhostRover, I did a distance test of the radios. I was really surprised. For my application, if I set up a temporary base in a cemetery, chances are good I'll usually be within sight of the base. I even did a field test in the forest where we're doing our historical preservation project, and was amazed at how far I got before they dropped off. So for the cost ($10 for a pair), they're perfect. Besides, I may find I use direct NTRIP connections from either PointPerfect's Flex service or NC CORS (maybe) more often. I'll decide after I start putting it to work in the field.
 * Idea: Add an IMU for heading and tilt corrections. - I'm going to see if I can get by with the ICM-20948 ($20) rather than the IM19 ($200).
+    * 2026-11-04: As of version 3.5.24 I have the ICM-20948 (now discontinued ... sigh) in and working. I didn't end up using the gyro, and I decided to not use the magnetometer (originally intended for heading). Since I knew the IMU was low costs, I decided to take a simple approach (hah) and just use to to plumb the survey pole when locking position and height readings. In the end, it works well. The "bubble level" uI component on the operate page is quite effective and easy to use. And it's probably as accurate as a physical bubble level, but IMO much easier to read & use since its right next to the lock buttons. I like it. It averages out the readings and with some other tricks the bubble appears to move smoothly - like a bubble!
+
 * Idea: 3D print a case. - I started with this case (https://www.sparkfun.com/hand-held-enclosure-abs-plastic.html) for GhostRover version 1. That was when I was using the OLED display. It was small - that's the good and the bad. Not much room for wires. As a result, I was constantly breaking wires/solder joints when I had to get into it. And intermittent loose connections ... it just didn't work. Then I switched to the Pelican Micro Case 1040. That's worked fairly well as I prototyped. Everything fits with room to spare, including the internal LIPO battery. And I can see the board LEDs through the clear case. And when I need to connect a serial USB to the ESP32-S3, I can pop the case open easily. When I'm done, snap the lid and it's waterproof (kinda). That all said, it's not very stylish - and 3D printing is pretty cool. I think I can come up with a better design. For now, the Pelican works, but I think I can do better - especially now that the laser and second ESP32-S3 have been eliminated.
+    * 2026-11-04: I found a thin iPhone style case at Dick's Sporting Goods for $15 and switched to it from the Pelican (see the photos). I like it; I might not hassle with 3D priting a case. Or I might. Time will tell.
+* Claude as a coding partner: As I got to the end of the version 3.5 work (installing the IMU), I decided to try using Claude AI as a coding partner.  
 
 ## To do
 [&uarr;](#table-of-contents)
