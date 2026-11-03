@@ -28,7 +28,7 @@ Last update: 2026-11-03 (V 3.5.24)
 [&uarr;](#table-of-contents) 
 
 
-![Ghost Rover V3.4 - operation diagram](ui/operation.png)
+![Ghost Rover V3.5 - operation diagram](ui/operation.png)
 
 GhostRover is an "invisible" GNSS rover.
 
@@ -66,10 +66,10 @@ The "Config" page is used to manage GhostRover's configuration. Options stored a
 * Units - Meters or standard (not US Survey) feet.
 * RTCM source - Off, Bridge (external NTRIP client), NTRIP (internal NTRIP client), or Radio (base station).
 * GNSS lock interval - The # of seconds to average GNSS position/height readings before fixing for this survey point.
-* Calibrate IMU - The X & Y offests (degrees) to account for IMU not being mounted perfectly level in the enclosure.
+* Calibrate IMU - The X & Y offsets (degrees) to account for IMU not being mounted perfectly level in the enclosure.
 * Instrument height - GhostRover height (APC offset, antenna, quick release, etc) + selectable holding options & preset lengths (or an optional custom length) = total instrument height (always in mm).
 * Generate PVT - Selectable options for GNSS measurement and navigation rates.
-* WiF (STA mode) - SSID & password for the secondary WiFi interface.
+* WiFi (STA mode) - SSID & password for the secondary WiFi interface.
 * Attributes for up to (3) NTRIP casters - ID, name, URL, mount point, port, version (1/2), user, password, CRS (Coordinate Reference System used for RTCM data), flag to send $GGA NMEA sentence to caster.
 * Checkbox - Display WebSocket messages on Chrome Inspect's JS console.
 
@@ -108,18 +108,18 @@ The "Operate" page is used to operate GhostRover. The following is displayed:
 
 When a button is pressed (e.g. lock mode), a blinking lock icon is displayed on the button. The blinking lock icon remains for a length of time (set by a configuration preference) while the received coordinates are averaged. Once averaged, the respective coordinates are frozen and all NMEA messages sent from GhostRover to the mapping software will contain those frozen coordinates (with a new, correctly calculated sentence checksum). During this time GhostRover can be physically moved, but the "spoofed" coordinates used by the mapping software remain frozen. Once the survey point has been recorded and geo-located photos taken, the button can be pressed again to unlock and instantly return to normal operation.
 
-The lock averaging process takes place on GhostRover's MCU (not in the UI's Javascript). It's rather complex and uses a combination of MAD (Median Absolute Deviation) and Welford's online algorithm for running mean/variance. There is a circular buffer for the samples, from which MAD throws out the outliers. The Welford algorithm folds in all non-outliers and accumulates a running mean. I'll try to write up a better explanation summary later, but for now review the code. It's complex, but it's also more accurate than just a standard summation/average of the readings during the lock period. 
+The lock averaging process takes place on GhostRover's MCU (not in the UI's JavaScript). It's rather complex and uses a combination of MAD (Median Absolute Deviation) and Welford's online algorithm for running mean/variance. There is a circular buffer for the samples, from which MAD throws out the outliers. The Welford algorithm folds in all non-outliers and accumulates a running mean. I'll try to write up a better explanation summary later, but for now review the code. It's complex, but it's also more accurate than just a standard summation/average of the readings during the lock period. 
 
 ## Bubble level
 [&uarr;](#table-of-contents)
 
-The operate page contains a bubble level which driven by the accelerometer on the 9DoF IMU breakout board. Rather than calulate tilt offset adjusted position, GhostRover relies on the operator to hold the pole steady and plumb. The bubble level has (5) radial concentric circles spaced at 1 degree intervals. The operator is given realtime visual feedback by the position of the "bubble" within the concentric circles. The SingularXYZ survey pole also has a traditional bubble level (albeit small and hard to read). The bubbble level UI component is immediately to the right of the three lock buttons, making it quite easy to maintian the pole within 1-2 degrees of plumb while locking/averaging the position & height values. This is a low cost (< $20) IMU and not an expensive, super precise IMU like might be used in more expensive GNSS rovers. However, the ICM-20948 seems accurate to about 1 degree with maybe 0.5 degree drift when stationary, so IMO it's a reasonably cost effective choice. Just about any 3DOF accelerometer board should work though (you'll have to account for a difference between IMU libraries).
+The operate page contains a bubble level which is driven by the accelerometer on the 9DoF IMU breakout board. Rather than calculate tilt offset adjusted position, GhostRover relies on the operator to hold the pole steady and plumb. The bubble level has (5) radial concentric circles spaced at 1 degree intervals. The operator is given realtime visual feedback by the position of the "bubble" within the concentric circles. The SingularXYZ survey pole also has a traditional bubble level (albeit small and hard to read). The bubble level UI component is immediately to the right of the three lock buttons, making it quite easy to maintain the pole within 1-2 degrees of plumb while locking/averaging the position & height values. This is a low cost (< $20) IMU and not an expensive, super precise IMU like might be used in more expensive GNSS rovers. However, the ICM-20948 seems accurate to about 1 degree with maybe 0.5 degree drift when stationary, so IMO it's a reasonably cost effective choice. Just about any 3DOF accelerometer board should work though (you'll have to account for a difference between IMU libraries).
 
 ## Hardware
 [&uarr;](#table-of-contents)
 
 ### Rover
-![Ghost Rover V3.4 - wiring diagram](ui/wiring.png)
+![Ghost Rover V3.5 - wiring diagram](ui/wiring.png)
 * MCU board
     * SparkFun Thing Plus ESP32-S3 - https://www.sparkfun.com/sparkfun-thing-plus-esp32-s3.html
 * GNSS board
@@ -187,7 +187,7 @@ The operate page contains a bubble level which driven by the accelerometer on th
     * Magnetic phone/tripod mount (qty 3) - https://www.amazon.com/dp/B0D21RP69C
     * Off-Road LED Light Mounting Bracket (qty 4) - https://www.amazon.com/dp/B0C893CB7C
     * Battery/smartphone holder - https://www.amazon.com/dp/B07S8TTH34
-    * Other - 1/4-10 bolt, washers, nuts, USB-A power cable
+    * Other - 1/4-20 bolt, washers, nuts, USB-A power cable
 * Rover (hold by hand)
     * FALCAM F38 Quick Release - https://www.amazon.com/dp/B0CPPHWW9D
     * Pistol grip handle - https://www.amazon.com/dp/B01FUEXLGU
@@ -225,19 +225,19 @@ The code (C, HTML, CSS, & JS) has _lots_ of comments.
     * Library event handlers
     * Run loop()
 * Docs: Board LED status - What LEDs light up and what they signify.
-* Docs: Instrument height calculations - How the intrument heights were calculated.
+* Docs: Instrument height calculations - How the instrument heights were calculated.
 
 After the Docs sections, the code follows the described order listed in Code organization. Each section (e.g. Include libraries) has a doc-block and descriptions.
 * To understand how the code works, review the "Setup" and "Loop" sections first.
-* Next review the "FreeRTOS functions" and "Library event handlers." In a way these are much like the "Loop" functions (continously looping), but run independent of the main Arduino "Loop."
+* Next review the "FreeRTOS functions" and "Library event handlers." In a way these are much like the "Loop" functions (continuously looping), but run independent of the main Arduino "Loop."
 * Then review the remaining sections and understand where/when they are called by "Setup", "Loop", "FreeRTOS functions", & "Library event handlers."
 * Lastly, review the UI HTML, CSS, and JS files.
 
-Pay special attention to the docblock and comments preceeding processMessagesIn(). This is where most of the action happens. Operational data formatted as JSON KV pairs is exchanged between GhostRover and the UI device over WebSockets. Many of the data elements use an integer number as a proxy for the var name. This was done to keep packet sizes minimal during frequent data exchanges between GhostRover and the UI. The JSON key idex is listed in the comments as well as the general protocol exchange for each UI page.
+Pay special attention to the docblock and comments preceding processMessagesIn(). This is where most of the action happens. Operational data formatted as JSON KV pairs is exchanged between GhostRover and the UI device over WebSockets. Many of the data elements use an integer number as a proxy for the var name. This was done to keep packet sizes minimal during frequent data exchanges between GhostRover and the UI. The JSON key index is listed in the comments as well as the general protocol exchange for each UI page.
 
 Debug can be initiated from either a serial USB command line prompt or the "Debug" UI page. Both act the same. Messages are displayed on the serial USB line if one is connected, as well as recorded to the UI file "log.txt" created at each boot and saved on the micro SD disk. Debug can be toggled on and off.
 
-A nice trick is to use a VSC Live Server extension and run GhostRover's web UI on the dev machine (the one you're using VSC on) instead of running it on the actual UI device. Browse to 127.0.0.1:5500/ui instead of 192.168.23.1 and you can try out code, debug JS with Chrome Inspect, and make changes on the fly. The only thing you can't do is upload a file from your dev machine to GhostRover's SD card (think about it). You have to be connected to GhostRover's web server (192.168.23.1) to do that. You can also the same UI page at the same time on different devices, say one on your dev machine and one on the actual UI device. This can really help with debugging. Remember though, once you have the final code, you need to save it to GhostRover's micro SD card using the drag & drop feature on the "Files" UI page.
+A nice trick is to use a VSC Live Server extension and run GhostRover's web UI on the dev machine (the one you're using VSC on) instead of running it on the actual UI device. Browse to 127.0.0.1:5500/ui instead of 192.168.23.1 and you can try out code, debug JS with Chrome Inspect, and make changes on the fly. The only thing you can't do is upload a file from your dev machine to GhostRover's SD card (think about it). You have to be connected to GhostRover's web server (192.168.23.1) to do that. You can also view the same UI page at the same time on different devices, say one on your dev machine and one on the actual UI device. This can really help with debugging. Remember though, once you have the final code, you need to save it to GhostRover's micro SD card using the drag & drop feature on the "Files" UI page.
 
 If you make changes to the code, be careful of how functions running independently (loop, FreeRTOS, & library) can affect one another. Using flags can help minimize unplanned function-to-function interactions.
 
@@ -348,25 +348,64 @@ If you make changes to the code, be careful of how functions running independent
 ## Thoughts
 [&uarr;](#table-of-contents) 
 
-#### 2026-10-06
-* BLE vs TCP - I changed from BLE to TCP/IP for NMEA relay since the BleSerial library is a space pig (see GNSS Master). I don't understand why a block data protocol like Bluetooth is considered defacto when TCP streams are designed for guaranteed and ordered streaming data.
-* What didn't work: Displays. - This is the third major instantiation of GhostRover. The first two versions used a Sparkfun 1.3in., 128x64 OLED display (https://www.sparkfun.com/sparkfun-qwiic-oled-1-3in-128x64.html) instead of the web based UI. In direct sunlight, it was impossible to read. And the amount of data you could present was limited. And the characters were tiny. And I had several of them just mysteriously die. It didn't work. I also tried a Samsung Android tablet, but it was barely visible in direct sunlight and cumbersome. So I finally figured out I could buy two cheap, locked Android phones at Walmart and just never use the cell service. They seem to have pretty good visibility in direct sunlight. Plus good battery life. Plus a nice amount of display real estate. So I can get lots of stuff on the UI device, and run the mapping software on the other phone.
+#### 2026-10-06 - Post project
+* BLE vs TCP - I changed from BLE to TCP/IP for NMEA relay since the BleSerial library is a space pig (see GNSS Master). I don't understand why a block data protocol like Bluetooth is considered de facto when TCP streams are designed for guaranteed and ordered streaming data.
+* What didn't work: Displays. - This is the third major instantiation of GhostRover. The first two versions used a SparkFun 1.3in., 128x64 OLED display (https://www.sparkfun.com/sparkfun-qwiic-oled-1-3in-128x64.html) instead of the web based UI. In direct sunlight, it was impossible to read. And the amount of data you could present was limited. And the characters were tiny. And I had several of them just mysteriously die. It didn't work. I also tried a Samsung Android tablet, but it was barely visible in direct sunlight and cumbersome. So I finally figured out I could buy two cheap, locked Android phones at Walmart and just never use the cell service. They seem to have pretty good visibility in direct sunlight. Plus good battery life. Plus a nice amount of display real estate. So I can get lots of stuff on the UI device, and run the mapping software on the other phone.
 * What didn't work: Hand held operation. - Originally I built GhostRover as a handheld unit. I also included a laser pointer and provided a button on the UI. The idea was I could eliminate a survey pole by just holding the unit over my target (like a cemetery headstone), center it using the laser, and then go into lock & record mode. Well, that also went by the wayside. The laser too was hampered by bright sunlight, and while I played with changes that made it incrementally brighter, ultimately it wasn't bright enough. Add in the fact that operation now required 3 additional devices (UI device, Mapping device, and internet hot spot device) - and it got to be a bit ungainly. In fact, with the "UFO" antenna, the clear oblong case, and a device (UI & mapping) mounted on each side of the case, it looked like a mini Starship Enterprise! Hah. So I ditched the idea of a handheld only device and went with a survey pole. This lets me attach the rover to the top of the pole, but still quickly remove it via the FALCAM F38 quick release if/when I need to. And all 3 of the devices (plus an optional mount for a 5V battery pack) attach to the pole but are also quickly removable. It's a bit bigger now, but I think the change is going to be worth it.
-* What worked but was a PITA: BLE. - Originally I used BLE to send NMEA from GhostRover to SW Maps. The BLE library sucked so much memory that I was afraid I wouldn't have enough left for my application. The SparkFun guys manage it with one MCU, but I decided I'd use two: one for the main GhostRover functions, and the second for just BLE. Get NMEA in from the GNSS module over I2C1, and send out over I2C2 to the dedicated ESP32-S3 for BLE. That worked, but added more wires and also more complexity. I'm not an ESP32 memory management guru like they are, so I stepped back and thought about it. And I found the GNSS Master Android app which supported TCP/IP. I was already running TCP on GhostRover for teh web interface, so it was super simple to spin it up for NMEA. Works like a dream. So ultimately I was able to get down just to one ESP32-S3 (my favorite) and eliminate I2C2 as well as some cables. So far, so good. GNSS Master also has a built in NTRIP client - so I adapted GhostRover to use either it (external) or an NTRIP client running directly on the MCU (internal). Both seem to work well. We'll see which one I end up using the most.
-* What kinda worked: SW Maps on iPhone. - It seems obvious that the devs for SW Maps prefer Android OS as apposed to IOS. While it works on IOS, I don't think it gets the TLC that the Android version does. So I decided to keep it simple, Android for the UI & Mapping devices, and my iPhone for the internet hot spot.
-* What worked surprisingly well: C-12 point-to-point radios. - It's not like using a set of 1 watt LORA radios (which I might switch to later on), but it was cheap and they worked great. When I began building version 1 of GhostRover, I did a distance test of the radios. I was really surprised. For my application, if I set up a temporary base in a cemetery, chances are good I'll usually be within sight of the base. I even did a field test in the forest where we're doing our historical preservation project, and was amazed at how far I got before they dropped off. So for the cost ($10 for a pair), they're perfect. Besides, I may find I use direct NTRIP connections from either PointPerfect's Flex service or NC CORS (maybe) more often. I'll decide after I start putting it to work in the field.
+* What worked but was a PITA: BLE. - Originally I used BLE to send NMEA from GhostRover to SW Maps. The BLE library sucked so much memory that I was afraid I wouldn't have enough left for my application. The SparkFun guys manage it with one MCU, but I decided I'd use two: one for the main GhostRover functions, and the second for just BLE. Get NMEA in from the GNSS module over I2C1, and send out over I2C2 to the dedicated ESP32-S3 for BLE. That worked, but added more wires and also more complexity. I'm not an ESP32 memory management guru like they are, so I stepped back and thought about it. And I found the GNSS Master Android app which supported TCP/IP. I was already running TCP on GhostRover for the web interface, so it was super simple to spin it up for NMEA. Works like a dream. So ultimately I was able to get down just to one ESP32-S3 (my favorite) and eliminate I2C2 as well as some cables. So far, so good. GNSS Master also has a built in NTRIP client - so I adapted GhostRover to use either it (external) or an NTRIP client running directly on the MCU (internal). Both seem to work well. We'll see which one I end up using the most.
+* What kinda worked: SW Maps on iPhone. - It seems obvious that the devs for SW Maps prefer Android OS as opposed to iOS. While it works on IOS, I don't think it gets the TLC that the Android version does. So I decided to keep it simple, Android for the UI & Mapping devices, and my iPhone for the internet hot spot.
+* What worked surprisingly well: HC-12 point-to-point radios. - It's not like using a set of 1 watt LoRa radios (which I might switch to later on), but it was cheap and they worked great. When I began building version 1 of GhostRover, I did a distance test of the radios. I was really surprised. For my application, if I set up a temporary base in a cemetery, chances are good I'll usually be within sight of the base. I even did a field test in the forest where we're doing our historical preservation project, and was amazed at how far I got before they dropped off. So for the cost ($10 for a pair), they're perfect. Besides, I may find I use direct NTRIP connections from either PointPerfect's Flex service or NC CORS (maybe) more often. I'll decide after I start putting it to work in the field.
 * Idea: Add an IMU for heading and tilt corrections. - I'm going to see if I can get by with the ICM-20948 ($20) rather than the IM19 ($200).
-    * 2026-11-04: As of version 3.5.24 I have the ICM-20948 (now discontinued ... sigh) in and working. I didn't end up using the gyro, and I decided to not use the magnetometer (originally intended for heading). Since I knew the IMU was low costs, I decided to take a simple approach (hah) and just use to to plumb the survey pole when locking position and height readings. In the end, it works well. The "bubble level" uI component on the operate page is quite effective and easy to use. And it's probably as accurate as a physical bubble level, but IMO much easier to read & use since its right next to the lock buttons. I like it. It averages out the readings and with some other tricks the bubble appears to move smoothly - like a bubble!
+    * 2026-11-03: As of version 3.5.24 I have the ICM-20948 (now discontinued ... sigh) in and working. I didn't end up using the gyro, and I decided to not use the magnetometer (originally intended for heading). Since I knew the IMU was low cost, I decided to take a simple approach (hah) and just use it to plumb the survey pole when locking position and height readings. In the end, it works well. The "bubble level" UI component on the operate page is quite effective and easy to use. And it's probably as accurate as a physical bubble level, but IMO much easier to read & use since it's right next to the lock buttons. I like it. It averages out the readings and with some other tricks the bubble appears to move smoothly - like a bubble!
 
 * Idea: 3D print a case. - I started with this case (https://www.sparkfun.com/hand-held-enclosure-abs-plastic.html) for GhostRover version 1. That was when I was using the OLED display. It was small - that's the good and the bad. Not much room for wires. As a result, I was constantly breaking wires/solder joints when I had to get into it. And intermittent loose connections ... it just didn't work. Then I switched to the Pelican Micro Case 1040. That's worked fairly well as I prototyped. Everything fits with room to spare, including the internal LIPO battery. And I can see the board LEDs through the clear case. And when I need to connect a serial USB to the ESP32-S3, I can pop the case open easily. When I'm done, snap the lid and it's waterproof (kinda). That all said, it's not very stylish - and 3D printing is pretty cool. I think I can come up with a better design. For now, the Pelican works, but I think I can do better - especially now that the laser and second ESP32-S3 have been eliminated.
-    * 2026-11-04: I found a thin iPhone style case at Dick's Sporting Goods for $15 and switched to it from the Pelican (see the photos). I like it; I might not hassle with 3D priting a case. Or I might. Time will tell.
-* Claude as a coding partner: As I got to the end of the version 3.5 work (installing the IMU), I decided to try using Claude AI as a coding partner.  
+
+* I found a thin iPhone style case at Dick's Sporting Goods for $15 and switched to it from the Pelican (see the photos). I like it; I might not hassle with 3D printing a case. Or I might. Time will tell.
+
+#### 2026-11-03 - Claude as a coding partner
+
+* As I got to the end of the version 3.5 work (installing the IMU), I decided to try using Claude AI as a coding partner. At first I let Claude suggest snippets of code which I reviewed, tweaked, then added. I'd say 95% of the code in 3.5.24 is mine. However, as I kept using Claude I was absolutely blown away at its (his?) ability to debug the code and find incredibly obscure yet fatal errors. Increasing I began to trust his (ok - I'll use his for now) judgement. Eventually I used his suggestions as-is, especially when it came to the GNSS locking algorithms and the averaging algorithms. I'm not a pro Arduino coder, in fact this was my first major Arduino project (3.5.24 represents the 4th generation of Ghost Rover). Claude was an incredible help for deciphering library calls and especially when I got into using mutexes and isolating thread-buffer overwrites. After wrapping up the IMU add, I asked Claude to review the whole project (C, html, CSS, & JS files) and to make some cleanup suggestions. He generated a list of about 20 which I pared down to 15 or so. Some were substantial improvements, some were nit-picking tweaks. I did feel they all were good, but as we progressed through the list, I'd let Claude describe why the cleanup was necessary, generate a git patch, apply the patch & test, then commit the changes and sync the new version from my local copy of the repository up to GitHub. I did feel I had to push back sometimes, he got a bit presumptive. But push back on a few suggestions and he started to fall back in line as a coding partner - not a team lead. Once while debugging why the IMU kept locking up, he really got into the weeds. Deeper than I thought made sense; but I let him go - just to see where we'd end up. Eventually, I made some physical cabling changes and (funny) the problem disappeared. I backed out his 6 or so diagnostic patches, and told him. He was like "Oh, ok. Physical problem. Moving on now ..." Argh. So lesson learned, give him some rope, but hold back implicit trust and judgement. At least for now. But like other devs I've followed, we all tend to come to the same conclusion (as of late 2026).
+
+#### 2026-11-03 - Claude's review
+* Claude's review: Finally, I did ask Claude to review version 3.5.24 and make some "high level" suggestions for what might be a cleaner architecture. You have to realize, I've gone from novice Arduino guy to understanding FreeRTOS (somewhat) and making a pretty big piece of code work. Along the way, the code has evolved. Like any dev would say, it's never done and can always be redone better the next time. Live and learn. For now, I'm going to settle with the current structure, but here was what Claude suggested might be a set of next steps.
+
+    #### Claude's comments
+
+    "... I’ll ground this in the actual code rather than from memory of our patch work. First: the project notes, the repo layout, and the shape of the sketch and the UI. ... I have the stated requirements from the README. Now I’ll measure the sketch’s actual structure: section sizes, the biggest functions, global-state counts, and how the browser protocol is dispatched. ... The big decisions were right, and I don’t see a case for a rewrite. The weaknesses are about structure: where things live and how many places one change touches. They are cheap to describe and mostly not worth retrofitting into a working 3.5.24.
+
+    ##### What I’d keep
+
+    * The browser as the display: The UI runs on a cheap phone, and its files live on the SD card. It’s plain HTML and JS with no framework, and your README explains why the OLED, tablet and BLE two-board versions lost. Heavy math (UTM and ECEF) stays in the browser, in operate.js.
+    * Lock averaging and NMEA rewriting on the MCU: The mapping app has to see frozen coordinates whether or not the UI phone is connected.
+    * A dedicated RTCM task on core 0 and a queue for incoming WebSocket messages: Both fixed real crashes, and both are the right pattern. One flat sketch with a fixed section order. That is idiomatic Arduino and easy to navigate.
+
+    ##### What I’d do differently
+
+    * Separate “GNSS engine” from “UI data”. I confirmed this in the code: taskBuildOperData calls buildOperData(), which calls roverGNSS.getPVT(). That call pumps the receiver data and fires processNMEA, which forwards NMEA over TCP and applies the lock substitution. So your product’s primary output is driven by a task named for building browser data.
+
+    * The lock averaging sits in buildOperData() after an early return unless the browser is on the “operate” page. As far as I can tell, averaging would pause if the phone leaves that page or its screen locks mid-average. NMEA output would continue, because getPVT() runs before the check. I haven’t tested that. It’s worth checking in the field. A cleaner shape is one GNSS task that owns the receiver, NMEA out and lock state, and publishes a snapshot. The UI task would only read that snapshot.
+
+    * Table-driven preferences. Take prfLckAvgInt as the example. It appears in about 13 places in the sketch and about 15 lines across three UI files, and the sketch has about 20 preferences and 44 numeric JSON keys. A table of {NVS name, JSON key, type, pointer, default, min, max} would turn “add a preference” into one line. It would also remove a class of drift we hit in this review: stale char[6] comments, and clamp rules that differed between PREF_READ and setPrefsValid().
+
+    * A command table instead of a 600-line processMessagesIn(). Use an array of {key, handler} with one small function per command, about 21 of them. This is the biggest debugging aid, because most of the action happens in that one function.
+
+    * Readable JSON keys. Numeric keys like "52" save little. By the buffer sizes in the code, the periodic message is about 1 KB at 5 Hz, which is a few KB/s over local WiFi. Names like lckAvg would be far easier to debug. I haven’t measured the packets, so treat that as an estimate.
+
+    * Split the sketch into tabs. Put prefs, GNSS/NMEA/lock, NTRIP/RTCM, web, and IMU in separate files in the same folder. Arduino concatenates them into one build, so it changes no behavior. It mainly gives you smaller diffs and easier navigation. Verify the build order once.
+
+    * On the UI side, global.js (about 1,070 lines) mixes WebSocket plumbing with message handling for several pages, and one handler runs roughly 500 lines. Moving page-specific handling into each page’s JS would make it more modular.
+
+    * Smaller items: the “every N ms” tasks group unrelated duties by period instead of by purpose, and the many shared globals and flags across seven tasks are what caused the outputBuffer race. A simple ownership rule would help: each subsystem writes its own state, and others read published snapshots.
+
+    ##### What I would NOT do differently
+
+    * No classes, no event bus, no RTOS frameworks, no rewrite. Your plain C style fits this project.
 
 ## To do
 [&uarr;](#table-of-contents)
 
-* GhostRover is an evolving project. As of 2026-10-06, it's ready for testing, verification, and production use.
-* Add SparkFun 9DoF IMU Breakout ICM-20948 (Qwiic) - https://www.sparkfun.com/sparkfun-9dof-imu-breakout-icm-20948-qwiic.html
+* GhostRover is an evolving project. As of 2026-11-03, it's ready for testing, verification, and use in the field.
+* <s>Add SparkFun 9DoF IMU Breakout ICM-20948 (Qwiic) - https://www.sparkfun.com/sparkfun-9dof-imu-breakout-icm-20948-qwiic.html</s>
 
 ## Bug fixes
 [&uarr;](#table-of-contents)
